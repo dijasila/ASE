@@ -1,5 +1,5 @@
 from __future__ import division
-from math import sqrt
+from math import sqrt, sin, cos
 from warnings import warn
 from ase.geometry import find_mic, wrap_positions
 from ase.calculators.calculator import PropertyNotImplementedError
@@ -11,7 +11,7 @@ __all__ = ['FixCartesian', 'FixBondLength', 'FixedMode', 'FixConstraintSingle',
            'FixAtoms', 'UnitCellFilter', 'ExpCellFilter', 'FixScaled', 'StrainFilter',
            'FixCom', 'FixedPlane', 'Filter', 'FixConstraint', 'FixedLine',
            'FixBondLengths', 'FixLinearTriatomic', 'FixInternals', 'Hookean',
-           'ExternalForce', 'MirrorForce', 'MirrorTorque']
+           'ExternalForce', 'MirrorForce', 'MirrorTorque', 'FIRES']
 
 
 def dict2constraint(dct):
@@ -2294,3 +2294,164 @@ class ExpCellFilter(UnitCellFilter):
 
     def __len__(self):
         return (len(self.atoms) + 3)
+
+class FIRES(FixConstraint):
+    """ Flexible Inner Region Ensemble Separator.
+        From 10.1021/ct300091w
+        """
+
+    ''' CLASS CONSTRUCTOR '''
+    def __init__(self, mol_idx, sol_idx, k, apm=3, push_idx=0, output_name=None):
+
+        self.mol_idx = mol_idx      # indices of all solute atoms/molecules (here: K+)
+        self.solinner_idx = sol_idx # indices of solvent molecules within r_inner
+        self.k = k                  # float; spring force repulsion in FIRES
+        self.apm = apm              # how many atoms per solvent molecule (here: 3 for H2O)
+        self.push_idx = push_idx    # which atom in solvent molecule to push (here: O in H2O)
+
+        self.r_inner = None         # flexible inner boundary radius, i.e. QM region
+        self.inner_mask = None      # mask for all atoms within inner region
+        self.solv_mask = None       # mask for all solvent molecules
+                                    # -> contains all atoms except central ion
+
+        '''
+            solvent molecules in outside (MM) region are determined as the
+            difference between solv_mask and inner_mask
+        '''
+
+
+    ''' some bookkeeping methods '''
+    def get_indices(self):
+        return np.where(self.solv_mask & ~self.inner_mask)[0]
+
+    def __repr__(self):
+        return 'FIRES'
+
+
+    ''' FIRES constaint does not propagate positions or forces, so keep empty '''
+    def adjust_positions(self, atoms, newpositions):
+        pass
+
+    def adjust_forces(self, atoms, forces):
+        pass
+
+
+    '''
+       ---  actual FIRES algorithm begins here ----
+        update: checks if any atoms are inside the flexible boundary region; returns array with distances from the COM
+                for all atoms
+        adjust_momenta: will push away approaching outer solvent molecules by reflecting momentum vectors
+    '''
+
+
+    ''' method that updates r_inner '''
+    def update(self, org_atoms):
+
+        atoms = org_atoms.copy()                # do not overwrite original atom object
+        atoms.constraints = []                  # deletes all previous constraints
+
+        inner_mask = np.zeros(len(atoms),bool)
+        inner_mask[self.solinner_idx] = True    # all inner solvent molecules = True
+
+        solv_mask = np.ones(len(atoms),bool)
+        solv_mask[self.mol_idx] = False         # all molecules except SOLUTE = True
+
+        ''' calculate center of mass of SOLUTE '''
+        c = atoms[self.mol_idx].get_center_of_mass()
+
+        '''
+            calculate center of mass for each solvent molecule,
+            build array with COM distances for all atoms (zeroes for solute)
+        '''
+
+        # this just looks needlessly complicated, there must be an easier way to sift through the molecules
+        p = np.zeros((len(atoms), 3))
+        p[solv_mask] = np.repeat(np.vstack([mol.get_center_of_mass() for mol in [atoms[solv_mask][a:a + self.apm] for a in range(0, len(atoms[solv_mask]), self.apm)]]), self.apm, axis=0)
+
+        p[~solv_mask] = c    # inverted solv_mask -> solute!
+
+        ''' find minimum-image convention (MIC) of distance vectors across PBCs '''
+        r, d = find_mic(p - c, atoms.cell, atoms.pbc) # I THINK r is vector and d is its length, not 100 % sure
+        r_inner = max(d[inner_mask])
+        # -> r_inner defined by largest COM distance of QM solvent molecules
+        self.idx_inner = np.argmax(d[inner_mask | ~ solv_mask])
+
+        self.r_inner = r_inner
+        self.inner_mask = inner_mask
+        self.solv_mask = solv_mask
+
+        return r, d
+
+
+    def norm(self, x):
+        # einsum approx 4x faster then linalg.norm
+        return np.sqrt(np.einsum('i,i', x, x))
+
+    def normalize(self, x):
+        return x / self.norm(x)
+
+    def project_onto_plane(self, x, n):
+        '''
+            x: vector, n: plane
+        '''
+        d = np.dot(x, n) / self.norm(n)
+        p = [d * self.normalize(n)[i] for i in range(len(n))]
+        return [x[i] - p[i] for i in range(len(x))]
+
+
+    def rotation_matrix(self, axis, theta):
+        '''
+            Return the rotation matrix associated with counterclockwise rotation about
+            the given axis by theta radians.
+            (Euler-Rodrigues formula, stolen from stackoverflow.com/questions/6802577)
+        '''
+        axis = np.asarray(axis)
+        axis = self.normalize(axis)
+        a = cos(theta / 2.0)
+        b, c, d = -axis * sin(theta / 2.0)
+        aa, bb, cc, dd = a * a, b * b, c * c, d * d
+        bc, ad, ac, ab, bd, cd = b * c, a * d, a * c, a * b, b * d, c * d
+        return np.array([[aa + bb - cc - dd, 2 * (bc + ad), 2 * (bd - ac)],
+                         [2 * (bc - ad), aa + cc - bb - dd, 2 * (cd + ab)],
+                         [2 * (bd + ac), 2 * (cd - ab), aa + dd - bb - cc]])
+
+
+    def adjust_momenta(self, atoms, momenta):
+        '''
+            reflect H2O (by way of affecting O) on the sphere spanned by r_inner
+        '''
+        r, d = self.update(atoms)
+        momenta_before = momenta # bookkeeping for fires_log class
+        outer_solvent = np.where(self.solv_mask & ~self.inner_mask)[0]
+
+        for i in outer_solvent[self.push_idx::self.apm]:# start from push_idx, jump by self.apm (here: 3)
+            # ToDo: mess with time propagation to hit the barrier exactly
+            diff = d[i] - self.r_inner
+            if diff < 0:
+                # check if momenta[i] and r[i] face in the same direction;
+                # note that r[i] faces towards the solvent molecule
+                check = np.dot(momenta[i], (-1)*r[i])
+                if check < 0:
+                     # if not, don't do anything (molecule on its way out)
+                    continue
+
+                else:
+                    # project momenta[i] onto plane defined by r[i] as orthogonal vector
+                    r_proj = self.project_onto_plane(momenta[i], r[i])
+
+                    # mirror momenta[i] vector on projected, perpendicular, normalized  r vector
+                    # (i.e. rotate by 180 degrees or 1 pi)
+                    # normalization is done within rotation_matrix(), so simply axis = r_proj
+                    momentum_redirected = np.dot(self.rotation_matrix(r_proj, np.pi), momenta[i])
+
+                    # overwrite old momentum
+                    momenta[i] = momentum_redirected
+
+        # abusing Asmus' fires_log class, need to make that consistent at some point
+        self.a_forces = momenta[i] - momenta_before
+
+    def adjust_potential_energy(self, atoms):
+        # not necessary anymore since reflection should conserve energy
+        a_energy = 0.
+
+        return a_energy
