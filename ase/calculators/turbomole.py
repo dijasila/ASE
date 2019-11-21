@@ -115,19 +115,19 @@ class TurbomoleProfile:
     pseudo_path = None
 
     def available(self) -> bool:
-        """Check if the Turbomole ``define`` module is available by checking"""
-        try:
-            self.get_version()
-        except OSError:
-            return False
-        return True
+        """Turbomole requires the environment variable TURBODIR to be set,
+        if this is not the case, we assume Turbomole is not installed."""
+        return 'TURBODIR' in os.environ
 
     def get_version(self) -> str:
         """Parse version by running the Turbomole ``define`` module, will
         raise OSError if ``define`` is not found."""
-        define_out = execute(self.command, 'qq', False, False)
-        istart = define_out.index('TURBOMOLE')
-        return define_out[istart:].split('\n')[0]
+        if self.available():
+            define_out = execute(self.command, 'qq', False, False)
+            istart = define_out.index('TURBOMOLE')
+            return define_out[istart:].split('\n')[0]
+        else:
+            raise NotImplementedError("Turbomole is not installed.")
 
 
 class TurbomoleOptimizer:
