@@ -108,6 +108,28 @@ def delete_data_group(data_group):
     execute(command, error_test=False, stdout_tofile=False)
 
 
+class TurbomoleProfile:
+    """Installation profile of the Turbomole program package."""
+    name = 'turbomole'
+    command = 'define'
+    pseudo_path = None
+
+    def available(self) -> bool:
+        """Check if the Turbomole ``define`` module is available by checking"""
+        try:
+            self.get_version()
+        except OSError:
+            return False
+        return True
+
+    def get_version(self) -> str:
+        """Parse version by running the Turbomole ``define`` module, will
+        raise OSError if ``define`` is not found."""
+        define_out = execute(self.command, 'qq', False, False)
+        istart = define_out.index('TURBOMOLE')
+        return define_out[istart:].split('\n')[0]
+
+
 class TurbomoleOptimizer:
     def __init__(self, atoms, calc):
         self.atoms = atoms
