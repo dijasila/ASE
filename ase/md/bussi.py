@@ -6,31 +6,38 @@ from ase.md.md import MolecularDynamics
 from ase.parallel import world
 
 
-def sumnoises(rng, nn):
+def sumnoises(nn):
+    """Sum of nn noises."""
     if nn == 0:
         return 0.
     elif nn % 2 == 0:
         return 2 * np.random.gamma(nn / 2, 1.)
     else:
-        rr = np.random.gaussian(scale=1.)
+        rr = np.random.normal(scale=1.)
         return 2 * np.random.gamma((nn - 1) / 2, 1.) + rr**2
 
 
-def resamplekin(rng, kk, sigma, ndeg, taut):
-    """Bussi2007
-        kk:     present value of the kinetic energy of the atoms to be
-                thermalized (in arbitrary units)
-        sigma:  target average value of the kinetic energy (ndeg k_b T/2)
-                (in the same units as kk)
-        ndeg:   number of degrees of freedom of the atoms to be thermalized
-        taut:   relaxation time of the thermostat, in units of 'how often this
-                routine is called'
+def resamplekin(kk, sigma, ndeg, taut):
+    """Resample the kinetic energy.
+
+    Args:
+        kk
+            present value of the kinetic energy of the atoms to be thermalized
+            (in arbitrary units)
+        sigma
+            target average value of the kinetic energy (ndeg k_b T/2)
+            (in the same units as kk)
+        ndeg
+            number of degrees of freedom of the atoms to be thermalized
+        taut
+            relaxation time of the thermostat, in units of 'how often this
+            routine is called'
     """
     if taut > 0.1:
         factor = math.exp(-1. / taut)
     else:
         factor = 0.
-    rr = np.random.gaussian(scale=1.)
+    rr = np.random.normal(scale=1.)
     return (
         kk +
         (1. - factor) * (sigma * (sumnoises(ndeg - 1) + rr**2) / ndeg - kk) +
@@ -39,7 +46,7 @@ def resamplekin(rng, kk, sigma, ndeg, taut):
 
 
 class Bussi(MolecularDynamics):
-    """Bussi (constant N, V, T) molecular dynamics.
+    """Bussi stochastic velocity rescaling (NVT) molecular dynamics.
 
     Usage: Bussi(atoms, timestep, temperature, taut, fixcm)
 
@@ -90,14 +97,20 @@ class Bussi(MolecularDynamics):
     def scale_velocities(self):
         """ Do the NVT Bussi stochastic velocity scaling """
         kenergy = self.atoms.get_kinetic_energy()
+        # initialize velocities if kinetic energy is zero; the scaling factor
+        # would be infinite otherwise
+        if kenergy < 1e-12:
+            self.atoms.set_velocities(
+                1e-3 * np.random.random((len(self.atoms), 3)))
+            kenergy = self.atoms.get_kinetic_energy()
         ndims = 3  # ?
         ndeg = len(self.atoms) * ndims - ndims
 
         new_kenergy = resamplekin(
             kenergy, 0.5 * self.temperature * ndeg, ndeg, self.taut / self.dt)
         scl_temperature = math.sqrt(new_kenergy / kenergy)
-        print("Bussi old", kenergy, "new", new_kenergy,
-              "scaling temperature by", scl_temperature)
+        # print("Bussi old", kenergy, "new", new_kenergy,
+        #       "scaling temperature by", scl_temperature)
 
         p = self.atoms.get_momenta()
         p = scl_temperature * p
