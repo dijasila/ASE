@@ -74,7 +74,7 @@ class Dynamics:
         if loginterval is not None:
             self.loginterval = loginterval
         else:
-            self.logfile = 1
+            self.loginterval = 1
 
         if trajectory is not None:
             if isinstance(trajectory, str):
@@ -115,7 +115,7 @@ class Dynamics:
             d = self.todict()
             d.update(interval=interval)
             function.set_description(d)
-        if callable(function):
+        if not callable(function):
             function = function.write
         self.observers.append((function, interval, args, kwargs))
 
@@ -247,7 +247,7 @@ class Optimizer(Dynamics):
             self,
             atoms,
             logfile,
-            trajectory,
+            trajectory=trajectory,
             append_trajectory=append_trajectory,
             master=master,
         )
