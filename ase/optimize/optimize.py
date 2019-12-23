@@ -16,7 +16,12 @@ class Dynamics:
     """Base-class for all MD and structure optimization classes."""
 
     def __init__(
-        self, atoms, logfile, trajectory, append_trajectory=False, master=None
+        self,
+        atoms,
+        logfile,
+        trajectory=None,
+        append_trajectory=False,
+        master=None,
     ):
         """Dynamics object.
 

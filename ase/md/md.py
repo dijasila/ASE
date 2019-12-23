@@ -10,7 +10,7 @@ from ase.io.trajectory import Trajectory
 
 class MolecularDynamics(Dynamics):
     """Base-class for all MD classes."""
-    def __init__(self, atoms, timestep, trajectory, logfile=None,
+    def __init__(self, atoms, timestep, trajectory=None, logfile=None,
                  loginterval=1, append_trajectory=False):
 
         # dt as to be attached _before_ parent class is initialized
