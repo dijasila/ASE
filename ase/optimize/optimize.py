@@ -22,6 +22,7 @@ class Dynamics:
         trajectory=None,
         append_trajectory=False,
         master=None,
+        loginterval=None,
     ):
         """Dynamics object.
 
@@ -48,6 +49,9 @@ class Dynamics:
         master: boolean
             Defaults to None, which causes only rank 0 to save files.  If
             set to true,  this rank will save files.
+
+        loginterval: int
+            Interval used to log to trajectory (default: 1).
         """
 
         self.atoms = atoms
@@ -66,6 +70,11 @@ class Dynamics:
         self.nsteps = 0
         # maximum number of steps placeholder with maxint
         self.max_steps = 100000000
+
+        if loginterval is not None:
+            self.loginterval = loginterval
+        else:
+            self.logfile = 1
 
         if trajectory is not None:
             if isinstance(trajectory, str):
@@ -86,7 +95,7 @@ class Dynamics:
             function = function.write
         self.observers.insert(position, (function, interval, args, kwargs))
 
-    def attach(self, function, interval=1, *args, **kwargs):
+    def attach(self, function, interval=None, *args, **kwargs):
         """Attach callback function.
 
         If *interval > 0*, at every *interval* steps, call *function* with
@@ -94,13 +103,19 @@ class Dynamics:
 
         If *interval <= 0*, after step *interval*, call *function* with
         arguments *args* and keyword arguments *kwargs*.  This is
-        currently zero indexed."""
+        currently zero indexed.
+
+        If *interval is None*, use `self.loginterval` as interval (default=1)
+        """
+
+        if interval is None:
+            interval = self.loginterval
 
         if hasattr(function, "set_description"):
             d = self.todict()
             d.update(interval=interval)
             function.set_description(d)
-        if not hasattr(function, "__call__"):
+        if callable(function):
             function = function.write
         self.observers.append((function, interval, args, kwargs))
 
