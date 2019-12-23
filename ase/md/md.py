@@ -5,18 +5,18 @@ import numpy as np
 
 from ase.optimize.optimize import Dynamics
 from ase.md.logger import MDLogger
-from ase.io.trajectory import Trajectory
 
 
 class MolecularDynamics(Dynamics):
     """Base-class for all MD classes."""
     def __init__(self, atoms, timestep, trajectory=None, logfile=None,
-                 loginterval=1, append_trajectory=False):
+                 loginterval=None, append_trajectory=False):
 
         # dt as to be attached _before_ parent class is initialized
         self.dt = timestep
 
-        Dynamics.__init__(self, atoms, logfile=None, trajectory=None)
+        Dynamics.__init__(self, atoms, logfile=None,
+                          trajectory=trajectory, loginterval=loginterval)
 
         self.masses = self.atoms.get_masses()
         self.max_steps = None
@@ -31,17 +31,9 @@ class MolecularDynamics(Dynamics):
         if not self.atoms.has('momenta'):
             self.atoms.set_momenta(np.zeros([len(self.atoms), 3]))
 
-        # Trajectory is attached here instead of in Dynamics.__init__
-        # to respect the loginterval argument.
-        if trajectory is not None:
-            if isinstance(trajectory, str):
-                mode = "a" if append_trajectory else "w"
-                trajectory = Trajectory(trajectory, mode=mode, atoms=atoms)
-            self.attach(trajectory, interval=loginterval)
-
+        # Attach MD logger
         if logfile:
-            self.attach(MDLogger(dyn=self, atoms=atoms, logfile=logfile),
-                        interval=loginterval)
+            self.attach(MDLogger(dyn=self, atoms=atoms, logfile=logfile))
 
     def todict(self):
         return {'type': 'molecular-dynamics',
