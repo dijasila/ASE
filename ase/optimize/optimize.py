@@ -98,14 +98,14 @@ class Dynamics:
     def attach(self, function, interval=None, *args, **kwargs):
         """Attach callback function.
 
-        If *interval > 0*, at every *interval* steps, call *function* with
-        arguments *args* and keyword arguments *kwargs*.
+        If `interval > 0`, at every `interval` steps, call `function` with
+        arguments `args` and keyword arguments `kwargs`.
 
-        If *interval <= 0*, after step *interval*, call *function* with
-        arguments *args* and keyword arguments *kwargs*.  This is
+        If `interval <= 0`, after step `interval`, call `function` with
+        arguments `args` and keyword arguments `kwargs`.  This is
         currently zero indexed.
 
-        If *interval is None*, use `self.loginterval` as interval (default=1)
+        If `interval is None`, use `self.loginterval` as interval (default=1)
         """
 
         if interval is None:
