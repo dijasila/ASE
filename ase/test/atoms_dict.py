@@ -10,13 +10,13 @@ atoms = Atoms("N2", [(0, 0, 0), (0, 0, 1)], cell=np.eye(3), pbc=[1, 0, 1])
 
 def test_json_dump(atoms=atoms):
     # convert to json string
-    dict1 = atoms.todict()
+    dict1 = atoms.todict(json=True)
     json.dumps(dict1)
 
 
 def test_json_dump_load(atoms=atoms):
     # convert to json string
-    dict1 = atoms.todict()
+    dict1 = atoms.todict(json=True)
     rep = json.dumps(dict1)
 
     # read back from json string
@@ -39,11 +39,11 @@ def test_json_dump_warnings(atoms=atoms):
     atoms.info = {"arbitrary": "something"}
 
     with warnings.catch_warnings(record=True) as w:
-        atoms.todict(json=False)
+        atoms.todict()
         assert len(w) == 0
 
     with warnings.catch_warnings(record=True) as w:
-        json.dumps(atoms.todict())
+        json.dumps(atoms.todict(json=True))
         assert len(w) == 2
 
 
