@@ -867,7 +867,7 @@ class Atoms(object):
         atoms.constraints = copy.deepcopy(self.constraints)
         return atoms
 
-    def todict(self, json=False):
+    def todict(self, warn=True):
         """For basic JSON (non-database) support."""
         d = {k: v.tolist() for (k, v) in self.arrays.items()}
         d['cell'] = np.asarray(self.cell).tolist()
@@ -875,15 +875,11 @@ class Atoms(object):
         if self._celldisp.any():
             d['celldisp'] = self._celldisp.tolist()
         if self.constraints:
-            if json:
-                warnings.warn('`constraints` are not JSON serializable, SKIP.')
-            else:
-                d['constraints'] = self.constraints
+            d['constraints'] = [c.todict() for c in self.constraints]
         if self.info:
-            if json:
+            if warn:
                 warnings.warn('`info` might not be JSON serializable, SKIP.')
-            else:
-                d['info'] = self.info
+            d['info'] = self.info
 
         # Calculator...  trouble.
         if self.calc is not None:
