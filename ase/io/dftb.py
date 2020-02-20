@@ -1,5 +1,15 @@
+import os
+import warnings
+from copy import deepcopy
+from collections import OrderedDict
+
 import numpy as np
 from ase.atoms import Atoms
+from ase.units import Hartree, Bohr, Debye
+from ase.utils import reader
+from ase.calculators.calculator import kpts2sizeandoffsets, kpts2ndarray
+from ase.calculators.singlepoint import (SinglePointDFTCalculator,
+                                         SinglePointKPoint)
 
 
 def read_dftb(filename='dftb_in.hsd'):
@@ -241,3 +251,370 @@ def write_dftb(filename, atoms):
 
     if isinstance(filename, str):
         myfile.close()
+
+
+def _format_geom(atoms):
+    symbol2num = OrderedDict()
+    for i, symbol in enumerate(set(atoms.symbols)):
+        symbol2num[symbol] = i + 1
+
+    # out of principle, use lowercase everything. DFTB+ is case insensitive.
+    out = ['geometry = {',
+           '  typenames = { "' + '" "'.join(symbol2num) + '" }',
+           '  typesandcoordinates [angstrom] = {']
+
+    aline = '    {:>3} {:>24.16e} {:>24.16e} {:>24.16e}'
+    for atom in atoms:
+        out.append(aline.format(symbol2num[atom.symbol], *atom.position))
+
+    out.append('  }')
+
+    pbc = any(atoms.pbc)
+    if not pbc:
+        out.append('}')
+        return '\n'.join(out)
+
+    if not all(atoms.pbc):
+        warnings.warn("DFTB+ only support aperiodic and fully 3D-periodic "
+                      "simulations, but your system is periodic in only "
+                      "one or two directions. This system will be treated "
+                      "as 3D periodic instead!")
+
+    out += ['  periodic = yes',
+            '  latticevectors [angstrom] = {']
+
+    vline = '    {:>24.16e} {:>24.16e} {:>24.16e}'
+    for vec in atoms.cell:
+        out.append(vline.format(*vec))
+
+    out += ['  }',
+            '}']
+    return '\n'.join(out)
+
+
+def _format_argument(key, val, nindent=0):
+    head = '  ' * nindent
+    secname = ''
+    if isinstance(val, tuple) and len(val) == 2 and isinstance(val[1], dict):
+        secname = val[0] + ' '
+        val = val[1]
+
+    if isinstance(val, dict):
+        out = ['{head}{key} = {secname}{{'.format(head=head, key=key.lower(),
+                                                  secname=secname)]
+        if not val:
+            # Put the closing bracket on the same line if val is empty
+            out.append('}')
+            return ''.join(out)
+
+        for subkey, subval in val.items():
+            out.append(_format_argument(subkey, subval, nindent + 1))
+        out.append('{head}}}'.format(head=head))
+        return '\n'.join(out)
+
+    if isinstance(val, bool):
+        val = 'YES' if val else 'NO'
+    elif isinstance(val, float):
+        val = '{:>24.16e}'.format(val)
+    elif isinstance(val, np.ndarray):
+        if len(val.shape) > 1:
+            raise ValueError("Don't know how to format array with shape {}!"
+                             .format(val.shape))
+        if val.dtype == bool:
+            val = ' '.join(['YES' if x else 'NO' for x in val])
+        elif val.dtype == float:
+            # dftb+ input files are limited to 1024 chars per line
+            # make sure everything fits
+            width = min(24, 1024 // len(val))
+            spec = '{{:>{}.{}e}}'.format(width, width - 8)
+            val = ' '.join([spec.format(x) for x in val])
+        else:
+            val = ' '.join(map(str, val))
+
+    return '{head}{key} = {val}'.format(head=head, key=key, val=val)
+
+
+def _lowercase_dict(dict_in):
+    dict_out = dict()
+    for key, val in dict_in.items():
+        if key.lower() in dict_out:
+            raise ValueError("Section name {} has been provided more than "
+                             "once!".format(key))
+        key = key.lower()
+        if key == 'kpts':
+            dict_out[key] = deepcopy(val)
+        elif isinstance(val, dict):
+            dict_out[key] = _lowercase_dict(val)
+        elif isinstance(val, tuple) and isinstance(val[1], dict):
+            dict_out[key] = (val[0].lower(), _lowercase_dict(val[1]))
+        elif isinstance(val, str):
+            dict_out[key] = val.lower()
+        else:
+            dict_out[key] = deepcopy(val)
+    return dict_out
+
+
+def _format_kpts_mp(mesh, offset=(0., 0., 0.)):
+    out = ['supercellfolding {']
+    for row in np.diag(mesh):
+        out.append('    {} {} {}'.format(*row))
+
+    shifts = []
+    shifts = np.array(mesh) * np.array(offset, dtype=float)
+    shifts += (np.array(mesh) % 2 == 0) * 0.5
+    out += ['    {} {} {}'.format(*shifts),
+            '  }']
+    return '\n'.join(out)
+
+
+def _format_kpath(kpts):
+    out = ['klines {']
+    for kpt in kpts:
+        out.append('    1 {:>24.16e} {:>24.16e} {:>24.16e}'.format(*kpt))
+    out.append('  }')
+    return '\n'.join(out)
+
+
+def _format_kpts_literal(kpts):
+    out = ['{']
+    for kpt in kpts:
+        out.append('    {:>24.16e} {:>24.16e} {:>24.16e} 1.0'.format(*kpt))
+    out.append('  }')
+    return '\n'.join(out)
+
+
+def _format_kpts(atoms, kpts):
+    if np.isscalar(kpts):
+        # assume kpts is a density
+        mesh, offset = kpts2sizeandoffsets(density=kpts, atoms=atoms)
+        return _format_kpts_mp(mesh, offset)
+
+    if isinstance(kpts, dict):
+        if 'path' in kpts:
+            return _format_kpath(kpts2ndarray(kpts, atoms=atoms))
+        mesh, offset = kpts2sizeandoffsets(atoms=atoms, **kpts)
+        return _format_kpts_mp(mesh, offset)
+
+    if len(np.shape(kpts)) == 2:
+        # assume a literal k-point specification
+        return _format_kpts_literal(kpts)
+
+    # otherwise, assume a MP mesh (e.g. (3, 3, 3))
+    mesh, offset = kpts2sizeandoffsets(size=kpts, atoms=atoms)
+    return _format_kpts_mp(mesh, offset)
+
+
+def _merge_default_params(default, params):
+    for key, val in default.items():
+        if key not in params:
+            params[key] = deepcopy(val)
+        elif isinstance(val, dict) and isinstance(params[key], dict):
+            _merge_default_params(val, params[key])
+        elif isinstance(val, tuple):
+            if isinstance(params[key], dict):
+                _merge_default_params(val[1], params[key])
+            elif isinstance(params[key], tuple) and val[0] == params[key][0]:
+                _merge_default_params(val[0], params[key][0])
+
+
+def write_dftb_in(fd, atoms, properties=None, default_params=None,
+                  **params_in):
+    out = [_format_geom(atoms)]
+
+    if properties is None:
+        properties = ['energy']
+
+    # DFTB+ docs use CamelCase for settings, but the input file is actually
+    # case insensitive. For consistency, use lowercase for everything.
+    params = _lowercase_dict(params_in)
+    _merge_default_params(default_params, params)
+
+    ham = params.pop('hamiltonian', dict())
+    kpts = params.pop('kpts', None)
+    if kpts is not None:
+        if 'kpointsandweights' in ham:
+            warnings.warn("KPointsAndWeights found in settings, 'kpts' "
+                          "argument will be ignored!")
+        else:
+            ham['kpointsandweights'] = _format_kpts(atoms, kpts)
+
+    slako_dir = params.pop('slako_dir', None)
+    skf = ham['slaterkosterfiles'][1]
+    if slako_dir is not None:
+        if 'prefix' in skf:
+            warnings.warn("SlaterKosterFiles Prefix found in settings, "
+                          "'slako_dir' argument will be ignored!")
+        else:
+            if slako_dir[-1] != '/':
+                slako_dir += '/'
+            skf['prefix'] = slako_dir
+
+    skf_prefix = skf['prefix']
+    skf_sep = skf['separator']
+    skf_suffix = skf['suffix']
+
+    # check if MaxAngularMomenta have been supplied manually; if not,
+    # figure them out ourselves
+    mam = ham['maxangularmomentum']
+    for symbol in set(atoms.symbols):
+        if symbol.lower() not in mam:
+            mam[symbol.lower()] = _read_max_angular_momentum(
+                skf_prefix, symbol, skf_sep, skf_suffix
+            )
+
+    out.append(_format_argument('hamiltonian', ('dftb', ham)))
+
+    if 'forces' in properties or 'stress' in properties:
+        if 'analysis' not in params:
+            params['analysis'] = dict()
+        params['analysis']['calculateforces'] = True
+
+    for key, val in params.items():
+        out.append(_format_argument(key, val))
+
+    fd.write('\n'.join(out))
+
+
+def _read_max_angular_momentum(prefix, symbol, sep, suffix):
+    """Read maximum angular momentum from .skf file.
+
+    See dftb.org for A detailed description of the Slater-Koster file format.
+    """
+    fname = os.path.join(prefix, '{0}{1}{0}{2}'.format(symbol, sep, suffix))
+    with open(fname, 'r') as fd:
+        line = fd.readline()
+        if line[0] == '@':
+            # Extended format
+            fd.readline()
+            l = 3
+            pos = 9
+        else:
+            # Simple format:
+            l = 2
+            pos = 7
+
+        # Sometimes there ar commas, sometimes not:
+        line = fd.readline().replace(',', ' ')
+
+        occs = [float(f) for f in line.split()[pos:pos + l + 1]]
+        for f in occs:
+            if f > 0.0:
+                return 'spdf'[l]
+            l -= 1
+
+
+_type_to_dtype = dict(integer=int,
+                      real=float,
+                      complex=complex,
+                      logical=bool)
+
+
+@reader
+def _parse_results_tag(fd):
+    results = dict()
+    for line in fd:
+        tokens = line.split(':')
+        name = tokens[0].strip()
+        dtype = _type_to_dtype[tokens[1]]
+        dim = int(tokens[2])
+        if dim == 0:
+            results[name] = dtype(fd.readline().strip())
+            continue
+
+        # reversed because fortran->C order
+        shape = list(reversed([int(x) for x in tokens[3].split(',')]))
+
+        ntot = np.prod(shape)
+        data = np.zeros(ntot, dtype=dtype)
+        nread = 0
+        while nread < ntot:
+            newdata = list(map(dtype, fd.readline().strip().split()))
+            ndata = len(newdata)
+            data[nread:nread + ndata] = newdata
+            nread += ndata
+        results[name] = data.reshape(shape)
+    return results
+
+
+@reader
+def _parse_detailed_out(fd):
+    detailed = dict()
+    for line in fd:
+        if line.strip() == 'Atomic gross charges (e)':
+            fd.readline()
+            charges = []
+            while True:
+                tokens = fd.readline().strip().split()
+                if not tokens:
+                    break
+                charges.append(float(tokens[1]))
+            detailed['charges'] = np.array(charges)
+        elif line.startswith('Fermi level:'):
+            detailed['efermi'] = float(line.strip().split()[2]) * Hartree
+        elif line.startswith('Dipole moment:'):
+            tokens = line.strip().split()
+            if tokens[-1] == 'Debye':
+                dipole = list(map(float, tokens[2:5]))
+                detailed['dipole'] = np.array(dipole) * Debye
+    return detailed
+
+
+@reader
+def _parse_band_out(fd):
+    kpts = []
+    for line in fd:
+        tokens = line.strip().split()
+        kpt = int(tokens[1]) - 1
+        spin = int(tokens[3]) - 1
+        weight = float(tokens[5])
+        eps_n = []
+        f_n = []
+        while True:
+            tokens = fd.readline().strip().split()
+            if not tokens:
+                break
+            eps_n.append(float(tokens[1]))
+            f_n.append(float(tokens[2]))
+        kpts.append(SinglePointKPoint(weight, spin, kpt, eps_n=np.array(eps_n),
+                                      f_n=np.array(f_n)))
+    return kpts
+
+
+@reader
+def _parse_ibz_kpts(fd):
+    for line in fd:
+        if line.startswith('K-points and weights:'):
+            ibz_kpts = [list(map(float, line.strip().split()[4:7]))]
+            while True:
+                tokens = fd.readline().strip().split()
+                if not tokens:
+                    return np.array(ibz_kpts)
+                ibz_kpts.append(list(map(float, tokens[1:4])))
+    else:
+        return None
+
+
+def get_dftb_results(atoms, dirname, label):
+    results = _parse_results_tag(os.path.join(dirname, 'results.tag'))
+    energy = results['extrapolated0_energy'] * Hartree
+    free_energy = results['forcerelated_energy'] * Hartree
+    stress = results.get('stress', None)
+    if stress is not None:
+        stress = -stress.flat[[0, 4, 8, 5, 2, 1]] * Hartree / Bohr**3
+    forces = results.get('forces', None)
+    if forces is not None:
+        forces *= Hartree / Bohr
+
+    detailed = _parse_detailed_out(os.path.join(dirname, 'detailed.out'))
+    efermi = detailed.get('efermi')
+    charges = detailed.get('charges')
+
+    ibz_kpts = _parse_ibz_kpts(label + '.out')
+
+    calc = SinglePointDFTCalculator(atoms=atoms, energy=energy, efermi=efermi,
+                                    free_energy=free_energy, forces=forces,
+                                    stress=stress, ibzkpts=ibz_kpts,
+                                    charges=charges)
+    kpts = _parse_band_out(os.path.join(dirname, 'band.out'))
+    calc.kpts = kpts
+    return calc

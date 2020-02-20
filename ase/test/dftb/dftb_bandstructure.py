@@ -1,68 +1,35 @@
-import os
-import subprocess
-from unittest import SkipTest
-from ase.test import require
-from ase.test.testsuite import datafiles_directory
-from ase.calculators.dftb import Dftb
 from ase.build import bulk
-
-require('dftb')
-
-os.environ['DFTB_PREFIX'] = datafiles_directory
-
-# We need to get the DFTB+ version to know
-# whether to skip this test or not.
-# For this, we need to run DFTB+ and grep
-# the version from the output header.
-cmd = os.environ['ASE_DFTB_COMMAND'].split()[0]
-proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-
-lines = ''
-for line in proc.stdout:
-    l = line.decode()
-    if 'DFTB+' in l and ('version' in l.lower() or 'release' in l.lower()):
-        version = l[l.index('DFTB+'):]
-        break
-    lines += l + '\n'
-else:
-    raise RuntimeError('Could not parse DFTB+ version ' + lines)
-
-if '17.1' not in version:
-    msg = 'Band structure properties not present in results.tag for ' + version
-    raise SkipTest(msg)
-
-# The actual testing starts here
-calc = Dftb(label='dftb',
-            kpts=(3,3,3),
-            Hamiltonian_SCC='Yes',
-            Hamiltonian_SCCTolerance=1e-5,
-            Hamiltonian_MaxAngularMomentum_Si='d')
+from ase.calculators.dftb_new import DFTBPlus
+from ase.dft.dos import DOS
+from ase.test.testsuite import datafiles_directory
 
 atoms = bulk('Si')
-atoms.set_calculator(calc)
+
+atoms.calc = DFTBPlus(slako_dir=datafiles_directory,
+                      kpts=(3, 3, 3),
+                      hamiltonian=dict(scc=True,
+                                       scctolerance=1e-5,
+                                       maxangularmomentum=dict(si='d')))
+
 atoms.get_potential_energy()
 
-efermi = calc.get_fermi_level()
+# efermi belongs to DFTBPlus.calc, which is a SinglePointDFTCalculator
+efermi = atoms.calc.calc.get_fermi_level()
 assert abs(efermi - -2.90086680996455) < 1.
 
-# DOS does not currently work because of
-# missing "get_k_point_weights" function
-#from ase.dft.dos import DOS
-#dos = DOS(calc, width=0.2)
-#d = dos.get_dos()
-#e = dos.get_energies()
-#print(d, e)
+# Similar to efermi, the necessary data belongs to DFTBPlus.calc
+dos = DOS(atoms.calc.calc, width=0.2)
+d = dos.get_dos()
+e = dos.get_energies()
+# DOS doesn't have a plot method?
 
-calc = Dftb(atoms=atoms,
-            label='dftb',
-            kpts={'path':'WGXWLG', 'npoints':50},
-            Hamiltonian_SCC='Yes',
-            Hamiltonian_MaxSCCIterations=1,
-            Hamiltonian_ReadInitialCharges='Yes',
-            Hamiltonian_MaxAngularMomentum_Si='d')
+atoms.calc = DFTBPlus(slako_dir=datafiles_directory,
+                      kpts={'path': 'WGXWLG', 'npoints': 50},
+                      hamiltonian=dict(scc=True,
+                                       maxscciterations=1,
+                                       readinitialcharges=True,
+                                       maxangularmomentum=dict(si='d')))
 
-atoms.set_calculator(calc)
-calc.calculate(atoms)
+atoms.calc.calculate(atoms)
 
-calc.results['fermi_levels'] = [efermi]
-bs = calc.band_structure()
+bs = atoms.calc.band_structure()

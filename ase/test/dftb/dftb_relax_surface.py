@@ -1,30 +1,27 @@
-import os
-from ase.test import require
-from ase.test.testsuite import datafiles_directory
 from ase.build import diamond100
-from ase.calculators.dftb import Dftb
+from ase.calculators.dftb_new import DFTBPlus
+from ase.test.testsuite import datafiles_directory
 from ase.optimize import BFGS
 from ase.constraints import FixAtoms
-
-require('dftb')
-
-os.environ['DFTB_PREFIX'] = datafiles_directory
-
-calc = Dftb(label='dftb',
-            kpts=(2, 2, 1),
-            Hamiltonian_SCC='Yes',
-            Hamiltonian_Filling='Fermi {',
-            Hamiltonian_Filling_empty='Temperature [Kelvin] = 500.0',
-            )
+from ase.units import kB, Hartree
 
 a = 5.40632280995384
 atoms = diamond100('Si', (1, 1, 6), a=a, vacuum=6., orthogonal=True,
                    periodic=True)
-atoms.positions[-2:,2] -= 0.2
 atoms.set_constraint(FixAtoms(indices=range(4)))
-atoms.set_calculator(calc)
+atoms.rattle(0.01, seed=1)
 
-dyn = BFGS(atoms, logfile='-')
+atoms.calc = DFTBPlus(slako_dir=datafiles_directory,
+                      kpts=(2, 2, 1),
+                      hamiltonian=dict(
+                          scc=True,
+                          filling=('fermi', dict(
+                              temperature=500 * kB / Hartree,
+                          )),
+                      ))
+
+
+dyn = BFGS(atoms, logfile='-', trajectory='tmp.traj')
 dyn.run(fmax=0.1)
 
 e = atoms.get_potential_energy()
