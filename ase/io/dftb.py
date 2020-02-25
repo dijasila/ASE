@@ -314,7 +314,7 @@ def _format_argument(key, val, nindent=0):
         else:
             out = []
             for subval in val:
-                out.append(_format_argument(key, subval, nindent=nindent + 1)
+                out.append(_format_argument(key, subval, nindent=nindent)
             return '\n'.join(out)
         # if it's a list of values, get a numpy array version so we can use
         # the size/dtype detection logic below.
