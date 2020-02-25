@@ -294,14 +294,8 @@ def _format_geom(atoms):
 
 def _format_argument(key, val, nindent=0):
     head = '  ' * nindent
-    secname = ''
-    if isinstance(val, tuple) and len(val) == 2 and isinstance(val[1], dict):
-        secname = val[0] + ' '
-        val = val[1]
-
     if isinstance(val, dict):
-        out = ['{head}{key} = {secname}{{'.format(head=head, key=key.lower(),
-                                                  secname=secname)]
+        out = ['{head}{key} = {{'.format(head=head, key=key.lower())]
         if not val:
             # Put the closing bracket on the same line if val is empty
             out.append('}')
@@ -312,6 +306,20 @@ def _format_argument(key, val, nindent=0):
         out.append('{head}}}'.format(head=head))
         return '\n'.join(out)
 
+    # check for a repeated argument
+    if isinstance(val, list) or isinstance(val, tuple):
+        for subval in val:
+            if not isinstance(subval, dict):
+                break
+        else:
+            out = []
+            for subval in val:
+                out.append(_format_argument(key, subval, nindent=nindent + 1)
+            return '\n'.join(out)
+        # if it's a list of values, get a numpy array version so we can use
+        # the size/dtype detection logic below.
+        var = np.asarray(val)
+
     if isinstance(val, bool):
         val = 'YES' if val else 'NO'
     elif isinstance(val, float):
@@ -321,13 +329,13 @@ def _format_argument(key, val, nindent=0):
             raise ValueError("Don't know how to format array with shape {}!"
                              .format(val.shape))
         if val.dtype == bool:
-            val = ' '.join(['YES' if x else 'NO' for x in val])
+            val = ' '.join('YES' if x else 'NO' for x in val)
         elif val.dtype == float:
             # dftb+ input files are limited to 1024 chars per line
             # make sure everything fits
             width = min(24, 1024 // len(val))
             spec = '{{:>{}.{}e}}'.format(width, width - 8)
-            val = ' '.join([spec.format(x) for x in val])
+            val = ' '.join(spec.format(x) for x in val)
         else:
             val = ' '.join(map(str, val))
 
