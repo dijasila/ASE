@@ -406,15 +406,10 @@ def _format_kpts(atoms, kpts):
 
 def _merge_default_params(default, params):
     for key, val in default.items():
-        if key not in params:
-            params[key] = deepcopy(val)
-        elif isinstance(val, dict) and isinstance(params[key], dict):
+        if isinstance(params.get(key), dict) and isinstance(val, dict):
             _merge_default_params(val, params[key])
-        elif isinstance(val, tuple):
-            if isinstance(params[key], dict):
-                _merge_default_params(val[1], params[key])
-            elif isinstance(params[key], tuple) and val[0] == params[key][0]:
-                _merge_default_params(val[0], params[key][0])
+        else:
+            params[key] = deepcopy(val)
 
 
 def write_dftb_in(fd, atoms, properties=None, default_params=None,
@@ -429,17 +424,17 @@ def write_dftb_in(fd, atoms, properties=None, default_params=None,
     params = _lowercase_dict(params_in)
     _merge_default_params(default_params, params)
 
-    ham = params.pop('hamiltonian', dict())
+    ham = params.pop('hamiltonian', dict(dftb=dict()))
     kpts = params.pop('kpts', None)
     if kpts is not None:
         if 'kpointsandweights' in ham:
             warnings.warn("KPointsAndWeights found in settings, 'kpts' "
                           "argument will be ignored!")
         else:
-            ham['kpointsandweights'] = _format_kpts(atoms, kpts)
+            ham['dftb']['kpointsandweights'] = _format_kpts(atoms, kpts)
 
     slako_dir = params.pop('slako_dir', None)
-    skf = ham['slaterkosterfiles'][1]
+    skf = ham['dftb']['slaterkosterfiles']['type2filenames']
     if slako_dir is not None:
         if 'prefix' in skf:
             warnings.warn("SlaterKosterFiles Prefix found in settings, "
@@ -455,14 +450,14 @@ def write_dftb_in(fd, atoms, properties=None, default_params=None,
 
     # check if MaxAngularMomenta have been supplied manually; if not,
     # figure them out ourselves
-    mam = ham['maxangularmomentum']
+    mam = ham['dftb']['maxangularmomentum']
     for symbol in set(atoms.symbols):
         if symbol.lower() not in mam:
             mam[symbol.lower()] = _read_max_angular_momentum(
                 skf_prefix, symbol, skf_sep, skf_suffix
             )
 
-    out.append(_format_argument('hamiltonian', ('dftb', ham)))
+    out.append(_format_argument('hamiltonian', ham))
 
     if 'forces' in properties or 'stress' in properties:
         if 'analysis' not in params:

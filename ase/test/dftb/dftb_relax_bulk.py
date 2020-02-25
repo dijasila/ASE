@@ -7,7 +7,7 @@ from ase.constraints import ExpCellFilter
 atoms = bulk('Si')
 atoms.calc = DFTBPlus(slako_dir=datafiles_directory,
                       kpts=(3, 3, 3),
-                      hamiltonian=dict(scc=True))
+                      hamiltonian=dict(dftb=dict(scc=True)))
 
 dyn = QuasiNewton(ExpCellFilter(atoms))
 dyn.run(fmax=0.01)

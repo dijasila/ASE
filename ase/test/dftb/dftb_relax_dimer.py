@@ -8,8 +8,9 @@ atoms = Atoms('Si2', positions=[[5., 5., 5.], [7., 5., 5.]],
               cell=[12, 12, 12], pbc=False)
 
 atoms.calc = DFTBPlus(slako_dir=datafiles_directory,
-                      hamiltonian=dict(scc=False,
-                                       polynomialrepulsive='setforall {yes}'))
+                      hamiltonian=dict(dftb=dict(
+                          scc=False,
+                          polynomialrepulsive='setforall {yes}')))
 
 dyn = BFGS(atoms, logfile='-')
 dyn.run(fmax=0.1)

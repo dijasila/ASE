@@ -13,12 +13,12 @@ atoms.rattle(0.01, seed=1)
 
 atoms.calc = DFTBPlus(slako_dir=datafiles_directory,
                       kpts=(2, 2, 1),
-                      hamiltonian=dict(
+                      hamiltonian=dict(dftb=dict(
                           scc=True,
-                          filling=('fermi', dict(
+                          filling=dict(fermi=dict(
                               temperature=500 * kB / Hartree,
                           )),
-                      ))
+                      )))
 
 
 dyn = BFGS(atoms, logfile='-', trajectory='tmp.traj')

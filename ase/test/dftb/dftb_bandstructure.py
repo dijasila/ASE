@@ -7,9 +7,11 @@ atoms = bulk('Si')
 
 atoms.calc = DFTBPlus(slako_dir=datafiles_directory,
                       kpts=(3, 3, 3),
-                      hamiltonian=dict(scc=True,
-                                       scctolerance=1e-5,
-                                       maxangularmomentum=dict(si='d')))
+                      hamiltonian=dict(dftb=dict(
+                          scc=True,
+                          scctolerance=1e-5,
+                          maxangularmomentum=dict(si='d'),
+                      )))
 
 atoms.get_potential_energy()
 
@@ -25,10 +27,12 @@ e = dos.get_energies()
 
 atoms.calc = DFTBPlus(slako_dir=datafiles_directory,
                       kpts={'path': 'WGXWLG', 'npoints': 50},
-                      hamiltonian=dict(scc=True,
-                                       maxscciterations=1,
-                                       readinitialcharges=True,
-                                       maxangularmomentum=dict(si='d')))
+                      hamiltonian=dict(dftb=dict(
+                          scc=True,
+                          maxscciterations=1,
+                          readinitialcharges=True,
+                          maxangularmomentum=dict(si='d'),
+                      )))
 
 atoms.calc.calculate(atoms)
 
