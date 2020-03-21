@@ -9,7 +9,7 @@ from scipy.linalg import expm
 
 __all__ = ['FixCartesian', 'FixBondLength', 'FixedMode', 'FixConstraintSingle',
            'FixAtoms', 'UnitCellFilter', 'ExpCellFilter', 'FixScaled', 'StrainFilter',
-           'FixCom', 'FixedPlane', 'Filter', 'FixConstraint', 'FixedLine',
+           'FixCom', 'FixGroupCom', 'FixedPlane', 'Filter', 'FixConstraint', 'FixedLine',
            'FixBondLengths', 'FixLinearTriatomic', 'FixInternals', 'Hookean',
            'ExternalForce', 'MirrorForce', 'MirrorTorque']
 
@@ -235,6 +235,84 @@ class FixCom(FixConstraint):
     def todict(self):
         return {'name': 'FixCom',
                 'kwargs': {}}
+
+
+class FixGroupCom(FixConstraint):
+    """Constraint class for fixing the center of mass of a subgroup,
+       enlisted in the same way as FixAtoms class does it.
+
+    """
+
+    def __init__(self, indices=None, mask=None):
+        """Constrain COM of chosen atoms.
+
+        Parameters
+        ----------
+        indices : list of int
+           Indices for those atoms that should be constrained.
+        mask : list of bool
+           One boolean per atom indicating if the atom should be
+           constrained or not.
+
+        Examples
+        --------
+        Fix all Copper atoms:
+
+        constraints.append(FixGroupCom([atom.index for atom in atoms if atom.symbol in ['C', 'H']]))
+        #constraints.append(FixGroupCom(indices=range(6,12)+range(24,36)))
+        """
+
+        if indices is None and mask is None:
+            raise ValueError('Use "indices" or "mask".')
+        if indices is not None and mask is not None:
+            raise ValueError('Use only one of "indices" and "mask".')
+
+        if mask is not None:
+            indices = np.arange(len(mask))[np.asarray(mask, bool)]
+        else:
+            # Check for duplicates:
+            srt = np.sort(indices)
+            if (np.diff(srt) == 0).any():
+                raise ValueError(
+                    'FixGroupCom: The indices array contained duplicates. '
+                    'Perhaps you wanted to specify a mask instead, but '
+                    'forgot the mask= keyword.')
+        self.index = np.asarray(indices, int)
+
+        if self.index.ndim != 1:
+            raise ValueError('Wrong argument to FixGroupCom class!')
+
+        self.removed_dof = 3
+
+    def adjust_positions(self, atoms, new):
+        m = atoms.get_masses()[self.index]
+        warn("Center of mass will be incorrect with scaled coordinates.", Warning)
+        # calculate center of mass:
+        old_cm = np.dot(m, atoms.arrays['positions'][self.index, :]) / m.sum()
+        #old_cm = self.get_group_com(self.index)
+        new_cm = np.dot(m, new[self.index, :]) / m.sum()
+        d = np.empty_like(new)
+        d[self.index, :] = old_cm - new_cm
+        new[self.index, :] += d[self.index, :]
+
+    def adjust_forces(self, atoms, forces):
+        m = atoms.get_masses()[self.index]
+        mm = np.tile(m, (3, 1)).T
+        lb = np.empty_like(forces)
+        lb[self.index, :] = np.sum(mm * forces[self.index, :], axis=0) / sum(m**2)
+        mfull = atoms.get_masses()
+        mmfull = np.tile(mfull, (3, 1)).T
+        forces[self.index, :] -= (mmfull * lb)[self.index, :]
+
+    def get_indices(self):
+        return self.index
+
+    def __repr__(self):
+        return 'FixGroupCom(indices=%s)' % ints2string(self.index)
+
+    def todict(self):
+        return {'name': 'FixGroupCom',
+                'kwargs': {'indices': self.index}}
 
 
 def ints2string(x, threshold=None):
