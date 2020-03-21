@@ -24,8 +24,37 @@ def symbols2numbers(symbols):
 
 
 class Symbols:
+    """A sequence of chemical symbols.
+
+    ``atoms.symbols`` is a :class:`ase.symbols.Symbols` object.  This
+    object works like an editable view of ``atoms.numbers``, except
+    its elements are manipulated as strings.
+
+    Examples:
+
+    >>> from ase.build import molecule
+    >>> atoms = molecule('CH3CH2OH')
+    >>> atoms.symbols
+    Symbols('C2OH6')
+    >>> atoms.symbols[:3]
+    Symbols('C2O')
+    >>> atoms.symbols == 'H'
+    array([False, False, False,  True,  True,  True,  True,  True,  True], dtype=bool)
+    >>> atoms.symbols[-3:] = 'Pu'
+    >>> atoms.symbols
+    Symbols('C2OH3Pu3')
+    >>> atoms.symbols[3:6] = 'Mo2U'
+    >>> atoms.symbols
+    Symbols('C2OMo2UPu3')
+    >>> atoms.symbols.formula
+    Formula('CCOMoMoUPuPuPu')
+
+    The :class:`ase.formula.Formula` object is useful for extended
+    formatting options and analysis.
+
+    """
     def __init__(self, numbers):
-        self.numbers = numbers
+        self.numbers = np.asarray(numbers)
 
     @classmethod
     def fromsymbols(cls, symbols):
@@ -100,7 +129,7 @@ class Symbols:
             formula = ''.join([chemical_symbols[n] for n in numbers])
         else:
             symbols = [chemical_symbols[Z] for Z in numbers]
-            f = Formula('', [(symbols, 1)])
+            f = Formula('', _tree=[(symbols, 1)])
             if empirical:
                 f, _ = f.reduce()
             if mode in {'hill', 'metal'}:
@@ -110,3 +139,10 @@ class Symbols:
                     "Use mode = 'all', 'reduce', 'hill' or 'metal'.")
 
         return formula
+
+    def search(self, symbols):
+        """Return the indices of elements with given symbol or symbols."""
+        numbers = set(symbols2numbers(symbols))
+        indices = [i for i, number in enumerate(self.numbers)
+                   if number in numbers]
+        return np.array(indices, int)

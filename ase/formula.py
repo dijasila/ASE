@@ -1,9 +1,9 @@
+from math import gcd
 import re
 import sys
 from typing import Dict, Tuple, List, Union
 
-from ase.utils import gcd
-from ase.data import chemical_symbols
+from ase.data import chemical_symbols, atomic_numbers
 
 if sys.version_info >= (3, 6):
     ordereddict = dict
@@ -17,6 +17,8 @@ Tree = Union[str, Tuple['Tree', int], List['Tree']]
 class Formula:
     def __init__(self,
                  formula: str = '',
+                 *,
+                 strict: bool = False,
                  _tree: Tree = None,
                  _count: Dict[str, int] = None):
         """Chemical formula object.
@@ -26,6 +28,8 @@ class Formula:
         formula: str
             Text string representation of formula.  Examples: ``'6CO2'``,
             ``'30Cu+2CO'``, ``'Pt(CO)6'``.
+        strict: bool
+            Only allow real chemical symbols.
 
         Examples
         --------
@@ -52,6 +56,10 @@ class Formula:
         self._formula = formula
         self._tree = _tree or parse(formula)
         self._count = _count or count_tree(self._tree)
+        if strict:
+            for symbol in self._count:
+                if symbol not in atomic_numbers:
+                    raise ValueError('Unknown chemical symbol: ' + symbol)
 
     def count(self) -> Dict[str, int]:
         """Return dictionary mapping chemical symbol to number of atoms.
@@ -109,6 +117,7 @@ class Formula:
 
         * ``'hill'``: alphabetically ordered with C and H first
         * ``'metal'``: alphabetically ordered with metals first
+        * ``'abc'``: count ordered first then alphabetically ordered
         * ``'latex'``: LaTeX representation
         * ``'html'``: HTML representation
         * ``'rest'``: reStructuredText representation
@@ -123,7 +132,7 @@ class Formula:
     def __format__(self, fmt: str) -> str:
         """Format Formula as str.
 
-        Possible formats: ``'hill'``, ``'metal'``, ``'latex'``,
+        Possible formats: ``'hill'``, ``'metal'``, ``'abc'``, ``'latex'``,
         ``'html'``, ``'rest'``.
 
         Example
@@ -150,6 +159,10 @@ class Formula:
             result += sorted(result2)
             return dict2str(ordereddict(result))
 
+        if fmt == 'abc':
+            _, f, N = self.stoichiometry()
+            return dict2str({symb: n * N for symb, n in f._count.items()})
+
         if fmt == 'latex':
             return self._tostr('$_{', '}$')
         if fmt == 'html':
@@ -162,12 +175,22 @@ class Formula:
 
     @staticmethod
     def from_dict(dct: Dict[str, int]) -> 'Formula':
-        """Convert dict to Formula."""
-        return Formula(dict2str(dct),
-                       _tree=[([(symb, n) for symb, n in dct.items()], 1)],
-                       _count=dict(dct))
+        """Convert dict to Formula.
 
-    def from_list(symbols):  # (List[str]) -> Formula
+        >>> Formula.from_dict({'H': 2})
+        Formula('H2')
+        """
+        dct2 = {}
+        for symb, n in dct.items():
+            if not (isinstance(symb, str) and isinstance(n, int) and n >= 0):
+                raise ValueError('Bad dictionary: {dct}'.format(dct=dct))
+            if n > 0:  # filter out n=0 symbols
+                dct2[symb] = n
+        return Formula(dict2str(dct2),
+                       _tree=[([(symb, n) for symb, n in dct2.items()], 1)],
+                       _count=dct2)
+
+    def from_list(symbols: List[str]) -> 'Formula':
         """Convert list of chemical symbols to Formula."""
         return Formula(''.join(symbols),
                        _tree=[(symbols[:], 1)])
@@ -185,10 +208,12 @@ class Formula:
 
         Type of *f* must be str or Formula.
 
-        Example
-        -------
+        Examples
+        --------
         >>> 'OH' in Formula('H2O')
         True
+        >>> 'O2' in Formula('H2O')
+        False
         """
         if isinstance(f, str):
             f = Formula(f)
@@ -415,7 +440,7 @@ def formula_hill(numbers, empirical=False):
     If argument `empirical`, element counts will be divided by greatest common
     divisor to yield an empirical formula"""
     symbols = [chemical_symbols[Z] for Z in numbers]
-    f = Formula('', [(symbols, 1)])
+    f = Formula('', _tree=[(symbols, 1)])
     if empirical:
         f, _ = f.reduce()
     return f.format('hill')
@@ -430,7 +455,7 @@ def formula_metal(numbers, empirical=False):
     If argument `empirical`, element counts will be divided by greatest common
     divisor to yield an empirical formula"""
     symbols = [chemical_symbols[Z] for Z in numbers]
-    f = Formula('', [(symbols, 1)])
+    f = Formula('', _tree=[(symbols, 1)])
     if empirical:
         f, _ = f.reduce()
     return f.format('metal')
