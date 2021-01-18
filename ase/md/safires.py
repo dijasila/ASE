@@ -303,7 +303,7 @@ class SAFIRES:
         " # SAFIRES    #\n"
         " # ---------- #\n"
         " # v. 0.0.1   #\n"
-        " # 2021-01-14 #\n"
+        " # 2021-01-18 #\n"
         " ##############\n")
             
     def logger(self, boundary, iteration):

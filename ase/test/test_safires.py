@@ -1,14 +1,12 @@
-"""Test for SAFIRES class"""
-
-import numpy as np
-from ase import units
-from ase import Atoms
-from ase.calculators.lj import LennardJones
-from ase.md.verlet import VelocityVerlet
-from ase.md.safires import SAFIRES
-from ase.constraints import FixAtoms
-
 def test_safires():
+    
+    import numpy as np
+    from ase import units
+    from ase import Atoms
+    from ase.calculators.lj import LennardJones
+    from ase.md.verlet import VelocityVerlet
+    from ase.md.safires import SAFIRES
+    from ase.constraints import FixAtoms
 
     a_cell = 10
     cell = ((a_cell, 0, 0), (0, a_cell, 0), (0, 0, a_cell))
@@ -30,23 +28,18 @@ def test_safires():
     atoms[2].momentum = np.asarray([2, 0, 0])
 
     dt = 1.0 * units.fs
-    md = VelocityVerlet(atoms, dt=dt)
+    md = VelocityVerlet(atoms, timestep=dt)
 
-    safires = SAFIRES(atoms, mdobject=md, natoms=1, 
+    safires = SAFIRES(atoms, mdobject=md, natoms=1,
                       logfile="md.log")
     md.attach(safires.safires, interval=1)
 
-    md.run(38)
+    md.run(37)
 
-    etot_check = 5.85103820
-    d_check = 3.850
+    epot_check = -0.0172312389809
+    epot = atoms.calc.results["energy"]
+    d_check = 3.85006966993
+    d = np.linalg.norm(atoms[0].position - atoms[1].position)
 
-    with open("md.log", "r") as inf:
-        for i,line in enumerate(inf):
-            if i == 38:
-                line = line.split()
-                etot = float(line[2])
-                d = float(line[6])
-
-    assert abs(etot_check - etot) < 1e-8
-    assert abs(d_check - d) < 1e-3
+    assert abs(epot_check - epot) < 1.e-10
+    assert abs(d_check - d) < 1.e-10 
