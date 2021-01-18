@@ -358,3 +358,114 @@ Functionality is provided to perform analysis of atomic/molecular behaviour as c
 
 .. autoclass:: DiffusionCoefficient
 
+
+SAFIRES boundary method
+=======================
+
+.. module:: ase.md.safires
+
+.. class:: SAFIRES(atoms, mdobject, natoms, logfile, traj=None, trajfreq=1, debug=False, barometer=False, surface=False)
+
+SAFIRES (scattering-assisted flexible inner region ensemble separator) is
+an algorithm that separates a system into an inner and an outer region
+and constraints any interchange between them. SAFIRES is used for coupled
+calculations where it is necessary to invoke different computational
+methodologies in the inner and outer region. 
+
+Simulations using SAFIRES require a model system that is structured in a 
+specific way. Three parts need to be present, and the tag system is used
+to inform SAFIRES which atoms belong to which region:
+
+1) A 'solute'. The solute is the anchor point for SAFIRES with which the
+   location of the boundary is calculated. The solute can be a particle
+   or molecule, or it can be a periodic surface. The solute is not
+   required to be of the same chemical species as the inner or outer
+   region particles or molecules. The solute is assigned ``atom.tag = 0``.
+2) The 'inner region'. Particles or molecules directly in contact with
+   the solute. Typically (but not necessarily), the inner region 
+   contains fewer particles than the outer region. Only one species
+   of particles or molecules can be present in the inner region, and 
+   this species must be identical to the one present in the outer
+   region. Inner region particles or molecules are assigned
+   ``atom.tag = 1``.
+3) The 'outer region'. Particles or molecules without direct contact
+   with the solute but sharing an interface with the inner region.
+   Particles or molecules in the outer region must be identical to
+   those present in the inner region. Outer region particles or
+   molecules are assigned ``atom.tag = 2``.
+
+SAFIRES resolves boundary events through elastic collisions between the
+involved pair of outer and inner region particles. The boundary serves
+as a mediator for the collision so that particles do not need to be
+in actual physical contact. 
+
+In order to match the exact moment that a collision occurs, SAFIRES
+can scale the time step. A modified propagator is
+implemented in SAFIRES which handles such multiple-time-step
+propagations while conserving energy and forces. The propagator
+reduces to the :class:`Langevin` propagator for constant time steps
+and to the :class:`VelocityVerlet` propagator for  constant time steps
+and zero friction.
+
+The SAFIRES class uses the following parameters: 
+
+*atoms*:
+    The list of atoms.
+
+*mdobject*:
+    The MD object used for the simulation; either 
+    :class:`ase.md.verlet.VelocityVerlet` or 
+    :class:`ase.md.langevin.Langevin`.
+
+*natoms*:
+    Number of atoms in inner / outer region particles or molecules.
+    ``natoms = 1`` indicates that monoatomic particles are present.
+    Set ``natoms = 3`` if water is used for example.
+
+*logfile*:
+    Custom file name for log file.
+    SAFIRES writes a custom logile containing additional information
+    about the position of the boundary for each iteration. 
+    The :class:`MDLogger` can still be appended to the MD object
+    but may produce redundant information.
+
+*traj*:
+    :class:`ase.io.Trajectory` object to be written into by SAFIRES.
+    Default: None.
+
+*trajfreq*:
+    Frequency (in number of iterations) with which configurations are
+    written into ``traj``.
+
+*debug*:
+    Enable writing of verbose debug output at each iteration into
+    'debug.log'. Default: False.
+
+*barometer*:
+    Enable pseudo-barometer which will count the number of boundary
+    events triggered by inner and outer region particles, respectively.
+    This can help to identify artifical pressure in the system.
+    Barometer uses the direction of the velocity vector relative to the
+    solute. Default: False.
+
+*surface*:
+    Activate if the used solute is a periodic surface. This will change
+    the shape of the boundary from a sphere to a plane in *xy* direction
+    and alter the associated distance calculations and elastic 
+    collisions.
+
+.. note::
+    Current limitations of SAFIRES:
+    
+    - The :class:`Langevin` parameter ``fixcm`` cannot be True with
+      SAFIRES and will be automatically turned off if activated.
+    - SAFIRES currently only supports :class:`VelocityVerlet` (NVE) and 
+      :class:`Langevin` (NVT) dynamics.
+    - The solute needs to be fixed using a constraint. If the solute is
+      a molecule or surface rather than a monoatomic particle, all atoms
+      need to be fixed (center of mass needs to be static).
+    - Periodic surface model systems need to have the vacuum in *z*
+      direction. Stepped surface or surfaces models whose surface are
+      not parallel to the *xy* plane have not been tested and are
+      likely to break since the boundary will be constructed parallel
+      to the *xy* plane.
