@@ -13,17 +13,16 @@ def test_safires():
     pbc = (1, 1, 1)
 
     atoms = Atoms("Ar3",
-            [[(a_cell / 2), (a_cell / 2), (a_cell / 2)],
-            [(a_cell/2 + 2), (a_cell/2 - 1), (a_cell / 2)],
-            [(a_cell/2 - 4), (a_cell / 2 + 0.5), (a_cell / 2)]])
+                  [[(a_cell / 2), (a_cell / 2), (a_cell / 2)],
+                  [(a_cell/2 + 2), (a_cell/2 - 1), (a_cell / 2)],
+                  [(a_cell/2 - 4), (a_cell / 2 + 0.5), (a_cell / 2)]])
     atoms.set_tags([0,1,2]) # 0: solute, 1: inner region, 2: outer region
     atoms.set_cell(cell)
     atoms.set_pbc(pbc)
     fixatoms = FixAtoms(indices=[atom.index for atom in atoms if atom.tag == 0])
     atoms.constraints = ([fixatoms])
 
-    atoms.set_calculator(LennardJones(epsilon=120 * units.kB,
-                                      sigma=3.4))
+    atoms.calc = LennardJones(epsilon=120 * units.kB, sigma=3.4)
     atoms[1].momentum = np.asarray([1, 1, 0])
     atoms[2].momentum = np.asarray([2, 0, 0])
 

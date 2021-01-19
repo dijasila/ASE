@@ -1,55 +1,53 @@
-import os
 import numpy as np
-from math import  sqrt, pi, degrees, cos, sin
+from math import sqrt, pi, degrees, cos, sin
 from operator import itemgetter
 
 from ase import units
 from ase import Atoms
-from ase.io import write
 from ase.geometry import find_mic
 from ase.calculators.lj import LennardJones as LJ
 
 class SAFIRES:
-    """ 
+    """
     ###################### --- SAFIRES ---- ########################
-    # Scattering-Assisted Flexible Inner Region Ensemble Separator #  
+    # Scattering-Assisted Flexible Inner Region Ensemble Separator #
     #                                                              #
     # Authors: Björn Kirchhoff, Elvar Ö. Jónsson,                  #
     #          Asmus O. Dohn, Hannes Jónsson                       #
     #                                                              #
     # Contact: hj@hi.is                                            #
     ################################################################
-    
+
     DESCRIPTION
     -----------
     SAFIRES is a partitioning scheme desgined to devide a simulation
-    supercell into two regions to be calculated separately, using 
+    supercell into two regions to be calculated separately, using
     different (or the same) computational methodologies.
-    
+
     SAFIRES assumes that three necessary components are present
     in a simulation: 1) the solute, which can be a particle / molecule
     or a periodic surface; 2) an inner region close to the solute;
     3) an outer region separated from the solute by the inner region.
-    SAFIRES assumes the same fundamental premise as FIRES does 
+    SAFIRES assumes the same fundamental premise as FIRES does
     (Rowley and Roux, JCTC, 2012) by requiring that all particles in
     the inner and outer region are the same (the solute can be
     different). If particles are indistinguishable, it can be shown
     that correct average ensemble properties can be obtained despite
     the presence of the bounadary and its alteration of microscopic
     kinetics of the simulation.
-    The position of the boundary is flexible with respect to the 
+    The position of the boundary is flexible with respect to the
     inner region particle that is furthest away from the solute.
-    If a boundary event is detected, SAFIRES will redirect the 
+    If a boundary event is detected, SAFIRES will redirect the
     involved inner and outer region particles by performing an
     elastic collision between them, using the boundary as a mediator
-    for the collision. SAFIRES can scale the time step of the 
+    for the collision. SAFIRES can scale the time step of the
     simulation to match the exact moment that a collision occurs.
     SAFIRES uses a new propagator to handle these dynamic time steps.
     This propagator reduces to the Vanden-Eijnden / Cicotti
     implementation of the Langevin propagator for a constant time
     step and to the Velocity Verlet propagator for a constant time
-    step and zero friction. 
-        
+    step and zero friction.
+
     PHRASEOLOGY
     -----------
     "particle": any atom or molecule involved in SAFIRES.
@@ -59,30 +57,30 @@ class SAFIRES:
                      region (atom.tag = 1).
     "outer"/"OUTER": referring to particles in the outer
                      region (atom.tag = 2).
-    "boundary": the boundary sphere (atomic or molecular 
-                solute) or boundary plane (surface as 
-                solute) that separates inner and outer 
+    "boundary": the boundary sphere (atomic or molecular
+                solute) or boundary plane (surface as
+                solute) that separates inner and outer
                 region. sphere radius or plane distance,
                 respectively, are defined by the distance
-                of the INNER particle furthest away from 
+                of the INNER particle furthest away from
                 the solute.
     "boundary event": if any OUTER particles are detected
                       closer to the solute than the INNER
                       particle currently furthest away from
                       the solute.
-    
+
     USAGE:
     ------
    1) atoms = Atoms([...])
        atom.tag = 0 --> solute
        atom.tag = 1 --> inner region
        atom.tag = 2 --> outer region
-    
+
     2) md = MD([...])
         where MD = Langevin or VelocityVerlet
 
     3) traj = Trajectory('[your name].traj', 'w')
-    
+
     4) safires = SAFIRES(atoms=atoms,
                          mdobject=md,
                          natoms=int number of atoms in each
@@ -93,12 +91,12 @@ class SAFIRES:
                          debug=True/False,
                          barometer=True/False,
                          surface=True/False)
-    
+
     5) md.attach(safires.safires, interval=1)
-    
+
     6) md.run([...])
-        
-    
+
+
     TODO:
     -----
     - currently fixcm is required to be False for Langevin.
@@ -106,12 +104,12 @@ class SAFIRES:
     - debug output should properly reflect the COM pseudoparticles
       when molecules are used.
     """
-    
+
     def __init__(self, atoms, mdobject, natoms, logfile, traj=None,
                  trajfreq=1, debug=False, barometer=False,
                  surface=False):
         """"Initial setup of the SAFIRES class.
-        
+
         KEYWORD ARGUMENTS:
         ------------------
         atoms -- ASE atoms object
@@ -131,7 +129,7 @@ class SAFIRES:
             atoms object passed to SAFIRES in the input script.
 
         self.surface --
-            if True, then the solute (atom.tag = 0) is considered 
+            if True, then the solute (atom.tag = 0) is considered
             a surface. this changes / simplifies a lot of the math
             since only the z direction needs to be accounted for.
             important limitation: surface must be perpendicular to
@@ -147,8 +145,8 @@ class SAFIRES:
             int number of atoms in each molecule that make up the
             inner and outer region. SAFIRES requires that all
             inner and outer region particles are indistinguishable
-            as the main premise (see publication). 
-        
+            as the main premise (see publication).
+
         self.previous_atoms --
             copy of the atoms object from previous iterations
             used to get back to a conflict free state when a
@@ -162,22 +160,22 @@ class SAFIRES:
             the previous_atoms object requires a placeholder
             calculator to store some of the required properties
             we need to pass to it.
-        
+
         self.mdobject --
             molecular dynamics object passed to SAFIRES in the
             input script.
-        
+
         self.default_dt --
             default time step defined in the input script.
-        
+
         self.remaining_dt --
             counting variable used to keep track of the time
             required to complete a full default_dt when SAFIRES
             performes fractional time steps during a boundary event.
 
         self.totaltime --
-            tracks how much time has passed in the simulation. 
-            initialized so that the initial iteration, where 
+            tracks how much time has passed in the simulation.
+            initialized so that the initial iteration, where
             no propagation occurs (just SP of starting image)
             is properly displayed as t = 0 fs in self.logfile.
 
@@ -196,7 +194,7 @@ class SAFIRES:
 
         self.trajcount --
             counter working in conjunction with trajfreq.
-        
+
         self.previous_boundary_idx --
             keeps track of which particle (by index) defined the
             flexible boundary in the previous iteration.
@@ -212,9 +210,9 @@ class SAFIRES:
 
         self.recent --
             keeps track of which pair of INNER/OUTER particles
-            underwent separation by collision in the current 
+            underwent separation by collision in the current
             iteration. this is necessary so that SAFIRES doesn't
-            treat the same particles over and over if multiple 
+            treat the same particles over and over if multiple
             boundary events occur during the same time step.
 
         self.logfile --
@@ -249,33 +247,33 @@ class SAFIRES:
             during each iteration. False by default because it
             creates overhead that's usually unnessecary.
         """
-        self.atoms = atoms       
-        self.surface = surface 
+        self.atoms = atoms
+        self.surface = surface
         self.constraints = self.atoms.constraints.copy()
         self.natoms = natoms
         self.previous_atoms = atoms.copy()
         self.previous_atoms.calc = LJ()
         self.mdobject = mdobject
         self.default_dt = self.mdobject.dt
-        self.remaining_dt = 0. 
-        self.totaltime = (-1) * self.default_dt 
+        self.remaining_dt = 0.
+        self.totaltime = (-1) * self.default_dt
         self.traj = traj
-        self.trajfreq = trajfreq 
+        self.trajfreq = trajfreq
         self.trajcount = 0
         self.previous_boundary_idx = 0
-        self.tocollide = list() 
+        self.tocollide = list()
         self.recent = list()
         self.logfile = logfile
         self.ncollisions = 0
         self.ndoubles = 0
         self.barometer = barometer
-        if self.barometer == True:
-            self.impacts = [0,0] 
+        if self.barometer:
+            self.impacts = [0,0]
         self.debug = debug
 
         # if Langevin MD is  using 'fixcm', we need to turn that off
         if hasattr(self.mdobject, "fixcm"):
-            if self.mdobject.fixcm == True:
+            if self.mdobject.fixcm:
                 self.mdobject.fixcm = False
 
         # setup output logfiles
@@ -283,9 +281,9 @@ class SAFIRES:
         self.log.write("Iteration    t / fs      E_tot / eV       "
                        "E_kin / eV        E_pot / eV    T / K     "
                        "   d_INNER / A\n")
-       
-	# create debuglog file (if required)
-        if debug == True:
+
+        # create debuglog file (if required)
+        if debug:
             self.db = open("debug.log", "w+")
             self.db.write("SAFIRES DEBUG LOG\n"
                           "-----------------\n")
@@ -299,13 +297,13 @@ class SAFIRES:
 
         # say hi to the user
         print("\n"
-        " ##############\n"
-        " # SAFIRES    #\n"
-        " # ---------- #\n"
-        " # v. 0.0.1   #\n"
-        " # 2021-01-18 #\n"
-        " ##############\n")
-            
+              " ##############\n"
+              " # SAFIRES    #\n"
+              " # ---------- #\n"
+              " # v. 0.0.1   #\n"
+              " # 2021-01-18 #\n"
+              " ##############\n")
+
     def logger(self, boundary, iteration):
         """Write MD and SAFIRES results to log file.
 
@@ -315,38 +313,32 @@ class SAFIRES:
                     furthest away from the solute (float)
         iteration -- current iteration (int)
         """
-        
-        try:
-            epot = self.atoms.get_potential_energy()
-            ekin = self.atoms.get_kinetic_energy()
-            etot = epot + ekin
-            temp = self.atoms.get_temperature()
-            self.log.write(
+
+        epot = self.atoms.get_potential_energy()
+        ekin = self.atoms.get_kinetic_energy()
+        etot = epot + ekin
+        temp = self.atoms.get_temperature()
+        self.log.write(
                 "{:>9d}    {:>6.1f}    {:>14.8f}    "
                 "{:>14.8f}    {:>14.8f}    {:>9.3f}    "
-                "{:>8.3f}\n".format(iteration, 
+                "{:>8.3f}\n".format(iteration,
                                     self.totaltime / units.fs,
                                     etot, ekin, epot, temp, boundary)
                 )
-        except:
-            pass
         return
-    
+
     def debuglog(self, string):
         """Write debug output to debug.log (if activated).
-        
+
         Keyword arguments:
         string -- any string
-        
+
         The debug output we want to write can be fairly varied,
         so string doesn't follow any specific pattern or constriant.
         """
 
-        if self.debug == True:
-            try:
-                self.db.write(string)
-            except:
-                pass
+        if self.debug:
+            self.db.write(string)
 
     def norm(self, x):
         """Return norm'd 3D vector x."""
@@ -367,8 +359,8 @@ class SAFIRES:
         """ Return rotation matrix for rotation by theta around axis.
 
         Return the rotation matrix associated with counterclockwise
-        rotation about the given axis by theta radians. 
-        Euler-Rodrigues formula, code stolen from 
+        rotation about the given axis by theta radians.
+        Euler-Rodrigues formula, code stolen from
         stackoverflow.com/questions/6802577.
         """
         a = cos(theta / 2.0)
@@ -378,8 +370,8 @@ class SAFIRES:
         return np.array([[aa + bb - cc - dd, 2 * (bc+ad), 2 * (bd-ac)],
                          [2 * (bc-ad), aa + cc - bb - dd, 2 * (cd+ab)],
                          [2 * (bd+ac), 2 * (cd-ab), aa + dd - bb - cc]])
-        
-    def extrapolate_dt(self, previous_boundary_idx, boundary_idx, 
+
+    def extrapolate_dt(self, previous_boundary_idx, boundary_idx,
                        outer_idx, checkup):
         """Return the time step required to resolve boundary event.
 
@@ -389,33 +381,33 @@ class SAFIRES:
                                  during the previous iteration
         boundary_idx -- atom index of the inner region particle that
                         defines the boundary on the current iteration
-        outer_idx -- atom index of the outer region particle that 
+        outer_idx -- atom index of the outer region particle that
                      triggered the boundary event
         checkup -- True/False, is used internally to indicate if
-                   this is a checkup run which occurs after a 
+                   this is a checkup run which occurs after a
                    successful boundary event resolution. this is done
                    to catch rare cases where a secon outer region
                    particle has entered the inner region during the
                    resolution of a first boundary event. in this case,
                    slightly different rules apply.
         """
-        
+
         # results dict
         res = {} # structure: {inner particle index: extrapolated factor}
-        
-        # convert list to set (no duplicate values) 
+
+        # convert list to set (no duplicate values)
         for inner_idx in set([boundary_idx, previous_boundary_idx]):
             # find point where outer and inner region particles
             # have the same distance from COM, i.e. both are on
             # the boundary. we need to propagate both particles
             # to this point to perform an exact elastic collision.
-            
+
             if inner_idx in self.recent and outer_idx in self.recent:
                 # First, check if inner and outer performed a collision
                 # in the very last iteration. This can occur if
                 # a collision is performed and in the subsequent
                 # iteration (within remaining_dt) the same outer
-                # collides with another inner. If we do the 
+                # collides with another inner. If we do the
                 # extrapolation based on both these inner, the inner
                 # from the previous iteration will always give
                 # the smaller dt because this inner and the outer are
@@ -423,8 +415,8 @@ class SAFIRES:
                 # We need to ignore this pair since it's already
                 # been resolved.
                 continue
-            
-            # retreive forces, velocities, distances, masses 
+
+            # retreive forces, velocities, distances, masses
             # for image before the event
             com_atoms, forces, unused1, r, d, unused2, unused3 = (
                     self.update(self.previous_atoms))
@@ -437,7 +429,7 @@ class SAFIRES:
             v_inner = com_atoms[inner_idx].momentum / m_inner
             f_inner = forces[inner_idx] / m_inner
 
-            # if molecules are used, which are reduced to 
+            # if molecules are used, which are reduced to
             # pseudoparticles with properties centered on their COM,
             # we need to re-expand the pseudoparticle indices into the
             # "real" indices by multiplying the pseudoparticle index by
@@ -445,7 +437,7 @@ class SAFIRES:
             outer_real = outer_idx * self.natoms
             inner_real = inner_idx * self.natoms
             mod = self.natoms
-            
+
             # retreive Langevin-specific values (eta and xi random
             # components, friction fr).
             # if it is a Velocity Verlet based simulation,
@@ -464,23 +456,27 @@ class SAFIRES:
             self.constraints = self.atoms.constraints.copy()
             self.atoms.constraints = []
 
-            if hasattr(self.mdobject, "fr"): 
+            if hasattr(self.mdobject, "fr"):
                 # if it is a Langevin-based simulation
                 fr = self.mdobject.fr
-                if mod > 1: 
-                    # if inner/outer particles are molecules 
-                    m_outer_list = [np.sqrt(xm) for xm in 
-                        self.atoms[outer_real:outer_real+mod].get_masses()]
-                    m_inner_list = [np.sqrt(xm) for xm in 
-                        self.atoms[inner_real:inner_real+mod].get_masses()]
-                    xi_outer = np.dot(m_outer_list, 
-                        self.mdobject.xi[outer_real:outer_real+mod]) / m_outer
-                    xi_inner = np.dot(m_inner_list, 
-                        self.mdobject.xi[inner_real:inner_real+mod]) / m_inner
-                    eta_outer = np.dot(m_outer_list, 
-                        self.mdobject.eta[outer_real:outer_real+mod]) / m_outer
-                    eta_inner = np.dot(m_inner_list, 
-                        self.mdobject.eta[inner_real:inner_real+mod]) / m_inner
+                if mod > 1:
+                    # if inner/outer particles are molecules
+                    m_outer_list = [np.sqrt(xm) for xm in
+                            self.atoms[outer_real:outer_real+mod].get_masses()]
+                    m_inner_list = [np.sqrt(xm) for xm in
+                            self.atoms[inner_real:inner_real+mod].get_masses()]
+                    xi_outer = (np.dot(m_outer_list,
+                                self.mdobject.xi[outer_real:outer_real+mod]) 
+                                / m_outer)
+                    xi_inner = (np.dot(m_inner_list,
+                                self.mdobject.xi[inner_real:inner_real+mod]) 
+                                / m_inner)
+                    eta_outer = (np.dot(m_outer_list,
+                                 self.mdobject.eta[outer_real:outer_real+mod])
+                                 / m_outer)
+                    eta_inner = (np.dot(m_inner_list,
+                                 self.mdobject.eta[inner_real:inner_real+mod])
+                                 / m_inner)
                     sig_outer = np.sqrt(2 * self.mdobject.temp * fr)
                     sig_inner = np.sqrt(2 * self.mdobject.temp * fr)
                 else:
@@ -496,7 +492,7 @@ class SAFIRES:
             self.atoms.constraints = self.constraints.copy()
 
             # surface calculations: we only need z components
-            if self.surface == True:
+            if self.surface:
                 v_outer[0] = 0.
                 v_outer[1] = 0.
                 v_inner[0] = 0.
@@ -520,19 +516,19 @@ class SAFIRES:
             # a and b are velocity modifiers derived from the first
             # velocity half step in the Langevin algorithm. see
             # publication for more details.
-            if checkup == False:
+            if not checkup:
                 idt = self.default_dt
                 a_outer = (idt * (f_outer - fr * v_outer) / 2
                            + idt**0.5 * sig_outer * xi_outer / 2
                            - idt**2 * fr * (f_outer - fr * v_outer) / 8
-                           - idt**1.5 * fr * sig_outer * (xi_outer / 2 
+                           - idt**1.5 * fr * sig_outer * (xi_outer / 2
                            + eta_outer / np.sqrt(3)) / 4)
                 b_outer = idt**0.5 * sig_outer * eta_outer / (2 * np.sqrt(3))
-                
+
                 a_inner = (idt * (f_inner - fr * v_inner) / 2
                            + idt**0.5 * sig_inner * xi_inner / 2
                            - idt**2 * fr * (f_inner - fr * v_inner) / 8
-                           - idt**1.5 * fr * sig_inner * (xi_inner / 2 
+                           - idt**1.5 * fr * sig_inner * (xi_inner / 2
                            + eta_inner / np.sqrt(3)) / 4)
                 b_inner = idt**0.5 * sig_inner * eta_inner / (2 * np.sqrt(3))
             else:
@@ -563,8 +559,8 @@ class SAFIRES:
                     # we're only interested in the SMALLEST positive real
                     # value, which is the required time step.
                     res.update({inner_idx: np.real(val)})
-                    
-                    if self.debug == True:
+
+                    if self.debug:
                         # debug logging
                         r_outer_new = r_outer + val * v_outer
                         d_outer_new = np.linalg.norm(r_outer_new)
@@ -576,9 +572,9 @@ class SAFIRES:
                                       .format(d_outer_new))
                         self.debuglog("   Extapolated dt for atom pair {:d}"
                                       " (INNER) - {:d} (OUTER): {:.5f}\n"
-                                      .format(inner_idx, outer_idx, 
+                                      .format(inner_idx, outer_idx,
                                               np.real(val)))
-        
+
         if not res:
             # if none of the obtained roots fit the criteria (real,
             # positive, <= initial time step), then we have a problem.
@@ -610,7 +606,7 @@ class SAFIRES:
         Keyword arguments:
         dt -- the time step used to propagate.
         checkup -- True/False, is used internally to indicate if
-                   this is a checkup run which occurs after a 
+                   this is a checkup run which occurs after a
                    successful boundary event resolution. this is done
                    to catch rare cases where a secon outer region
                    particle has entered the inner region during the
@@ -629,14 +625,14 @@ class SAFIRES:
         Cicotti implementation of the Langevin algorithm. It has been
         modified to perform the propagation in two halfsteps. It is
         used during the SAFIRES procedure in-lieu of the superordinate
-        MD algorithm specified in the user input to fulfill the 
+        MD algorithm specified in the user input to fulfill the
         specific requirements of this approach, as outlined below.
 
         The first halfstep uses a fraction of the original, default
         time step as obtained from extrapolate_dt(). However, the
         velocities are updated based on forces and Langevin random
         components as if the original, default time step would be
-        performed. After the end of this first halfstep, the 
+        performed. After the end of this first halfstep, the
         atoms have been propagated so that the conflicting pair of
         inner and outer region particles are located at the same
         distance from the solute. From this obtained arrangement
@@ -647,7 +643,7 @@ class SAFIRES:
         During this halfstep, the velocities are NOT updated as
         they were already updated during halfstep 1 based on
         the forces and Langevin random components scaled by
-        the regular, default time step. 
+        the regular, default time step.
 
         Note that the Langevin random components are not randomized
         between halfsteps or between the time step extrapolation in
@@ -655,41 +651,41 @@ class SAFIRES:
         atoms to behave deterministically while SAFIRES operates.
 
         The checkup switch will make it so that velocities
-        are not updated in the first halfstep. Checkup == True is
+        are not updated in the first halfstep. Checkup is True is
         called after a boundary event has been successfully resolved,
-        which means that propagate() was already run and the 
-        velocities were already updated based on the full default 
-        time step. If a subsequent boundary event needs to be 
-        resolved right after the resolution of a first event 
+        which means that propagate() was already run and the
+        velocities were already updated based on the full default
+        time step. If a subsequent boundary event needs to be
+        resolved right after the resolution of a first event
         (without the regular MD being called in between, i.e.
-        multiple events during the same default time step), 
-        the propagation during this second resolution occurs 
+        multiple events during the same default time step),
+        the propagation during this second resolution occurs
         without any velocity updates. Otherwise we would apply the
         forces and random components multiple times during the same
         time step and thus destroy energy conservation.
 
         Finally, after the first and any subsequent boundary events
         have been resolved completely and the simulation has been
-        propagated by a complete default time step, the second 
+        propagated by a complete default time step, the second
         velocity halfstep required by Langevin is performed. After
         this, SAFIRES returns control over the simulation back to
         the superordinate MD algorithm defined  n the user input.
         Technically, the second velocity halfstep is performed after
-        the initial, checkup == False cycle but is then undone if 
-        subsequent boundary events are detected during the 
+        the initial, checkup is False cycle but is then undone if
+        subsequent boundary events are detected during the
         checkup = True cycle. This ensures that the second velocity
         halfstep is performed on the absolute final atomic
         configuration obtained by SAFIRES before returning control
         over the situation to superordinate MD propagator.
         """
-        
+
         # retreive parameters
         # atoms have been reset to "previous" state at this point
         x = self.atoms.get_positions()
         m = self.atoms.get_masses()[:, np.newaxis]
         v = self.atoms.get_momenta() / m
-        f = self.atoms.calc.results['forces'] / m 
-        
+        f = self.atoms.calc.results['forces'] / m
+
         if hasattr(self.mdobject, "fr"):
             # check for langevin friction, random forces
             T = self.mdobject.temp
@@ -699,16 +695,16 @@ class SAFIRES:
             sig = np.sqrt(2 * T * fr / m)
         else:
             fr = 0.
-            xi = np.asarray([np.asarray([0.,0.,0.]) 
+            xi = np.asarray([np.asarray([0.,0.,0.])
                              for atom in self.atoms])
-            eta = np.asarray([np.asarray([0.,0.,0.]) 
+            eta = np.asarray([np.asarray([0.,0.,0.])
                               for atom in self.atoms])
             sig = 0.
-                
-        # pre-calculate (random) force constant 
+
+        # pre-calculate (random) force constant
         # based on default time step
         idt = self.default_dt
-        if checkup == False:
+        if not checkup:
             c = (idt * (f - fr * v) / 2
                  + idt**0.5 * sig * xi / 2
                  - idt**2 * fr * (f - fr * v) / 8
@@ -717,21 +713,21 @@ class SAFIRES:
         else:
             # if checkup is True, this means we already performed an entire
             # propagation cycle and have already updated the velocities
-            # based on values for the full default time step. thus we 
-            # need to make sure not to update velocities a second time 
+            # based on values for the full default time step. thus we
+            # need to make sure not to update velocities a second time
             # because that would destroy energy conservation.
             c = np.asarray([np.asarray([0.,0.,0.]) for atom in self.atoms])
             d = np.asarray([np.asarray([0.,0.,0.]) for atom in self.atoms])
 
         if halfstep == 1:
-            # friction and (random) forces should only be 
+            # friction and (random) forces should only be
             # applied during the first halfstep.
             v += c + d
             self.atoms.set_positions(x + dt * v)
             self.atoms.set_momenta(v * m)
-        
+
         if halfstep == 2:
-            # at the end of the second part of the time step, 
+            # at the end of the second part of the time step,
             # do the force update and the second
             # velocity halfstep
             self.atoms.set_positions(x + dt * v)
@@ -744,7 +740,7 @@ class SAFIRES:
                  - idt**1.5 * fr * sig * (xi / 2 + eta / sqrt(3)) / 4)
             v += c
             self.atoms.set_momenta(v * m)
-        
+
         return
 
     def update(self, atoms):
@@ -754,10 +750,10 @@ class SAFIRES:
         atoms -- ASE atoms object with attached calculator containing
                  atomic positions, cell information, and results from
                  an MD iteration
-        
+
         Return values:
         com_atoms -- if used with molecules: com_atoms contains new
-                     pseudoparticles centered on the COM of the 
+                     pseudoparticles centered on the COM of the
                      original molecule with effective
                      velocities for the whole molecule. if monoatomic
                      species are used, this will be identical to the
@@ -770,7 +766,7 @@ class SAFIRES:
         r -- array of vectors between the COM of the solute and all
              inner and outer region (pseudo-) particles in the system
         d -- array of absolute distances between the COM of the solute
-             and all inner and outer region (pseudo-) particles 
+             and all inner and outer region (pseudo-) particles
              in the system
         boundary_idx -- atom object index of the inner region (pseudo-)
                         particle that is furthest away from the COM of
@@ -778,12 +774,12 @@ class SAFIRES:
         boundary -- absolute distance between the inner region (pseudo-)
                     particle and the COM of the solute, defining the
                     radius of the boundary sphere for molecular solutes
-                    or the distance of the boundary plane from the 
+                    or the distance of the boundary plane from the
                     solute for surfaces.
-                    
+
         Arrays r and d have the same ordering as atoms object.
         """
-    
+
         # calculate distance of the resulting COM
         i = 0
         com_atoms = Atoms()
@@ -791,7 +787,7 @@ class SAFIRES:
         com_atoms.cell = atoms.cell
         mod = self.natoms
         forces = []
-    
+
         # need to make sure constraints are off
         # get_com method breaks GPAW fast FixBondLength
         # constraints (-> for rigid H2O)
@@ -812,17 +808,17 @@ class SAFIRES:
                 M = atoms[i].mass
                 tag = atoms[i].tag
                 frc = atoms.calc.results['forces'][i]
-            
+
             tmp = Atoms(atoms[i].symbol)
             tmp.set_positions([com])
             tmp.set_momenta([mom])
             tmp.set_masses([M])
             tmp.set_tags([tag])
             forces.append(frc)
-    
+
             com_atoms += tmp
             i += self.natoms
-    
+
         # we can no reapply the constraints to the original
         # atoms object. all further processing will be done
         # on the pseudoparticle com_atoms object, which does
@@ -831,26 +827,26 @@ class SAFIRES:
 
         # calculate center of mass of solute with
         # reduced atoms object
-        com_solute = com_atoms[[atom.index for atom in com_atoms 
+        com_solute = com_atoms[[atom.index for atom in com_atoms
                                 if atom.tag == 0]].get_center_of_mass()
-        if self.surface == True:
+        if self.surface:
             # we only need z coordinates for surface calculations
             com_solute[0] = 0.
             com_solute[1] = 0.
             for atom in com_atoms:
                 atom.position[0] = 0.
                 atom.position[1] = 0.
-        
+
         # calculate absolute distances and distance vectors between
         # COM of solute and all inner and outer region particles
         # (respect PBCs in distance calculations)
-        r, d = find_mic([atom.position for atom in com_atoms] 
+        r, d = find_mic([atom.position for atom in com_atoms]
                          - com_solute, com_atoms.cell, com_atoms.pbc)
-    
+
         # list all particles in the inner region
-        inner_mols = [(atom.index, d[atom.index]) 
+        inner_mols = [(atom.index, d[atom.index])
                       for atom in com_atoms if atom.tag == 1]
-        
+
         # boundary is defined by the inner region particle that has
         # the largest absolute distance from the COM of the solute
         boundary_idx, boundary = sorted(inner_mols, key=itemgetter(1),
@@ -878,8 +874,8 @@ class SAFIRES:
         0) check for boundary events.
         1) extrapolate the time step required to propagate the atoms
            so that the inner region particle particle that is furthest
-           away from the COM of the solute and the outer region 
-           particle that is closest to the COM of the solute are 
+           away from the COM of the solute and the outer region
+           particle that is closest to the COM of the solute are
            exactly the same distance from the solute
            --> extrapolate_dt().
         2) reset the atoms object to the last state before the event.
@@ -898,24 +894,24 @@ class SAFIRES:
             simulation to superordinate MD simulation for the next
             regular propagation step.
         """
-        
+
         # determine current iteration
         iteration = self.mdobject.get_number_of_steps()
 
         # start writing new debugging block if debugging is enabled
-        if checkup == False:
+        if not checkup:
             self.debuglog("\nIteration {:d}\n".format(iteration))
         else:
             self.debuglog("".join(["\nIteration {:d} ".format(iteration),
                           "POST COLLISION CHECKUP\n"]))
-        
+
         # update pseudoparticle atoms object and distance (vectors)
         # between all pseudoparticles and the COM of the solute
-        com_atoms, forces, com, r, d, boundary_idx, boundary = ( 
+        com_atoms, forces, com, r, d, boundary_idx, boundary = (
             self.update(self.atoms))
-        
+
         self.debuglog("   Boundary: idx {:d} at d = {:.3f}\n"
-                      .format(boundary_idx * self.natoms, 
+                      .format(boundary_idx * self.natoms,
                               d[boundary_idx]))
 
         ###############################################################
@@ -923,20 +919,20 @@ class SAFIRES:
         # 0) CHECK FOR BOUNDARY EVENTS IN CURRENT TIME STEP            #
         #                                                             #
         ###############################################################
-        
+
         # make new list to save extrapolated time steps for
         # all boundary events detected in this iteration
         dt_list = []
 
         for atom in [tmpatm for tmpatm in com_atoms if tmpatm.tag == 2]:
             # loop over all outer region particles
-            
+
             dist = d[atom.index]
             if dist < boundary:
                 # check if any outer region particle is closer to the
-                # solute than the inner region particle that is 
+                # solute than the inner region particle that is
                 # furthest away from the solute (i.e. boundary_idx)
-                
+
                 if dist < boundary - 1:
                     # if the outer region particle is detected more
                     # than 1 A inside the inner region, something has
@@ -968,22 +964,22 @@ class SAFIRES:
                     self.debuglog("   Before: Distance solute -> OUTER "
                                   "(idx {:d}): {:.15f}\n"
                                   .format(atom.index, d[atom.index]))
-                    
+
                     ####################################################
                     #                                                  #
                     # 1) and 7a) EXTRAPOLATE NEW TIME STEP             #
                     #                                                  #
                     ####################################################
-                    
+
                     # extrapolate new time step
                     # by how  much do we need to propagate the system
-                    # to bring the affected particle pair to the 
+                    # to bring the affected particle pair to the
                     # exact same distance from the solute?
                     res = self.extrapolate_dt(
                                 self.previous_boundary_idx,
                                 boundary_idx, atom.index,
                                 checkup)
-                    
+
                     # get smallest entry from res dict;
                     # smallest res = earliest collision
                     inner_reflect, modified_dt = sorted(
@@ -994,24 +990,25 @@ class SAFIRES:
                         # the calculation will run into numerical
                         # issues and will get stuck. there is no
                         # reason why time steps should become this
-                        # small, so this would be indicative of 
+                        # small, so this would be indicative of
                         # a general issue with the simulation.
                         error = ("".join(["Unreasonably small "
-                                 "time step (< 1E-12) taken in "
-                                 "step {:d}\n".format(iteration),
-                                 "This will lead to numerical"
-                                 " instability, so we exit here.\n"
-                                 "Check you simulation"
-                                 " parameters, this shouldn't"
-                                 " happen!\n"
-                                 "EXITING"]))                              
+                                          "time step (< 1E-12) taken "
+                                          "in step {:d}\n"
+                                          .format(iteration),
+                                          "This will lead to numerical"
+                                          " instability, so we exit here.\n"
+                                          "Check you simulation"
+                                          " parameters, this shouldn't"
+                                          " happen!\n"
+                                          "EXITING"]))
                         self.debuglog(error)
                         raise SystemExit(error)
-                    
-                    # add affected particle pair and 
+
+                    # add affected particle pair and
                     # extrapolated dt to dt_list
                     dt_list.append((atom.index, modified_dt, inner_reflect))
-                    
+
         if dt_list:
             # if a boundary event has been detected,
             # find next time step -> smallest dt value in dt_list
@@ -1023,7 +1020,7 @@ class SAFIRES:
             # choose affected particle pair corresponding to smallest dt
             outer_reflect, inner_reflect = dt_list[0][0], dt_list[0][2]
 
-            # keep track of what fraction of current dt 
+            # keep track of what fraction of current dt
             # is left to advance later
             if self.remaining_dt == 0.:
                 # if the current boundary event is the first event
@@ -1045,7 +1042,7 @@ class SAFIRES:
                     # something went wrong in the remaining time
                     # bookkeeping or maybe because many boundary
                     # events occurred within one time step. both
-                    # situations will not immediately break the 
+                    # situations will not immediately break the
                     # simulation but are concerning, so the user
                     # will be warned in case of a complete meltdown
                     # later on.
@@ -1057,15 +1054,15 @@ class SAFIRES:
                     print("<SAFIRES>"+error)
                     self.debuglog(error)
 
-            if self.barometer == True:
-                # barometer keeps track of how many impacts on the 
+            if self.barometer:
+                # barometer keeps track of how many impacts on the
                 # border are caused by inner and by outer region
                 # particles, respectively. helps to find out if an
                 # artificial pressure occurs when two different
                 # potentials are used in the inner and outer regions.
-                dot_inner_c = np.dot(r[dt_list[0][2]], 
+                dot_inner_c = np.dot(r[dt_list[0][2]],
                                      self.atoms[dt_list[0][2]].momentum)
-                dot_outer_c = np.dot(r[dt_list[0][0]], 
+                dot_outer_c = np.dot(r[dt_list[0][0]],
                                      self.atoms[dt_list[0][0]].momentum)
                 if dot_inner_c > 0 and dot_outer_c > 0:
                     self.impacts[0] += 1
@@ -1077,8 +1074,8 @@ class SAFIRES:
             # 2) RESET TO CONFIGURATION BEFORE BOUNDARY EVENT          #
             #                                                          #
             ############################################################
-            
-            # reset configuration to previous image 
+
+            # reset configuration to previous image
             # before boundary event
             self.atoms.positions = self.previous_atoms.positions.copy()
             self.atoms.set_momenta(
@@ -1091,31 +1088,31 @@ class SAFIRES:
             # 3) PROPAGATE PARTICLE PAIR TO SAME DISTANCE FROM SOLUTE  #
             #                                                          #
             ############################################################
-            
+
             # propagate first part of the time step
             self.propagate(new_dt, checkup, halfstep=1)
-            
+
             # update list of distances to solute, boundary
             com_atoms, forces, com, r, d, boundary_idx, boundary = (
                 self.update(self.atoms))
-            
+
             # logging collision info
             self.ncollisions += 1
-            if checkup == True:
+            if checkup:
                 self.ndoubles += 1
             self.debuglog("   < ELASTIC COLLISION >\n")
-            
+
             # write boundary event info to stdout
             print("".join(["<SAFIRES> Iteration {:d}: "
                            .format(iteration),
                            "Treating atoms {:d} and {:d} at d = {:.5f}"
-                           .format(outer_reflect, inner_reflect, 
-                                   d[outer_reflect]), 
+                           .format(outer_reflect, inner_reflect,
+                                   d[outer_reflect]),
                            ". Using dt = {:.12f}"
                            .format(new_dt)]))
             self.debuglog("".join(["   Treating atoms "
                                    "{:d} (OUTER) and {:d}"
-                                   .format(outer_reflect, 
+                                   .format(outer_reflect,
                                            inner_reflect),
                                    " (INNER)\n"]))
 
@@ -1125,17 +1122,17 @@ class SAFIRES:
                           "{:d}): {:.15f}\n".format(inner_reflect,
                                                     d[inner_reflect]))
             self.debuglog("   Distance solute -> OUTER (idx "
-                          "{:d}): {:.15f}\n".format(outer_reflect, 
+                          "{:d}): {:.15f}\n".format(outer_reflect,
                                                     d[outer_reflect]))
-            
+
             if abs(d[inner_reflect] - d[outer_reflect]) > 0.001:
-                # minor difference can (but shouldn't). maybe T was a 
+                # minor difference can (but shouldn't). maybe T was a
                 # bit too high? anyways the code is usually robust
                 # enough to deal with that. but  we inform the user,
                 # just in case this leads to a complete meltdown.
                 print("WARNING: INNER and OUTER particle are not "
                       "exactly on the border! Difference > 0.001 "
-                      "A but < 0.01 A.") 
+                      "A but < 0.01 A.")
 
             if abs(d[inner_reflect] - d[outer_reflect]) > 0.01:
                 # now this is a real issue and indicative of something
@@ -1148,14 +1145,14 @@ class SAFIRES:
                                  "continue. Potential failure of the "
                                  "time step extrapolation or "
                                  "propagation routines. Check your "
-                                 "simulation parameters!\n") 
+                                 "simulation parameters!\n")
 
             ############################################################
             #                                                          #
             # 4) PERFORM ELASTIC COLLISION BETWEEN PARTICLE PAIR       #
             #                                                          #
             ############################################################
-            
+
             # gather required position (always wrt. to solute),
             # mass and velocity values
             r_inner = r[inner_reflect]
@@ -1169,32 +1166,32 @@ class SAFIRES:
             theta = self.calc_angle(r_inner, r_outer)
             self.debuglog("   angle (r_outer, r_inner) is: {:.16f}\n"
                           .format(degrees(theta)))
-            
-            if self.surface == False and theta != 0 and theta != pi:
+
+            if not self.surface and theta != 0 and theta != pi:
                 # if there is a finite angle > 0 and < 180 degree
                 # between INNER and OUTER particles, we rotate the
                 # OUTER to be exactly on top of the inner for the
                 # collision. this simulates the boundary mediating
                 # a collision between the particles.
                 #
-                # if angle == 0° or angle == 180°, the cross 
+                # if angle == 0° or angle == 180°, the cross
                 # product will fail. in case of angle == 0, we don't
                 # need to do anything. in case of angle == 180°, we
                 # invert the vectors.
-                
+
                 # calculate rotational axis
-                axis = self.normalize(np.cross(r[outer_reflect], 
+                axis = self.normalize(np.cross(r[outer_reflect],
                                       r[inner_reflect]))
 
-                # rotate outer position, velocity, 
+                # rotate outer position, velocity,
                 # and (random) force vectors
-                v_outer = np.dot(self.rotation_matrix(axis, theta), 
+                v_outer = np.dot(self.rotation_matrix(axis, theta),
                                  v_outer)
-                r_outer = np.dot(self.rotation_matrix(axis, theta), 
+                r_outer = np.dot(self.rotation_matrix(axis, theta),
                                  r_outer)
 
             if theta == pi:
-                # this is a extremely unlikely case in case of a 
+                # this is a extremely unlikely case in case of a
                 # molecular calculation but common in calculations
                 # uing a periodic surface slab if the system is
                 # symmetric and particles can be on both sides of
@@ -1216,7 +1213,7 @@ class SAFIRES:
             self.debuglog("   v_sum_pre = {:s}\n"
                           .format(np.array2string(v_sum_pre)))
 
-            # Perform mass-weighted exchange of normal components of 
+            # Perform mass-weighted exchange of normal components of
             # velocitiy, force (, and random forces if Langevin).
             # i.e. elastic collision
             M = m_outer + m_inner
@@ -1224,7 +1221,7 @@ class SAFIRES:
             v12 = v_outer - v_inner
             v_norm = np.dot(v12, r12) * r12 / (self.norm(r12)**2)
             v_outer_post = v_outer - 2 * m_inner / M * v_norm
-            v_inner_post = v_inner + 2 * m_outer / M * v_norm 
+            v_inner_post = v_inner + 2 * m_outer / M * v_norm
 
             # debug log involved quantitites after collision
             self.debuglog("   v_outer_post = {:s}\n"
@@ -1235,14 +1232,14 @@ class SAFIRES:
             self.debuglog("   v_sum_post = {:s}\n"
                           .format(np.array2string(v_sum_post)))
 
-            if self.surface == False and theta != 0 and theta != pi:
-                # rotate outer particle velocity 
+            if not self.surface and theta != 0 and theta != pi:
+                # rotate outer particle velocity
                 # back to inital direction after collision
-                v_outer_post = np.dot(self.rotation_matrix(axis, 
+                v_outer_post = np.dot(self.rotation_matrix(axis,
                                       2*np.pi - theta), v_outer_post)
 
             if theta == pi:
-                # flip velocity of outer particle again 
+                # flip velocity of outer particle again
                 # to the other side of the slab (if applicable)
                 v_outer_post = (-1) * v_outer_post
 
@@ -1265,19 +1262,23 @@ class SAFIRES:
                     # (conserve rotational DOF)
                     outer_actual = outer_reflect * self.natoms + i
                     inner_actual = inner_reflect * self.natoms + i
-                    v_outer_pre = (self.atoms[outer_actual].momentum 
+                    v_outer_pre = (self.atoms[outer_actual].momentum
                                    / self.atoms[outer_actual].mass)
-                    v_inner_pre = (self.atoms[inner_actual].momentum 
+                    v_inner_pre = (self.atoms[inner_actual].momentum
                                    / self.atoms[inner_actual].mass)
-                    tang_v_outer_pre = np.cross((-1) * n2, 
+                    tang_v_outer_pre = np.cross((-1) * n2,
                                                 np.cross(n2, v_outer_pre))
-                    tang_v_inner_pre = np.cross((-1) * n, 
+                    tang_v_inner_pre = np.cross((-1) * n,
                                                 np.cross(n, v_inner_pre))
-                    self.atoms[outer_actual].momentum = (tang_v_outer_pre
-                        + norm_v_outer_post)*self.atoms[outer_actual].mass
-                    self.atoms[inner_actual].momentum = (tang_v_inner_pre
-                        + norm_v_inner_post)*self.atoms[inner_actual].mass
-                
+                    self.atoms[outer_actual].momentum = (
+                            tang_v_outer_pre
+                            + norm_v_outer_post
+                            )*self.atoms[outer_actual].mass
+                    self.atoms[inner_actual].momentum = (
+                            tang_v_inner_pre
+                            + norm_v_inner_post
+                            )*self.atoms[inner_actual].mass
+
             else:
                 # if we're dealing with monoatomic particles
                 self.atoms[outer_reflect].momentum = v_outer_post * m_outer
@@ -1292,7 +1293,7 @@ class SAFIRES:
             self.recent = [outer_reflect, inner_reflect]
 
             # safe current configuration as new "previous" state.
-            # in case there is a second boundary event in this 
+            # in case there is a second boundary event in this
             # iteration, we need to make sure not to reset to the
             # configuration before this collision, lest we lose
             # all the work we did here.
@@ -1301,7 +1302,7 @@ class SAFIRES:
             self.previous_atoms.set_momenta(self.atoms.get_momenta().copy())
             self.previous_atoms.calc.results['forces'] = (
                 self.atoms.calc.results['forces'].copy())
-            
+
             ############################################################
             #                                                          #
             # 5) PROPAGATE REMAINING TIME TO COMPLETE FULL TIME STEP   #
@@ -1315,14 +1316,14 @@ class SAFIRES:
                 # something went wrong in the remaining time
                 # bookkeeping or maybe because many boundary
                 # events occurred within one time step. both
-                # situations will not immediately break the 
+                # situations will not immediately break the
                 # simulation but are concerning, so the user
                 # will be warned in case of a complete meltdown
                 # later on.
                 print("<SAFIRES> Remaining dt after collision is "
                       "larger than initial dt. Resetting to intial dt.")
                 self.debuglog("".join([
-                              "   WARNING: Remaining dt after collision" 
+                              "   WARNING: Remaining dt after collision"
                               "({:.5f}) ".format(self.remaining_dt),
                               "is larger than initial dt. "
                               "Resetting to intial dt.\n"
@@ -1331,15 +1332,15 @@ class SAFIRES:
                 self.remaining_dt = 0.
             elif self.remaining_dt == 0.0:
                 # for the extremely unlikely case that the (sum of)
-                # extrapolated dt(s in one iteration) adds up 
+                # extrapolated dt(s in one iteration) adds up
                 # exactly to the default time step.
                 set_dt = self.default_dt
             else:
                 # if everything is well behaved, this should be what
                 # happens every time.
                 set_dt = self.remaining_dt
-            
-            # debug logging 
+
+            # debug logging
             self.debuglog("   < FINAL PROPAGATION >\n")
 
             # propagate by the remaining time step
@@ -1356,10 +1357,10 @@ class SAFIRES:
             # indicator  if the collision and subsequent propagation
             # occurred as they should.
             self.debuglog("   Final distance solute -> INNER (idx "
-                          "{:d}): {:.15f}\n".format(inner_reflect, 
+                          "{:d}): {:.15f}\n".format(inner_reflect,
                                                     d[inner_reflect]))
             self.debuglog("   Findal distance solute -> OUTER (idx "
-                          "{:d}): {:.15f}\n".format(outer_reflect, 
+                          "{:d}): {:.15f}\n".format(outer_reflect,
                                                     d[outer_reflect]))
 
             ############################################################
@@ -1367,14 +1368,14 @@ class SAFIRES:
             # 6) RE-RUN SEPARATE() WITH CHECKUP = TRUE                 #
             #                                                          #
             ############################################################
-            
+
             # check again for new boundary events that might have
             # occurred during the second propagation halfstep.
             # checkup = True makes sure that we're not adding
             # forces and Langevin random components to the velocities
             # again, which would destroy energy conserveration.
             self.safires(checkup=True)
-            
+
         else:
             # if no boundary event is detected
 
@@ -1383,7 +1384,7 @@ class SAFIRES:
             # 7b) EXIT SAFIRES AND RETURN TO SUPERORDINATE MD          #
             #                                                          #
             ############################################################
-            
+
             # save current configuration as a "previous" state to go
             # back to incase of boundary events in the next iteration
             self.previous_boundary_idx = boundary_idx
@@ -1396,10 +1397,10 @@ class SAFIRES:
             # reset collision tracker and remaining_dt
             self.recent = []
             self.remaining_dt = 0
-            
+
             # update total time
             self.totaltime += self.default_dt
-        
+
             # write logfile
             self.logger(boundary, iteration)
 
@@ -1407,18 +1408,13 @@ class SAFIRES:
             if self.traj is not None:
                 self.trajcount += 1
                 if self.trajcount == self.trajfreq:
-                        self.traj.write(self.atoms)
-                        self.trajcount = 0
+                    self.traj.write(self.atoms)
+                    self.trajcount = 0
 
             # note that the simulation eventually always ends up
             # here after each iteration, no matter if a boundary event
             # was processed or not. this is where we can do any
             # necessary cleanup.
-
-        ##############
-        # FINISHING  #
-        # SIMULATION #
-        ##############
 
         if iteration == self.mdobject.max_steps:
             # in the very last MD iteration,
@@ -1434,7 +1430,7 @@ class SAFIRES:
 
             # print out barometer results (collisions caused
             # by inner and outer region particles, respectively)
-            if self.barometer == True:
+            if self.barometer:
                 pressure = "".join(["Barometer:\ntotal number of "
                                     "impacts from inner region "
                                     "particles: {:d}.\n"
@@ -1453,5 +1449,5 @@ class SAFIRES:
 
             # close logfiles
             self.log.close()
-            if self.debug == True:
+            if self.debug:
                 self.db.close()

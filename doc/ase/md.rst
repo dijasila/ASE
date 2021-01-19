@@ -229,7 +229,7 @@ Upon a collision the new velocity is drawn from the
 Maxwell-Boltzmann distribution at the corresponding temperature.
 The system is then integrated numerically at constant energy
 according to the Newtonian laws of motion. The collision probability
-is defined as the average number of collisions per atom and timestep. 
+is defined as the average number of collisions per atom and timestep.
 The algorithm generates a canonical distribution. [1] However, due
 to the random decorrelation of velocities, the dynamics are
 unphysical and cannot represent dynamical properties like e.g.
@@ -238,7 +238,7 @@ are stochastic in nature, so repeating the simulation will not give
 exactly the same trajectory.
 
 When the ``Andersen`` object is created, you must specify a time step,
-a temperature (in Kelvin) and a collision probability. Typical 
+a temperature (in Kelvin) and a collision probability. Typical
 values for this probability are in the order of 1e-4 to 1e-1.
 
 ::
@@ -293,20 +293,20 @@ Constant NPT simulations (the isothermal-isobaric ensemble)
 
 .. autoclass:: NPT
 
-    .. automethod:: run 
+    .. automethod:: run
     .. automethod:: set_stress
-    .. automethod:: set_temperature 
-    .. automethod:: set_mask 
-    .. automethod:: set_fraction_traceless 
-    .. automethod:: get_strain_rate 
-    .. automethod:: set_strain_rate 
-    .. automethod:: get_time 
+    .. automethod:: set_temperature
+    .. automethod:: set_mask
+    .. automethod:: set_fraction_traceless
+    .. automethod:: get_strain_rate
+    .. automethod:: set_strain_rate
+    .. automethod:: get_time
     .. automethod:: initialize
-    .. automethod:: get_gibbs_free_energy 
-    .. automethod:: zero_center_of_mass_momentum 
-    .. automethod:: attach 
+    .. automethod:: get_gibbs_free_energy
+    .. automethod:: zero_center_of_mass_momentum
+    .. automethod:: attach
 
-       
+
 Berendsen NPT dynamics
 -----------------------
 .. module:: ase.md.nptberendsen
@@ -370,9 +370,9 @@ SAFIRES (scattering-assisted flexible inner region ensemble separator) is
 an algorithm that separates a system into an inner and an outer region
 and constraints any interchange between them. SAFIRES is used for coupled
 calculations where it is necessary to invoke different computational
-methodologies in the inner and outer region. 
+methodologies in the inner and outer region.
 
-Simulations using SAFIRES require a model system that is structured in a 
+Simulations using SAFIRES require a model system that is structured in a
 specific way. Three parts need to be present, and the tag system is used
 to inform SAFIRES which atoms belong to which region:
 
@@ -382,9 +382,9 @@ to inform SAFIRES which atoms belong to which region:
    required to be of the same chemical species as the inner or outer
    region particles or molecules. The solute is assigned ``atom.tag = 0``.
 2) The 'inner region'. Particles or molecules directly in contact with
-   the solute. Typically (but not necessarily), the inner region 
+   the solute. Typically (but not necessarily), the inner region
    contains fewer particles than the outer region. Only one species
-   of particles or molecules can be present in the inner region, and 
+   of particles or molecules can be present in the inner region, and
    this species must be identical to the one present in the outer
    region. Inner region particles or molecules are assigned
    ``atom.tag = 1``.
@@ -397,7 +397,7 @@ to inform SAFIRES which atoms belong to which region:
 SAFIRES resolves boundary events through elastic collisions between the
 involved pair of outer and inner region particles. The boundary serves
 as a mediator for the collision so that particles do not need to be
-in actual physical contact. 
+in actual physical contact.
 
 In order to match the exact moment that a collision occurs, SAFIRES
 can scale the time step. A modified propagator is
@@ -407,14 +407,14 @@ reduces to the :class:`Langevin` propagator for constant time steps
 and to the :class:`VelocityVerlet` propagator for  constant time steps
 and zero friction.
 
-The SAFIRES class uses the following parameters: 
+The SAFIRES class uses the following parameters:
 
 *atoms*:
     The list of atoms.
 
 *mdobject*:
-    The MD object used for the simulation; either 
-    :class:`ase.md.verlet.VelocityVerlet` or 
+    The MD object used for the simulation; either
+    :class:`ase.md.verlet.VelocityVerlet` or
     :class:`ase.md.langevin.Langevin`.
 
 *natoms*:
@@ -425,7 +425,7 @@ The SAFIRES class uses the following parameters:
 *logfile*:
     Custom file name for log file.
     SAFIRES writes a custom logile containing additional information
-    about the position of the boundary for each iteration. 
+    about the position of the boundary for each iteration.
     The :class:`MDLogger` can still be appended to the MD object
     but may produce redundant information.
 
@@ -451,15 +451,15 @@ The SAFIRES class uses the following parameters:
 *surface*:
     Activate if the used solute is a periodic surface. This will change
     the shape of the boundary from a sphere to a plane in *xy* direction
-    and alter the associated distance calculations and elastic 
+    and alter the associated distance calculations and elastic
     collisions.
 
 .. note::
     Current limitations of SAFIRES:
-    
+
     - The :class:`Langevin` parameter ``fixcm`` cannot be True with
       SAFIRES and will be automatically turned off if activated.
-    - SAFIRES currently only supports :class:`VelocityVerlet` (NVE) and 
+    - SAFIRES currently only supports :class:`VelocityVerlet` (NVE) and
       :class:`Langevin` (NVT) dynamics.
     - The solute needs to be fixed using a constraint. If the solute is
       a molecule or surface rather than a monoatomic particle, all atoms
