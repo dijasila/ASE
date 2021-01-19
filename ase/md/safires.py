@@ -1111,7 +1111,7 @@ class SAFIRES:
                            .format(outer_reflect, inner_reflect,
                                    d[outer_reflect]),
                            ". Using dt = {:.12f}"
-                           .format(new_dt)]))
+                           .format(float(new_dt))]))
             self.debuglog("".join(["   Treating atoms "
                                    "{:d} (OUTER) and {:d}"
                                    .format(outer_reflect,
