@@ -462,9 +462,11 @@ class SAFIRES:
                 if mod > 1:
                     # if inner/outer particles are molecules
                     m_outer_list = [np.sqrt(xm) for xm in
-                            self.atoms[outer_real:outer_real+mod].get_masses()]
+                                    self.atoms[outer_real:outer_real+mod]
+                                    .get_masses()]
                     m_inner_list = [np.sqrt(xm) for xm in
-                            self.atoms[inner_real:inner_real+mod].get_masses()]
+                                    self.atoms[inner_real:inner_real+mod]
+                                    .get_masses()]
                     xi_outer = (np.dot(m_outer_list,
                                 self.mdobject.xi[outer_real:outer_real+mod]) 
                                 / m_outer)
@@ -1015,7 +1017,7 @@ class SAFIRES:
             dt_list = sorted(dt_list, key=itemgetter(1))
             new_dt = dt_list[0][1]
             self.debuglog("   Using new time step for next iteration: "
-                          "dt = {:.5f}\n".format(new_dt))
+                          "dt = {:.5f}\n".format(float(new_dt)))
 
             # choose affected particle pair corresponding to smallest dt
             outer_reflect, inner_reflect = dt_list[0][0], dt_list[0][2]
@@ -1420,11 +1422,12 @@ class SAFIRES:
             # in the very last MD iteration,
             # print some useful SAFIRES stats
             checkout = "".join(["\n... Finished.\nTotal runtime: "
-                       "{:.3f} fs.\n".format(self.totaltime / units.fs),
-                       "Total number of collisions: "
-                       "{:d}\n".format(self.ncollisions),
-                       "Total number of double collisions: "
-                       "{:d}\n".format(self.ndoubles)])
+                                "{:.3f} fs.\n"
+                                .format(self.totaltime / units.fs),
+                                "Total number of collisions: "
+                                "{:d}\n".format(self.ncollisions),
+                                "Total number of double collisions: "
+                                "{:d}\n".format(self.ndoubles)])
             self.debuglog(checkout)
             print(checkout)
 
