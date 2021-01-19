@@ -324,7 +324,7 @@ class SAFIRES:
                 "{:>8.3f}\n".format(iteration,
                                     self.totaltime / units.fs,
                                     etot, ekin, epot, temp, boundary)
-                )
+        )
         return
 
     def debuglog(self, string):
@@ -1257,8 +1257,8 @@ class SAFIRES:
                 norm_v_inner_post = np.dot(np.dot(v_inner_post, n),n)
 
                 for i in range(self.natoms):
-                    # redistributing the normal component,
-                    # keeping tangential components
+                    # redistribute the normal component,
+                    # keep tangential component
                     # (conserve rotational DOF)
                     outer_actual = outer_reflect * self.natoms + i
                     inner_actual = inner_reflect * self.natoms + i
@@ -1273,11 +1273,11 @@ class SAFIRES:
                     self.atoms[outer_actual].momentum = (
                             tang_v_outer_pre
                             + norm_v_outer_post
-                            )*self.atoms[outer_actual].mass
+                    )*self.atoms[outer_actual].mass
                     self.atoms[inner_actual].momentum = (
                             tang_v_inner_pre
                             + norm_v_inner_post
-                            )*self.atoms[inner_actual].mass
+                    )*self.atoms[inner_actual].mass
 
             else:
                 # if we're dealing with monoatomic particles
