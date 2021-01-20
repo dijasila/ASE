@@ -101,8 +101,8 @@ class SAFIRES:
       when molecules are used.
     """
 
-    def __init__(self, atoms, mdobject, natoms, 
-                 logfile = "safires.log", debug=False, 
+    def __init__(self, atoms, mdobject, natoms,
+                 logfile = "safires.log", debug=False,
                  barometer=False, surface=False):
         """"Initial setup of the SAFIRES class.
 
@@ -167,12 +167,6 @@ class SAFIRES:
             required to complete a full default_dt when SAFIRES
             performes fractional time steps during a boundary event.
 
-        self.totaltime --
-            tracks how much time has passed in the simulation.
-            initialized so that the initial iteration, where
-            no propagation occurs (just SP of starting image)
-            is properly displayed as t = 0 fs in self.logfile.
-
         self.previous_boundary_idx --
             keeps track of which particle (by index) defined the
             flexible boundary in the previous iteration.
@@ -194,11 +188,12 @@ class SAFIRES:
             boundary events occur during the same time step.
 
         self.logfile --
-            name of  the logfile to be written into by SAFIRES.
+            name of  the logfile for SAFIRES specific results..
             SAFIRES logs additional specific information such
             as the location of the boundary sphere relativ to
             the solute at each iteration, and the number of
-            collisions.
+            collisions. Set to None to suppress output.
+            Default: "safires.log".
 
         self.ncollisions --
             tracks total number of boundary events and subsequent
@@ -234,7 +229,6 @@ class SAFIRES:
         self.mdobject = mdobject
         self.default_dt = self.mdobject.dt
         self.remaining_dt = 0.
-        self.totaltime = (-1) * self.default_dt
         self.previous_boundary_idx = 0
         self.tocollide = list()
         self.recent = list()
@@ -252,12 +246,13 @@ class SAFIRES:
                 self.mdobject.fixcm = False
 
         # setup output logfiles
-        self.log = open(logfile, "w+")
-        self.log.write("iteration   boundary_idx   d_INNER / A\n")
+        if self.logfile is not None:
+            self.log = open(self.logfile, "w+")
+            self.log.write("iteration   boundary_idx   d_INNER / A\n")
 
         # create debuglog file (if required)
         if debug:
-            self.db = open("debug.log", "w+")
+            self.db = open("debug-safires.log", "w+")
             self.db.write("SAFIRES DEBUG LOG\n"
                           "-----------------\n")
             if self.natoms > 1:
@@ -280,8 +275,9 @@ class SAFIRES:
     def logger(self, iteration, boundary_idx, boundary):
         """SAFIRES-specific results to log file."""
 
-        self.log.write("{:<9d}   {:<12d}   {:<4.7f}\n"
-                       .format(iteration, boundary_idx, boundary))
+        if self.logfile is not None:
+            self.log.write("{:<9d}   {:<12d}   {:<4.7f}\n"
+                           .format(iteration, boundary_idx, boundary))
         return
 
     def debuglog(self, string):
@@ -425,10 +421,10 @@ class SAFIRES:
                                     self.atoms[inner_real:inner_real+mod]
                                     .get_masses()]
                     xi_outer = (np.dot(m_outer_list,
-                                self.mdobject.xi[outer_real:outer_real+mod]) 
+                                self.mdobject.xi[outer_real:outer_real+mod])
                                 / m_outer)
                     xi_inner = (np.dot(m_inner_list,
-                                self.mdobject.xi[inner_real:inner_real+mod]) 
+                                self.mdobject.xi[inner_real:inner_real+mod])
                                 / m_inner)
                     eta_outer = (np.dot(m_outer_list,
                                  self.mdobject.eta[outer_real:outer_real+mod])
@@ -1357,9 +1353,6 @@ class SAFIRES:
             self.recent = []
             self.remaining_dt = 0
 
-            # update total time
-            self.totaltime += self.default_dt
-
             # write logfile
             self.logger(iteration, boundary_idx, boundary)
 
@@ -1371,9 +1364,7 @@ class SAFIRES:
         if iteration == self.mdobject.max_steps:
             # in the very last MD iteration,
             # print some useful SAFIRES stats
-            checkout = "".join(["\n... Finished.\nTotal runtime: "
-                                "{:.3f} fs.\n"
-                                .format(self.totaltime / units.fs),
+            checkout = "".join(["\n... Finished.\n"
                                 "Total number of collisions: "
                                 "{:d}\n".format(self.ncollisions),
                                 "Total number of double collisions: "
@@ -1401,6 +1392,7 @@ class SAFIRES:
                 self.debuglog(pressure)
 
             # close logfiles
-            self.log.close()
+            if self.logfile is not None:
+                self.log.close()
             if self.debug:
                 self.db.close()
