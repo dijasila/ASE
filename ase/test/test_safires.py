@@ -48,8 +48,7 @@ def test_safires():
     md = VelocityVerlet(atoms, timestep=dt)
 
     # Initialize SAFIRES class.
-    safires = SAFIRES(atoms, mdobject=md, natoms=1,
-                      logfile="md.log")
+    safires = SAFIRES(atoms, mdobject=md, natoms=1, logfile=None)
     md.attach(safires.safires, interval=1)
 
     # Run.

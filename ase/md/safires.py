@@ -79,22 +79,18 @@ class SAFIRES:
     2) md = MD([...])
         where MD = Langevin or VelocityVerlet
 
-    3) traj = Trajectory('[your name].traj', 'w')
-
-    4) safires = SAFIRES(atoms=atoms,
+    3) safires = SAFIRES(atoms=atoms,
                          mdobject=md,
                          natoms=int number of atoms in each
                                 molecule e.g. 3 for water,
-                         traj=traj,
-                         trajfreq=frequency of trajectory writing,
-                         logfile=str custom logfile name,
+                         logfile=str custom SAFIRE logfile name,
                          debug=True/False,
                          barometer=True/False,
                          surface=True/False)
 
-    5) md.attach(safires.safires, interval=1)
+    4) md.attach(safires.safires, interval=1)
 
-    6) md.run([...])
+    5) md.run([...])
 
 
     TODO:
@@ -105,9 +101,9 @@ class SAFIRES:
       when molecules are used.
     """
 
-    def __init__(self, atoms, mdobject, natoms, logfile, traj=None,
-                 trajfreq=1, debug=False, barometer=False,
-                 surface=False):
+    def __init__(self, atoms, mdobject, natoms, 
+                 logfile = "safires.log", debug=False, 
+                 barometer=False, surface=False):
         """"Initial setup of the SAFIRES class.
 
         KEYWORD ARGUMENTS:
@@ -116,9 +112,7 @@ class SAFIRES:
         mdobject -- ASE molecular dynamics object
         natoms -- number of atoms in each molecule in the simulation
                   (excluding the solute, which can be different)
-        traj -- ASE trajectory object
         logfile -- custom str name for logfile
-        trajfreq -- how often to write trajectory (default: 1)
         debug -- enable/disable debug mode (default: False)
         barometer -- enable/disable barometer (default: False)
         surface -- treat solute as periodic surface (default: False)
@@ -178,22 +172,6 @@ class SAFIRES:
             initialized so that the initial iteration, where
             no propagation occurs (just SP of starting image)
             is properly displayed as t = 0 fs in self.logfile.
-
-        self.traj --
-            trajectory file to be written into passed to
-            SAFIRES by the input script. SAFIRES only saves the
-            trajectory once a full default_dt has passed. no
-            intermediary / fractional steps are saved. this
-            ensures that the trajectory entries are all spaced
-            equally in time and avoids confusion during analysis.
-            Default: None (write no trajectory).
-
-        self.trajfreq --
-            frequency with which the trajectory is written in
-            multiples of default_dt.
-
-        self.trajcount --
-            counter working in conjunction with trajfreq.
 
         self.previous_boundary_idx --
             keeps track of which particle (by index) defined the
@@ -257,9 +235,6 @@ class SAFIRES:
         self.default_dt = self.mdobject.dt
         self.remaining_dt = 0.
         self.totaltime = (-1) * self.default_dt
-        self.traj = traj
-        self.trajfreq = trajfreq
-        self.trajcount = 0
         self.previous_boundary_idx = 0
         self.tocollide = list()
         self.recent = list()
@@ -278,9 +253,7 @@ class SAFIRES:
 
         # setup output logfiles
         self.log = open(logfile, "w+")
-        self.log.write("Iteration    t / fs      E_tot / eV       "
-                       "E_kin / eV        E_pot / eV    T / K     "
-                       "   d_INNER / A\n")
+        self.log.write("iteration   boundary_idx   d_INNER / A\n")
 
         # create debuglog file (if required)
         if debug:
@@ -304,27 +277,11 @@ class SAFIRES:
               " # 2021-01-18 #\n"
               " ##############\n")
 
-    def logger(self, boundary, iteration):
-        """Write MD and SAFIRES results to log file.
+    def logger(self, iteration, boundary_idx, boundary):
+        """SAFIRES-specific results to log file."""
 
-        Keyword arguments:
-        boundary -- current location of the boundary, i.e. the
-                    distance of the inner region particle that is
-                    furthest away from the solute (float)
-        iteration -- current iteration (int)
-        """
-
-        epot = self.atoms.get_potential_energy()
-        ekin = self.atoms.get_kinetic_energy()
-        etot = epot + ekin
-        temp = self.atoms.get_temperature()
-        self.log.write(
-                "{:>9d}    {:>6.1f}    {:>14.8f}    "
-                "{:>14.8f}    {:>14.8f}    {:>9.3f}    "
-                "{:>8.3f}\n".format(iteration,
-                                    self.totaltime / units.fs,
-                                    etot, ekin, epot, temp, boundary)
-        )
+        self.log.write("{:<9d}   {:<12d}   {:<4.7f}\n"
+                       .format(iteration, boundary_idx, boundary))
         return
 
     def debuglog(self, string):
@@ -1404,14 +1361,7 @@ class SAFIRES:
             self.totaltime += self.default_dt
 
             # write logfile
-            self.logger(boundary, iteration)
-
-            # write trajectory (frequency: trajfreq)
-            if self.traj is not None:
-                self.trajcount += 1
-                if self.trajcount == self.trajfreq:
-                    self.traj.write(self.atoms)
-                    self.trajcount = 0
+            self.logger(iteration, boundary_idx, boundary)
 
             # note that the simulation eventually always ends up
             # here after each iteration, no matter if a boundary event

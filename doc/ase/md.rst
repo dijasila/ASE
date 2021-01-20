@@ -423,19 +423,12 @@ The SAFIRES class uses the following parameters:
     Set ``natoms = 3`` if water is used for example.
 
 *logfile*:
-    Custom file name for log file.
+    Custom file name for log file. Default: "safires.log".
     SAFIRES writes a custom logile containing additional information
     about the position of the boundary for each iteration.
-    The :class:`MDLogger` can still be appended to the MD object
-    but may produce redundant information.
-
-*traj*:
-    :class:`ase.io.Trajectory` object to be written into by SAFIRES.
-    Default: None.
-
-*trajfreq*:
-    Frequency (in number of iterations) with which configurations are
-    written into ``traj``.
+    The :class:`MDLogger` still needs to be appended to the MD object
+    to log results not specific to SAFIRES. Pass "None" to
+    suppress output. 
 
 *debug*:
     Enable writing of verbose debug output at each iteration into
