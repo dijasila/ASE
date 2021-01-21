@@ -2,7 +2,6 @@ import numpy as np
 from math import sqrt, pi, degrees, cos, sin
 from operator import itemgetter
 
-from ase import units
 from ase import Atoms
 from ase.geometry import find_mic
 from ase.calculators.lj import LennardJones as LJ
