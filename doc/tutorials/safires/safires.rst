@@ -185,7 +185,7 @@ and logging. However, since SAFIRES will perform its work after a
 successful dynamics iteration and will potentially undo and change
 the trajectory and energy calculations in order to enforce the
 flexible boundary, we cannot use the built in functionality. Instead,
-we use the :class:`~/ase/md/MDLogger` class to log the dynamics results
+we use the :class:`~ase/md/MDLogger` class to log the dynamics results
 and append a new trajectory object::
 
     from ase.md import MDLogger
@@ -199,7 +199,7 @@ and append a new trajectory object::
     md.run(1000)
 
 A complete input script for this tutorial can be found under
-``/ase/doc/tutorials/safires/safires-lj-liquid.py``.
+:ref:`~ase/doc/tutorials/safires/safires-lj-liquid.py`.
 
 A good way to judge the performance of the SAFIRES method is
 to compare a run without SAFIRES (but fixed solute) with a
