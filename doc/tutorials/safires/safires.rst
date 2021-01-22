@@ -199,7 +199,7 @@ and append a new trajectory object::
     md.run(1000)
 
 A complete input script for this tutorial can be found under
-:ref:`~ase/doc/tutorials/safires/safires-lj-liquid.py`.
+/ase/doc/tutorials/safires/safires-lj-liquid.py.
 
 A good way to judge the performance of the SAFIRES method is
 to compare a run without SAFIRES (but fixed solute) with a
