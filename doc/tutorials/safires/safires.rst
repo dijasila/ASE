@@ -44,9 +44,9 @@ We will be using argon parameters published
 :doi:`here <10.1103/PhysRev.136.A405>`:
 
 .. math:: T = 94.4 K,\
-          \rho = 1.374 g cm^{-3},\
-          \sigma = 3.4 \text{\AA},\
-          \epsilon = 120 k_\text{B}
+          \rho = 1.374\ g\ cm^{-3},\
+          \sigma = 3.4\ Å,\
+          \epsilon = 120\ k_\text{B}
 
 Analogous to the approach explained in detail in the :ref:`qmmm`
 tutorial, we first set up the atoms object based on a single atom
@@ -199,7 +199,7 @@ and append a new trajectory object::
     md.run(1000)
 
 A complete input script for this tutorial can be found under
-:ref:`~/ase/doc/tutorials/safires/safires-lj-liquid.py`.
+``/ase/doc/tutorials/safires/safires-lj-liquid.py``.
 
 A good way to judge the performance of the SAFIRES method is
 to compare a run without SAFIRES (but fixed solute) with a
