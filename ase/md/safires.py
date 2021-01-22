@@ -239,11 +239,12 @@ class SAFIRES:
             self.impacts = [0,0]
         self.debug = debug
 
-        # if Langevin MD is  using 'fixcm', we need to turn that off
+        # if Langevin MD is using 'fixcm', we need to turn that off.
+        # SAFIRES handles the COM adjustment internally.
         if hasattr(self.mdobject, "fixcm"):
             if self.mdobject.fixcm:
                 self.mdobject.fixcm = False
-
+        
         # setup output logfiles
         if self.logfile is not None:
             self.log = open(self.logfile, "w+")
