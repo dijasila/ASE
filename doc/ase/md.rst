@@ -414,8 +414,8 @@ The SAFIRES class uses the following parameters:
 
 *mdobject*:
     The MD object used for the simulation; either
-    :class:`ase.md.verlet.VelocityVerlet` or
-    :class:`ase.md.langevin.Langevin`.
+    :class:`~ase.md.verlet.VelocityVerlet` or
+    :class:`~ase.md.langevin.Langevin`.
 
 *natoms*:
     Number of atoms in inner / outer region particles or molecules.
@@ -426,8 +426,8 @@ The SAFIRES class uses the following parameters:
     Custom file name for log file. Default: "safires.log".
     SAFIRES writes a custom logile containing additional information
     about the position of the boundary for each iteration.
-    The :class:`MDLogger` still needs to be appended to the MD object
-    to log results not specific to SAFIRES. Pass "None" to
+    The :class:`~ase/md/MDLogger` still needs to be appended to the MD
+    object to log results not specific to SAFIRES. Pass "None" to
     suppress output. 
 
 *debug*:

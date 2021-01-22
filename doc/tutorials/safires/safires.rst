@@ -8,7 +8,7 @@ SAFIRES is a boundary method used to separate a model system into
 two regions to be calculated using different computational
 methodologies. This tutorial aims to introduce basic usage of
 SAFIRES using the simple Lennard-Jones model potential
-(`~ase.calculators.lj.LennardJones`), *i.e.* using the same
+(:class:`~ase.calculators.lj.LennardJones`), *i.e.* using the same
 methodology for the inner and outer region.
 
 General requirements
@@ -40,17 +40,17 @@ Preparation of the Lennard-Jones model system
 
 In the following, we will create and equilibrate a Lennard-Jones
 liquid model system from scratch for later use with SAFIRES.
-We will be using argon parameters published in
-:doi:`<10.1103/PhysRev.136.A405>`:
+We will be using argon parameters published
+:doi:`here <10.1103/PhysRev.136.A405>`:
 
-.. math:: T = 94.4 K
-          \rho = 1.374 g cm^{-3}
-          \sigma = 3.4 \text{\normalfont{\AA}}
+.. math:: T = 94.4 K,\
+          \rho = 1.374 g cm^{-3},\
+          \sigma = 3.4 \text{\AA},\
           \epsilon = 120 k_\text{B}
 
-Analogous to the approach explained in detail in :ref:`qmmm`,
-we first set up the atoms object based on a single atom with a
-cell volume corresponding to the required density `\rho`::
+Analogous to the approach explained in detail in the :ref:`qmmm`
+tutorial, we first set up the atoms object based on a single atom
+with a cell volume corresponding to the required density `\rho`::
 
     from ase import Atoms
     from ase import units
@@ -76,13 +76,13 @@ We can now assign the Lennard Jones calculator::
 
 Lastly, we prepare the dynamics object for this simulation. To
 equilibrate this liquid under the given conditions (fixed temperature),
-an *NVT* ensemble calculation is required. The Vanden-Eijnden / Cicotti
-Langevin propagator (`~ase.md.Langevin`) can be used to this end. A time
-step of 1 fs is appropriate for this simulation. The ``Langevin`` class
-comes with its on logging method, which we will use to monitor the
-temperature convergence of this equilibration simulation. We will also
-periodically save the trajectory for possible future use of the
-equilibrated model system in other simulations::
+an *NVT* ensemble calculation is required. The Vanden-Eijnden /
+Ciccotti Langevin propagator (:class:`~ase.md.Langevin`) can be used to
+this end. A time step of 1 fs is appropriate for this simulation.
+The Langevin class comes with its on logging method, which we will use
+to monitor the temperature convergence of this equilibration simulation.
+We will also periodically save the trajectory for possible future use of
+the equilibrated model system in other simulations::
 
     from ase.md import Langevin
     from ase.io.trajectory import Trajectory
@@ -110,11 +110,11 @@ run is part of the same input script and we can thus get to work on
 the existing atoms object, which now contains the results of the
 previous run.
 
-SAFIRES uses the `tag` system to differentiate between the solute and
+SAFIRES uses the tag system to differentiate between the solute and
 the inner and outer region. To start preparations on the atoms object,
-we first wrap the object and then assign `tag = 2` to all particles,
-which corresponds to the outer region. The solute and inner region
-will be expanded from this in a subsequent step::
+we first wrap the object and then assign ``atom.tag = 2`` to all
+particles, which corresponds to the outer region. The solute and inner
+region will be expanded from this in a subsequent step::
 
     atoms.wrap()
     atoms.set_tags(2)
@@ -125,7 +125,7 @@ total number of particles. Note that while SAFIRES is set up to handle
 periodic boundary conditions, it is safest to make sure that the
 flexible boundary is far away from the periodic boundary. Thus, we
 calculate which particle is closest to the center of the simulation
-box, set this as the solute (`tag = 0`) and fix constrain it::
+box, set this as the solute (``atom.tag = 0``) and fix constrain it::
 
     import numpy as np
     from operator import itemgetter
@@ -138,7 +138,7 @@ box, set this as the solute (`tag = 0`) and fix constrain it::
     atoms[index_c].tag = 0
     atoms.constraints = [FixAtoms(indices=[index_c])]
 
-Note that `np.linalg.norm()` does not respect the periodic boundary
+Note that ``np.linalg.norm()`` does not respect the periodic boundary
 conditions but this is irrelevant in this case. Unlike in the next
 part, where we expand the inner region around the central particle::
 
@@ -155,7 +155,7 @@ Now that SAFIRES will know which particle belongs to which region,
 we can prepare the dynamics object for the SAFIRES calculation.
 SAFIRES is fully energy conserving, and to demonstrate this fact
 we will perform a *NVE* simulation using the Velocity Verlet
-dynamics class (`~ase/md/verlet/VelocityVerlet`)::
+dynamics class (:class:`~ase/md/verlet/VelocityVerlet`)::
 
     from ase.md.verlet import VelocityVerlet
 
@@ -180,13 +180,13 @@ will not properly fulfill its intended purpose.
     them to save the correct information.
 
 Finally, we would like to save the trajectory and MD results into
-files again. The `VelocityVerlet` class supports trajectory writing
+files again. The :class:`VelocityVerlet` class supports trajectory writing
 and logging. However, since SAFIRES will perform its work after a
 successful dynamics iteration and will potentially undo and change
 the trajectory and energy calculations in order to enforce the
 flexible boundary, we cannot use the built in functionality. Instead,
-we use the `MDLogger` class to log the dynamics results and append
-a new trajectory object::
+we use the :class:`~/ase/md/MDLogger` class to log the dynamics results
+and append a new trajectory object::
 
     from ase.md import MDLogger
 
@@ -199,7 +199,7 @@ a new trajectory object::
     md.run(1000)
 
 A complete input script for this tutorial can be found under
-`~/ase/doc/tutorials/safires/safires-lj-liquid.py`.
+:ref:`~/ase/doc/tutorials/safires/safires-lj-liquid.py`.
 
 A good way to judge the performance of the SAFIRES method is
 to compare a run without SAFIRES (but fixed solute) with a
