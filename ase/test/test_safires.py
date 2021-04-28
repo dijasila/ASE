@@ -38,9 +38,9 @@ def test_safires():
     pbc = (1, 1, 1)
 
     atoms = Atoms("Ar3",
-            [[(a_cell / 2), (a_cell / 2), (a_cell / 2)],
-            [(a_cell/2 + 2), (a_cell/2 - 1), (a_cell / 2)],
-            [(a_cell/2 - 4), (a_cell / 2 + 0.5), (a_cell / 2)]])
+                  [[(a_cell / 2), (a_cell / 2), (a_cell / 2)],
+                  [(a_cell/2 + 2), (a_cell/2 - 1), (a_cell / 2)],
+                  [(a_cell/2 - 4), (a_cell / 2 + 0.5), (a_cell / 2)]])
     atoms.set_cell(cell)
     atoms.set_pbc(pbc)
     

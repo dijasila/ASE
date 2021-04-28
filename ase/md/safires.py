@@ -268,8 +268,8 @@ class SAFIRES:
               " ##############\n"
               " # SAFIRES    #\n"
               " # ---------- #\n"
-              " # v. 0.0.1   #\n"
-              " # 2021-01-18 #\n"
+              " # v. 0.0.3   #\n"
+              " # 2021-04-28 #\n"
               " ##############\n")
 
     def logger(self, iteration, boundary_idx, boundary):
@@ -295,7 +295,7 @@ class SAFIRES:
 
     def norm(self, x):
         """Return norm'd 3D vector x."""
-        return sqrt(x[0]*x[0] + x[1]*x[1] + x[2]*x[2])
+        return sqrt(x[0] * x[0] + x[1] * x[1] + x[2] * x[2])
 
     def normalize(self, x):
         """Return normalized 3D vector x."""
@@ -318,11 +318,11 @@ class SAFIRES:
         """
         a = cos(theta / 2.0)
         b, c, d = -axis * sin(theta / 2.0)
-        aa, bb, cc, dd = a*a, b*b, c*c, d*d
-        bc, ad, ac, ab, bd, cd = b*c, a*d, a*c, a*b, b*d, c*d
-        return np.array([[aa + bb - cc - dd, 2 * (bc+ad), 2 * (bd-ac)],
-                         [2 * (bc-ad), aa + cc - bb - dd, 2 * (cd+ab)],
-                         [2 * (bd+ac), 2 * (cd-ab), aa + dd - bb - cc]])
+        aa, bb, cc, dd = a * a, b * b, c * c, d * d
+        bc, ad, ac, ab, bd, cd = b * c, a * d, a * c, a * b, b * d, c * d
+        return np.array([[aa + bb - cc - dd, 2 * (bc + ad), 2 * (bd - ac)],
+                         [2 * (bc - ad), aa + cc - bb - dd, 2 * (cd + ab)],
+                         [2 * (bd + ac), 2 * (cd - ab), aa + dd - bb - cc]])
 
     def extrapolate_dt(self, previous_boundary_idx, boundary_idx,
                        outer_idx, checkup):
@@ -415,22 +415,22 @@ class SAFIRES:
                 if mod > 1:
                     # if inner/outer particles are molecules
                     m_outer_list = [np.sqrt(xm) for xm in
-                                    self.atoms[outer_real:outer_real+mod]
+                                    self.atoms[outer_real:outer_real + mod]
                                     .get_masses()]
                     m_inner_list = [np.sqrt(xm) for xm in
-                                    self.atoms[inner_real:inner_real+mod]
+                                    self.atoms[inner_real:inner_real + mod]
                                     .get_masses()]
                     xi_outer = (np.dot(m_outer_list,
-                                self.mdobject.xi[outer_real:outer_real+mod])
+                                self.mdobject.xi[outer_real:outer_real + mod])
                                 / m_outer)
                     xi_inner = (np.dot(m_inner_list,
-                                self.mdobject.xi[inner_real:inner_real+mod])
+                                self.mdobject.xi[inner_real:inner_real + mod])
                                 / m_inner)
                     eta_outer = (np.dot(m_outer_list,
-                                 self.mdobject.eta[outer_real:outer_real+mod])
+                                 self.mdobject.eta[outer_real:outer_real + mod])
                                  / m_outer)
                     eta_inner = (np.dot(m_inner_list,
-                                 self.mdobject.eta[inner_real:inner_real+mod])
+                                 self.mdobject.eta[inner_real:inner_real + mod])
                                  / m_inner)
                     sig_outer = np.sqrt(2 * self.mdobject.temp * fr)
                     sig_inner = np.sqrt(2 * self.mdobject.temp * fr)
@@ -751,11 +751,11 @@ class SAFIRES:
         while i < len(atoms):
             if mod > 1:
                 # for molecules
-                com = atoms[i:i+mod].get_center_of_mass()
-                M = sum(atoms[i:i+mod].get_masses())
-                mom = sum(atoms[i:i+mod].get_momenta())
+                com = atoms[i:i + mod].get_center_of_mass()
+                M = sum(atoms[i:i + mod].get_masses())
+                mom = sum(atoms[i:i + mod].get_momenta())
                 tag = atoms[i].tag
-                frc = sum(atoms.calc.results['forces'][i:i+mod])
+                frc = sum(atoms.calc.results['forces'][i:i + mod])
             else:
                 # for monoatomic paticles
                 com = atoms[i].position
@@ -1006,7 +1006,7 @@ class SAFIRES:
                              "adjusted to a value < 0. This should not"
                              " happen. remaining_dt was now reset"
                              " to zero.\n")
-                    print("<SAFIRES>"+error)
+                    print("<SAFIRES>" + error)
                     self.debuglog(error)
 
             if self.barometer:
@@ -1165,8 +1165,8 @@ class SAFIRES:
             if not self.surface and theta != 0 and theta != pi:
                 # rotate outer particle velocity change component
                 # back to inital direction after collision
-                dV_outer = np.dot(self.rotation_matrix(axis,
-                                      2*np.pi - theta), dV_outer)
+                dV_outer = np.dot(self.rotation_matrix(
+                                  axis, 2 * np.pi - theta), dV_outer)
 
             if theta == pi:
                 # flip velocity change component of outer particle
@@ -1323,13 +1323,13 @@ class SAFIRES:
             # in the very last MD iteration,
             # print some useful SAFIRES stats
             checkout_long = "".join(["\n... Finished.\n"
-                                 "Total number of collisions: "
-                                 "{:d}\n".format(self.ncollisions),
-                                 "Total number of double collisions: "
-                                 "{:d}\n".format(self.ndoubles)])
+                                     "Total number of collisions: "
+                                     "{:d}\n".format(self.ncollisions),
+                                     "Total number of double collisions: "
+                                     "{:d}\n".format(self.ndoubles)])
             checkout_short = ("\n... Finished.\n"
-                             "Total number of collisions: "
-                             "{:d}\n".format(self.ncollisions))
+                              "Total number of collisions: "
+                              "{:d}\n".format(self.ncollisions))
             self.debuglog(checkout_long)
             print(checkout_short)
 
