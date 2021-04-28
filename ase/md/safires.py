@@ -1138,14 +1138,11 @@ class SAFIRES:
                 axis = self.normalize(np.cross(r[outer_reflect],
                                       r[inner_reflect]))
 
-                # rotate outer position, velocity,
-                # and (random) force vectors
+                # rotate velocity of outer region particle
                 v_outer = np.dot(self.rotation_matrix(axis, theta),
                                  v_outer)
-                r_outer = np.dot(self.rotation_matrix(axis, theta),
-                                 r_outer)
 
-            if theta == pi:
+            elif theta == pi:
                 # this is a extremely unlikely case in case of a
                 # molecular calculation but common in calculations
                 # uing a periodic surface slab if the system is
@@ -1155,19 +1152,6 @@ class SAFIRES:
                 v_outer = (-1) * v_outer
                 r_outer = (-1) * r_outer
 
-            # debug log involved quantities before collision
-            self.debuglog("   r_outer = {:s}\n"
-                          .format(np.array2string(r_outer)))
-            self.debuglog("   r_inner = {:s}\n"
-                          .format(np.array2string(r_inner)))
-            self.debuglog("   v_outer = {:s}\n"
-                          .format(np.array2string(v_outer)))
-            self.debuglog("   v_inner = {:s}\n"
-                          .format(np.array2string(v_inner)))
-            v_sum_pre = v_outer + v_inner # check energy conservation
-            self.debuglog("   v_sum_pre = {:s}\n"
-                          .format(np.array2string(v_sum_pre)))
-
             # Perform mass-weighted exchange of normal components of
             # velocitiy, force (, and random forces if Langevin).
             # i.e. elastic collision
@@ -1175,67 +1159,43 @@ class SAFIRES:
             r12 = r_inner
             v12 = v_outer - v_inner
             v_norm = np.dot(v12, r12) * r12 / (self.norm(r12)**2)
-            v_outer_post = v_outer - 2 * m_inner / M * v_norm
-            v_inner_post = v_inner + 2 * m_outer / M * v_norm
             dV_inner = 2 * m_inner / M * v_norm
             dV_outer = -2 * m_outer / M * v_norm
 
-            # debug log involved quantitites after collision
-            self.debuglog("   v_outer_post = {:s}\n"
-                          .format(np.array2string(v_outer_post)))
-            self.debuglog("   v_inner_post = {:s}\n"
-                          .format(np.array2string(v_inner_post)))
-            v_sum_post = v_outer_post + v_inner_post
-            self.debuglog("   v_sum_post = {:s}\n"
-                          .format(np.array2string(v_sum_post)))
-
             if not self.surface and theta != 0 and theta != pi:
-                # rotate outer particle velocity
+                # rotate outer particle velocity change component
                 # back to inital direction after collision
-                v_outer_post = np.dot(self.rotation_matrix(axis,
-                                      2*np.pi - theta), v_outer_post)
-                dV_outer_post = np.dot(self.rotation_matrix(axis,
+                dV_outer = np.dot(self.rotation_matrix(axis,
                                       2*np.pi - theta), dV_outer)
 
             if theta == pi:
-                # flip velocity of outer particle again
+                # flip velocity change component of outer particle
                 # to the other side of the slab (if applicable)
-                v_outer_post = (-1) * v_outer_post
+                dV_outer = (-1) * dV_outer
 
             # commit new momenta to pseudoparticle atoms object
-            com_atoms[outer_reflect].momentum = v_outer_post * m_outer
-            com_atoms[inner_reflect].momentum = v_inner_post * m_inner
+            com_atoms[outer_reflect].momentum += (dV_outer * m_outer)
+            com_atoms[inner_reflect].momentum += (dV_inner * m_inner)
 
             # expand the pseudoparticle atoms object back into the
             # real atoms object (inverse action to self.update())
             if self.natoms > 1:
                 # if we're dealing with molecules
-                n = self.normalize(r12)
-                n2 = self.normalize(r[outer_reflect])
-                norm_v_outer_post = np.dot(np.dot(v_outer_post, n2),n2)
-                norm_v_inner_post = np.dot(np.dot(v_inner_post, n),n)
-
                 for i in range(self.natoms):
                     # redistribute the normal component,
                     # keep tangential component
                     # (conserve rotational DOF)
                     outer_actual = outer_reflect * self.natoms + i
                     inner_actual = inner_reflect * self.natoms + i
-                    v_outer_pre = (self.atoms[outer_actual].momentum
-                                   / self.atoms[outer_actual].mass)
-                    v_inner_pre = (self.atoms[inner_actual].momentum
-                                   / self.atoms[inner_actual].mass)
-                    self.atoms[outer_actual].momentum = (
-                            v_outer_pre + dV_outer_post
-                    )*self.atoms[outer_actual].mass
-                    self.atoms[inner_actual].momentum = (
-                            v_inner_pre + dV_inner
-                    )*self.atoms[inner_actual].mass
+                    self.atoms[outer_actual].momentum += (
+                            dV_outer * self.atoms[outer_actual].mass)
+                    self.atoms[inner_actual].momentum += (
+                            dV_inner * self.atoms[inner_actual].mass)
 
             else:
                 # if we're dealing with monoatomic particles
-                self.atoms[outer_reflect].momentum = v_outer_post * m_outer
-                self.atoms[inner_reflect].momentum = v_inner_post * m_inner
+                self.atoms[outer_reflect].momentum += (dV_outer * m_outer)
+                self.atoms[inner_reflect].momentum += (dV_inner * m_inner)
 
             # reset list that tracks conflicting particle pairs
             # since conflict is resolved now
@@ -1362,13 +1322,16 @@ class SAFIRES:
         if iteration == self.mdobject.max_steps:
             # in the very last MD iteration,
             # print some useful SAFIRES stats
-            checkout = "".join(["\n... Finished.\n"
-                                "Total number of collisions: "
-                                "{:d}\n".format(self.ncollisions),
-                                "Total number of double collisions: "
-                                "{:d}\n".format(self.ndoubles)])
-            self.debuglog(checkout)
-            print(checkout)
+            checkout_long = "".join(["\n... Finished.\n"
+                                 "Total number of collisions: "
+                                 "{:d}\n".format(self.ncollisions),
+                                 "Total number of double collisions: "
+                                 "{:d}\n".format(self.ndoubles)])
+            checkout_short = ("\n... Finished.\n"
+                             "Total number of collisions: "
+                             "{:d}\n".format(self.ncollisions))
+            self.debuglog(checkout_long)
+            print(checkout_short)
 
             # print out barometer results (collisions caused
             # by inner and outer region particles, respectively)
