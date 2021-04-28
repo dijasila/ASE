@@ -1177,6 +1177,8 @@ class SAFIRES:
             v_norm = np.dot(v12, r12) * r12 / (self.norm(r12)**2)
             v_outer_post = v_outer - 2 * m_inner / M * v_norm
             v_inner_post = v_inner + 2 * m_outer / M * v_norm
+            dV_inner = 2 * m_inner / M * v_norm
+            dV_outer = -2 * m_outer / M * v_norm
 
             # debug log involved quantitites after collision
             self.debuglog("   v_outer_post = {:s}\n"
@@ -1192,6 +1194,8 @@ class SAFIRES:
                 # back to inital direction after collision
                 v_outer_post = np.dot(self.rotation_matrix(axis,
                                       2*np.pi - theta), v_outer_post)
+                dV_outer_post = np.dot(self.rotation_matrix(axis,
+                                      2*np.pi - theta), dV_outer)
 
             if theta == pi:
                 # flip velocity of outer particle again
@@ -1221,17 +1225,11 @@ class SAFIRES:
                                    / self.atoms[outer_actual].mass)
                     v_inner_pre = (self.atoms[inner_actual].momentum
                                    / self.atoms[inner_actual].mass)
-                    tang_v_outer_pre = np.cross((-1) * n2,
-                                                np.cross(n2, v_outer_pre))
-                    tang_v_inner_pre = np.cross((-1) * n,
-                                                np.cross(n, v_inner_pre))
                     self.atoms[outer_actual].momentum = (
-                            tang_v_outer_pre
-                            + norm_v_outer_post
+                            v_outer_pre + dV_outer_post
                     )*self.atoms[outer_actual].mass
                     self.atoms[inner_actual].momentum = (
-                            tang_v_inner_pre
-                            + norm_v_inner_post
+                            v_inner_pre + dV_inner
                     )*self.atoms[inner_actual].mass
 
             else:
