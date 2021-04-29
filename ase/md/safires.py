@@ -1,9 +1,7 @@
 import numpy as np
-from math import sqrt, pi, degrees, cos, sin
 from operator import itemgetter
 
 from ase import Atoms
-from ase.geometry import find_mic
 from ase.calculators.lj import LennardJones as LJ
 
 class SAFIRES:
@@ -293,20 +291,16 @@ class SAFIRES:
         if self.debug:
             self.db.write(string)
 
-    def norm(self, x):
-        """Return norm'd 3D vector x."""
-        return sqrt(x[0] * x[0] + x[1] * x[1] + x[2] * x[2])
-
     def normalize(self, x):
         """Return normalized 3D vector x."""
-        return x / self.norm(x)
+        return x / np.linalg.norm(x)
 
     def calc_angle(self, n1, n2):
         """Return angle between 3D vectors n1 and n2.
 
         Reference: Vincenty, T. Survey Review 23, 88–93 (1975).
         """
-        return(np.arctan2(self.norm(np.cross(n1, n2)), np.dot(n1, n2)))
+        return(np.arctan2(np.linalg.norm(np.cross(n1, n2)), np.dot(n1, n2)))
 
     def rotation_matrix(self, axis, theta):
         """ Return rotation matrix for rotation by theta around axis.
@@ -316,8 +310,8 @@ class SAFIRES:
         Euler-Rodrigues formula, code stolen from
         stackoverflow.com/questions/6802577.
         """
-        a = cos(theta / 2.0)
-        b, c, d = -axis * sin(theta / 2.0)
+        a = np.cos(theta / 2.0)
+        b, c, d = -axis * np.sin(theta / 2.0)
         aa, bb, cc, dd = a * a, b * b, c * c, d * d
         bc, ad, ac, ab, bd, cd = b * c, a * d, a * c, a * b, b * d, c * d
         return np.array([[aa + bb - cc - dd, 2 * (bc + ad), 2 * (bd - ac)],
@@ -371,7 +365,7 @@ class SAFIRES:
 
             # retreive forces, velocities, distances, masses
             # for image before the event
-            com_atoms, forces, unused1, r, d, unused2, unused3 = (
+            com_atoms, forces, r, d, unused1, unused2 = (
                     self.update(self.previous_atoms))
             r_outer = r[outer_idx]
             r_inner = r[inner_idx]
@@ -679,6 +673,7 @@ class SAFIRES:
             # applied during the first halfstep.
             v += c + d
             self.atoms.set_positions(x + dt * v)
+            v = (self.atoms.get_positions() - x - dt * d) / dt
             self.atoms.set_momenta(v * m)
 
         if halfstep == 2:
@@ -687,12 +682,11 @@ class SAFIRES:
             # velocity halfstep
             self.atoms.set_positions(x + dt * v)
             v = (self.atoms.get_positions() - x - dt * d) / dt
-            self.tmp = []
             f = self.atoms.get_forces(md=True) / m
             c = (idt * (f - fr * v) / 2
-                 + sqrt(idt) * sig * xi / 2
+                 + np.sqrt(idt) * sig * xi / 2
                  - idt**2 * fr * (f - fr * v) / 8
-                 - idt**1.5 * fr * sig * (xi / 2 + eta / sqrt(3)) / 4)
+                 - idt**1.5 * fr * sig * (xi / 2 + eta / np.sqrt(3)) / 4)
             v += c
             self.atoms.set_momenta(v * m)
 
@@ -717,7 +711,6 @@ class SAFIRES:
                   to be stored separate from the atoms object. if
                   monoatomic species are used, this array is identical
                   to that returned from the calculator.
-        com_solute -- center of mass of the solute molecule or surface
         r -- array of vectors between the COM of the solute and all
              inner and outer region (pseudo-) particles in the system
         d -- array of absolute distances between the COM of the solute
@@ -752,10 +745,10 @@ class SAFIRES:
             if mod > 1:
                 # for molecules
                 com = atoms[i:i + mod].get_center_of_mass()
-                M = sum(atoms[i:i + mod].get_masses())
-                mom = sum(atoms[i:i + mod].get_momenta())
+                M = np.sum(atoms[i:i + mod].get_masses())
+                mom = np.sum(atoms[i:i + mod].get_momenta(), axis=0)
                 tag = atoms[i].tag
-                frc = sum(atoms.calc.results['forces'][i:i + mod])
+                frc = np.sum(atoms.calc.results['forces'][i:i + mod], axis=0)
             else:
                 # for monoatomic paticles
                 com = atoms[i].position
@@ -780,14 +773,8 @@ class SAFIRES:
         # not have constraints
         atoms.constraints = self.constraints.copy()
 
-        # calculate center of mass of solute with
-        # reduced atoms object
-        com_solute = com_atoms[[atom.index for atom in com_atoms
-                                if atom.tag == 0]].get_center_of_mass()
         if self.surface:
             # we only need z coordinates for surface calculations
-            com_solute[0] = 0.
-            com_solute[1] = 0.
             for atom in com_atoms:
                 atom.position[0] = 0.
                 atom.position[1] = 0.
@@ -795,8 +782,14 @@ class SAFIRES:
         # calculate absolute distances and distance vectors between
         # COM of solute and all inner and outer region particles
         # (respect PBCs in distance calculations)
-        r, d = find_mic([atom.position for atom in com_atoms]
-                         - com_solute, com_atoms.cell, com_atoms.pbc)
+        r = com_atoms.get_distances([atom.index for atom in com_atoms
+                                     if atom.tag == 0][0],
+                                    [atom.index for atom in com_atoms],
+                                    mic=True, vector=True)
+        d = com_atoms.get_distances([atom.index for atom in com_atoms
+                                     if atom.tag == 0][0], 
+                                    [atom.index for atom in com_atoms],
+                                    mic=True) 
 
         # list all particles in the inner region
         inner_mols = [(atom.index, d[atom.index])
@@ -807,7 +800,7 @@ class SAFIRES:
         boundary_idx, boundary = sorted(inner_mols, key=itemgetter(1),
                                         reverse=True)[0]
 
-        return com_atoms, forces, com_solute, r, d, boundary_idx, boundary
+        return com_atoms, forces, r, d, boundary_idx, boundary
 
     def safires(self, checkup=False):
         """Check if boundary event occurred, coordinate its resolution.
@@ -852,6 +845,8 @@ class SAFIRES:
 
         # determine current iteration
         iteration = self.mdobject.get_number_of_steps()
+        print(iteration)
+        return
 
         # start writing new debugging block if debugging is enabled
         if not checkup:
@@ -862,7 +857,7 @@ class SAFIRES:
 
         # update pseudoparticle atoms object and distance (vectors)
         # between all pseudoparticles and the COM of the solute
-        com_atoms, forces, com, r, d, boundary_idx, boundary = (
+        com_atoms, forces, r, d, boundary_idx, boundary = (
             self.update(self.atoms))
 
         self.debuglog("   Boundary: idx {:d} at d = {:.3f}\n"
@@ -1048,7 +1043,7 @@ class SAFIRES:
             self.propagate(new_dt, checkup, halfstep=1)
 
             # update list of distances to solute, boundary
-            com_atoms, forces, com, r, d, boundary_idx, boundary = (
+            com_atoms, forces, r, d, boundary_idx, boundary = (
                 self.update(self.atoms))
 
             # logging collision info
@@ -1120,9 +1115,9 @@ class SAFIRES:
             # find angle between r_outer and r_inner
             theta = self.calc_angle(r_inner, r_outer)
             self.debuglog("   angle (r_outer, r_inner) is: {:.16f}\n"
-                          .format(degrees(theta)))
+                          .format(np.degrees(theta)))
 
-            if not self.surface and theta != 0 and theta != pi:
+            if not self.surface and theta != 0 and theta != np.pi:
                 # if there is a finite angle > 0 and < 180 degree
                 # between INNER and OUTER particles, we rotate the
                 # OUTER to be exactly on top of the inner for the
@@ -1142,7 +1137,7 @@ class SAFIRES:
                 v_outer = np.dot(self.rotation_matrix(axis, theta),
                                  v_outer)
 
-            elif theta == pi:
+            elif theta == np.pi:
                 # this is a extremely unlikely case in case of a
                 # molecular calculation but common in calculations
                 # uing a periodic surface slab if the system is
@@ -1158,17 +1153,17 @@ class SAFIRES:
             M = m_outer + m_inner
             r12 = r_inner
             v12 = v_outer - v_inner
-            v_norm = np.dot(v12, r12) * r12 / (self.norm(r12)**2)
+            v_norm = np.dot(v12, r12) * r12 / (np.linalg.norm(r12)**2)
             dV_inner = 2 * m_inner / M * v_norm
             dV_outer = -2 * m_outer / M * v_norm
 
-            if not self.surface and theta != 0 and theta != pi:
+            if not self.surface and theta != 0 and theta != np.pi:
                 # rotate outer particle velocity change component
                 # back to inital direction after collision
                 dV_outer = np.dot(self.rotation_matrix(
                                   axis, 2 * np.pi - theta), dV_outer)
 
-            if theta == pi:
+            if theta == np.pi:
                 # flip velocity change component of outer particle
                 # to the other side of the slab (if applicable)
                 dV_outer = (-1) * dV_outer
@@ -1262,7 +1257,7 @@ class SAFIRES:
             # update the pseudoparticle atoms object with the new
             # configuration, get all distances between pseudoparticles
             # and the solute.
-            com_atoms, forces, unused1, r, d, unused2, unused3 = (
+            com_atoms, forces, r, d, unused1, unused2 = (
                 self.update(self.atoms))
 
             # debug log distances between inner and outer particle (that
