@@ -1157,8 +1157,14 @@ class SAFIRES:
             # i.e. elastic collision
             if self.reflective:
                 n = self.normalize(r_inner)
-                dV_inner = -2 * np.dot(np.dot(v_inner, n), n) 
-                dV_outer = -2 * np.dot(np.dot(v_outer, n), n) 
+                if np.dot(v_inner, n) > 0:
+                    dV_inner = -2 * np.dot(np.dot(v_inner, n), n) 
+                else:
+                    dV_inner = np.array([0.,0.,0.])
+                if np.dot(v_outer, n) < 0:
+                    dV_outer = -2 * np.dot(np.dot(v_outer, n), n) 
+                else:
+                    dV_outer = np.array([0.,0.,0.])
             else:
                 M = m_outer + m_inner
                 r12 = r_inner
