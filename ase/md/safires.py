@@ -100,7 +100,7 @@ class SAFIRES:
 
     def __init__(self, atoms, mdobject, natoms,
                  logfile = "safires.log", debug=False,
-                 barometer=False, surface=False):
+                 barometer=False, surface=False, reflective=False):
         """"Initial setup of the SAFIRES class.
 
         KEYWORD ARGUMENTS:
@@ -137,6 +137,12 @@ class SAFIRES:
             inner and outer region. SAFIRES requires that all
             inner and outer region particles are indistinguishable
             as the main premise (see publication).
+        
+        self.reflective --
+            switches to an implementation of SAFIRES that performs
+            reflections at the boundary (no momentum exchange!)
+            instead of performing an elastic collision between the
+            conflicting inner/outer region particle pair.
 
         self.previous_atoms --
             copy of the atoms object from previous iterations
@@ -221,6 +227,7 @@ class SAFIRES:
         self.surface = surface
         self.constraints = self.atoms.constraints.copy()
         self.natoms = natoms
+        self.reflective = reflective
         self.previous_atoms = atoms.copy()
         self.previous_atoms.calc = LJ()
         self.mdobject = mdobject
@@ -845,8 +852,6 @@ class SAFIRES:
 
         # determine current iteration
         iteration = self.mdobject.get_number_of_steps()
-        print(iteration)
-        return
 
         # start writing new debugging block if debugging is enabled
         if not checkup:
@@ -1150,12 +1155,17 @@ class SAFIRES:
             # Perform mass-weighted exchange of normal components of
             # velocitiy, force (, and random forces if Langevin).
             # i.e. elastic collision
-            M = m_outer + m_inner
-            r12 = r_inner
-            v12 = v_outer - v_inner
-            v_norm = np.dot(v12, r12) * r12 / (np.linalg.norm(r12)**2)
-            dV_inner = 2 * m_inner / M * v_norm
-            dV_outer = -2 * m_outer / M * v_norm
+            if self.reflective:
+                n = self.normalize(r_inner)
+                dV_inner = -2 * np.dot(np.dot(v_inner, n), n) 
+                dV_outer = -2 * np.dot(np.dot(v_outer, n), n) 
+            else:
+                M = m_outer + m_inner
+                r12 = r_inner
+                v12 = v_outer - v_inner
+                v_norm = np.dot(v12, r12) * r12 / (np.linalg.norm(r12)**2)
+                dV_inner = 2 * m_inner / M * v_norm
+                dV_outer = -2 * m_outer / M * v_norm
 
             if not self.surface and theta != 0 and theta != np.pi:
                 # rotate outer particle velocity change component
