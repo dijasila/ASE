@@ -3,7 +3,6 @@ from operator import itemgetter
 
 from ase import Atoms
 from ase.calculators.lj import LennardJones as LJ
-from ase.constraints import FixBondLengths
 
 class SAFIRES:
     """
@@ -679,23 +678,10 @@ class SAFIRES:
         if halfstep == 1:
             # friction and (random) forces should only be
             # applied during the first halfstep.
-            print("BEFORE ", self.atoms.constraints)
-            checkrattle = False
-            for i,y in enumerate(self.atoms.constraints):
-                if isinstance(y, FixBondLengths):
-                    checkrattle = True
-                    del self.atoms.constraints[i]
-            print("AFTER ", self.atoms.constraints)
-
             v += c + d
             self.atoms.set_positions(x + dt * v)
             v = (self.atoms.get_positions() - x - dt * d) / dt
             self.atoms.set_momenta(v * m)
-
-            if checkrattle:
-                self.atoms.constraints = self.constraints.copy()
-            
-            print("END ", self.atoms.constraints)
 
         if halfstep == 2:
             # at the end of the second part of the time step,
