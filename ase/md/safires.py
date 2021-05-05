@@ -302,7 +302,8 @@ class SAFIRES:
 
     def debugtraj(self):
         """Write the last two configurations to traj object."""
-        write("crashed_atoms.traj", self.atoms[-2:-1], format="traj")
+        write("crashed_atoms.traj", [self.atoms, self.previous_atoms],
+              format="traj")
         return
 
     def normalize(self, x):
@@ -512,9 +513,25 @@ class SAFIRES:
 
             # find roots
             roots = np.roots([c2, c1, c0])
-            self.debuglog("   < TIME STEP EXTRAPOLATION >\n"
-                          "   all extrapolated roots: {:s}\n"
-                          .format(np.array2string(roots)))
+            
+            try:
+                self.debuglog("   < TIME STEP EXTRAPOLATION >\n"
+                              "   all extrapolated roots: {:s}\n"
+                              .format(np.array2string(roots)))
+            except:
+                self.debugtraj()
+                message = ("ERROR:\n\n"
+                           "Time step extrapolation failed.\n"
+                           "Configuration did not yield results.\n"
+                           "This should not happen and indicates\n"
+                           "that SAFIRES was unable to properly\n"
+                           "perform for the system. Could be due\n"
+                           "to bad starting conditions, too large\n"
+                           "time step, or an incompatibiliy between\n"
+                           "SAFIRES and the chosen simulation\n"
+                           "conditions.")
+                self.debuglog(message)
+                raise SystemExit(message)
 
             for val in roots:
                 if np.isreal(val) and val <= self.mdobject.dt and val > 0:
@@ -559,6 +576,7 @@ class SAFIRES:
                      "- bad region assignment (check tags!)\n\n"
                      "Roots: {:s}\n".format(np.array2string(roots)))
             self.debuglog(error)
+            self.debugtraj()
             raise SystemExit(error)
         else:
             return res
@@ -923,6 +941,7 @@ class SAFIRES:
                             "- temperature too large\n"
                             "EXITING\n"])
                     self.debuglog(error)
+                    self.debugtraj()
                     raise SystemExit(error)
                 else:
                     # write information about the affected particle
@@ -974,6 +993,7 @@ class SAFIRES:
                                           " happen!\n"
                                           "EXITING"]))
                         self.debuglog(error)
+                        self.debugtraj()
                         raise SystemExit(error)
 
                     # add affected particle pair and
@@ -1109,6 +1129,7 @@ class SAFIRES:
                 # now this is a real issue and indicative of something
                 # having gone wrong, either during time step
                 # extrapolation or in the propagation itself.
+                self.debugtraj()
                 raise SystemExit("\nINNER and OUTER particles are not "
                                  "at the same distance from the center "
                                  "(difference > 0.01 A). This is a "
