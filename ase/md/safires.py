@@ -99,7 +99,7 @@ class SAFIRES:
     """
 
     def __init__(self, atoms, mdobject, natoms,
-                 logfile = "safires.log", debug=False,
+                 logfile="safires.log", debug=False,
                  barometer=False, surface=False, reflective=False):
         """"Initial setup of the SAFIRES class.
 
@@ -853,6 +853,9 @@ class SAFIRES:
         # determine current iteration
         iteration = self.mdobject.get_number_of_steps()
 
+        if hasattr(self.mdobject, "fix_com"):
+            print("fix_com = ",self.mdobject.fix_com)
+
         # start writing new debugging block if debugging is enabled
         if not checkup:
             self.debuglog("\nIteration {:d}\n".format(iteration))
@@ -1149,8 +1152,8 @@ class SAFIRES:
                 # symmetric and particles can be on both sides of
                 # the slab. in this case, we just need to invert
                 # the vectors.
-                v_outer = (-1) * v_outer
-                r_outer = (-1) * r_outer
+                v_outer = -1 * v_outer
+                r_outer = -1 * r_outer
 
             # Perform mass-weighted exchange of normal components of
             # velocitiy, force (, and random forces if Langevin).
@@ -1182,7 +1185,7 @@ class SAFIRES:
             if theta == np.pi:
                 # flip velocity change component of outer particle
                 # to the other side of the slab (if applicable)
-                dV_outer = (-1) * dV_outer
+                dV_outer = -1 * dV_outer
 
             # commit new momenta to pseudoparticle atoms object
             com_atoms[outer_reflect].momentum += (dV_outer * m_outer)
