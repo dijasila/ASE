@@ -3,6 +3,7 @@ from operator import itemgetter
 
 from ase import Atoms
 from ase.calculators.lj import LennardJones as LJ
+from ase.io import write
 
 class SAFIRES:
     """
@@ -297,6 +298,12 @@ class SAFIRES:
 
         if self.debug:
             self.db.write(string)
+        return
+
+    def debugtraj(self):
+        """Write the last two configurations to traj object."""
+        write("crashed_atoms.traj", self.atoms[-2:-1], format="traj")
+        return
 
     def normalize(self, x):
         """Return normalized 3D vector x."""
@@ -650,12 +657,21 @@ class SAFIRES:
             eta = self.mdobject.eta
             sig = np.sqrt(2 * T * fr / m)
         else:
+            T = 0
             fr = 0.
             xi = np.asarray([np.asarray([0.,0.,0.])
                              for atom in self.atoms])
             eta = np.asarray([np.asarray([0.,0.,0.])
                               for atom in self.atoms])
             sig = 0.
+
+        #print("T = ", T)
+        #print("fr = ", fr)
+        #print("v = ", v)
+        #print("f = ", f)
+        #print("xi = ", xi)
+        #print("eta = ", eta)
+        #print("sig = ", sig)
 
         # pre-calculate (random) force constant
         # based on default time step
@@ -852,9 +868,6 @@ class SAFIRES:
 
         # determine current iteration
         iteration = self.mdobject.get_number_of_steps()
-
-        if hasattr(self.mdobject, "fix_com"):
-            print("fix_com = ",self.mdobject.fix_com)
 
         # start writing new debugging block if debugging is enabled
         if not checkup:
@@ -1159,22 +1172,39 @@ class SAFIRES:
             # velocitiy, force (, and random forces if Langevin).
             # i.e. elastic collision
             if self.reflective:
+                self.debuglog("   -> hard wall reflection\n")
                 n = self.normalize(r_inner)
                 if np.dot(v_inner, n) > 0:
                     dV_inner = -2 * np.dot(np.dot(v_inner, n), n) 
                 else:
                     dV_inner = np.array([0.,0.,0.])
+                n = self.normalize(r_outer)
                 if np.dot(v_outer, n) < 0:
                     dV_outer = -2 * np.dot(np.dot(v_outer, n), n) 
                 else:
                     dV_outer = np.array([0.,0.,0.])
+                self.debuglog("   dV_inner = {:s}\n"
+                              .format(np.array2string(dV_inner)))
+                self.debuglog("   dV_outer = {:s}\n"
+                              .format(np.array2string(dV_outer)))
             else:
+                self.debuglog("   -> momentum exchange collision\n")
                 M = m_outer + m_inner
                 r12 = r_inner
                 v12 = v_outer - v_inner
+                self.debuglog("   r12 = {:s}\n"
+                              .format(np.array2string(r12)))
+                self.debuglog("   v12 = {:s}\n"
+                              .format(np.array2string(v12)))
+                self.debuglog("   dot(v12, r12) = {:.16f}\n"
+                              .format(np.dot(v12, r12)))
                 v_norm = np.dot(v12, r12) * r12 / (np.linalg.norm(r12)**2)
                 dV_inner = 2 * m_inner / M * v_norm
+                self.debuglog("   dV_inner = {:s}\n"
+                              .format(np.array2string(dV_inner)))
                 dV_outer = -2 * m_outer / M * v_norm
+                self.debuglog("   dV_outer = {:s}\n"
+                              .format(np.array2string(dV_outer)))
 
             if not self.surface and theta != 0 and theta != np.pi:
                 # rotate outer particle velocity change component
