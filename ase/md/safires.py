@@ -1166,7 +1166,6 @@ class SAFIRES:
                 # the slab. in this case, we just need to invert
                 # the vectors.
                 v_outer = -1 * v_outer
-                r_outer = -1 * r_outer
 
             # Perform mass-weighted exchange of normal components of
             # velocitiy, force (, and random forces if Langevin).
@@ -1178,7 +1177,6 @@ class SAFIRES:
                     dV_inner = -2 * np.dot(np.dot(v_inner, n), n) 
                 else:
                     dV_inner = np.array([0.,0.,0.])
-                n = self.normalize(r_outer)
                 if np.dot(v_outer, n) < 0:
                     dV_outer = -2 * np.dot(np.dot(v_outer, n), n) 
                 else:
