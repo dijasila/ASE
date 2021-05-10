@@ -714,7 +714,8 @@ class SAFIRES:
             # applied during the first halfstep.
             v += c + d
             self.atoms.set_positions(x + dt * v)
-            v = (self.atoms.get_positions() - x - dt * d) / dt
+            #v = (self.atoms.get_positions() - x - dt * d) / dt
+            v = (self.atoms.get_positions() - x) / dt
             self.atoms.set_momenta(v * m)
 
         if halfstep == 2:
@@ -886,10 +887,6 @@ class SAFIRES:
 
         # determine current iteration
         iteration = self.mdobject.get_number_of_steps()
-
-        # write debugtraj
-        if self.debug:
-            self.debugtraj()
 
         # start writing new debugging block if debugging is enabled
         if not checkup:
