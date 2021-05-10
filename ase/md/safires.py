@@ -887,6 +887,10 @@ class SAFIRES:
         # determine current iteration
         iteration = self.mdobject.get_number_of_steps()
 
+        # write debugtraj
+        if self.debug:
+            self.debugtraj()
+
         # start writing new debugging block if debugging is enabled
         if not checkup:
             self.debuglog("\nIteration {:d}\n".format(iteration))
