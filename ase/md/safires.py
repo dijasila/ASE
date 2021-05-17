@@ -827,11 +827,11 @@ class SAFIRES:
         r = com_atoms.get_distances([atom.index for atom in com_atoms
                                      if atom.tag == 0][0],
                                     [atom.index for atom in com_atoms],
-                                    mic=True, vector=True)
+                                     mic=True, vector=True)
         d = com_atoms.get_distances([atom.index for atom in com_atoms
                                      if atom.tag == 0][0], 
                                     [atom.index for atom in com_atoms],
-                                    mic=True) 
+                                     mic=True) 
 
         # list all particles in the inner region
         inner_mols = [(atom.index, d[atom.index])
