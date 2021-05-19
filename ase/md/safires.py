@@ -4,6 +4,7 @@ from operator import itemgetter
 from ase import Atoms
 from ase.calculators.lj import LennardJones as LJ
 from ase.io import write
+from ase.geometry import find_mic
 
 class SAFIRES:
     """
@@ -98,7 +99,7 @@ class SAFIRES:
     - debug output should properly reflect the COM pseudoparticles
       when molecules are used.
     """
-
+    
     def __init__(self, atoms, mdobject, natoms,
                  logfile="safires.log", debug=False,
                  barometer=False, surface=False, reflective=False):
@@ -305,7 +306,7 @@ class SAFIRES:
         write("crashed_atoms.traj", [self.atoms, self.previous_atoms],
               format="traj")
         return
-
+    
     def normalize(self, x):
         """Return normalized 3D vector x."""
         return x / np.linalg.norm(x)
@@ -683,14 +684,6 @@ class SAFIRES:
                               for atom in self.atoms])
             sig = 0.
 
-        #print("T = ", T)
-        #print("fr = ", fr)
-        #print("v = ", v)
-        #print("f = ", f)
-        #print("xi = ", xi)
-        #print("eta = ", eta)
-        #print("sig = ", sig)
-
         # pre-calculate (random) force constant
         # based on default time step
         idt = self.default_dt
@@ -824,14 +817,13 @@ class SAFIRES:
         # calculate absolute distances and distance vectors between
         # COM of solute and all inner and outer region particles
         # (respect PBCs in distance calculations)
+        sol_com = com_atoms[[atom.index for atom in com_atoms
+                             if atom.tag == 0]].get_center_of_mass()
         r = com_atoms.get_distances([atom.index for atom in com_atoms
                                      if atom.tag == 0][0],
                                     [atom.index for atom in com_atoms],
                                      mic=True, vector=True)
-        d = com_atoms.get_distances([atom.index for atom in com_atoms
-                                     if atom.tag == 0][0], 
-                                    [atom.index for atom in com_atoms],
-                                     mic=True) 
+        d = [np.linalg.norm(dd) for dd in r]
 
         # list all particles in the inner region
         inner_mols = [(atom.index, d[atom.index])
@@ -1071,7 +1063,7 @@ class SAFIRES:
             # before boundary event
             self.atoms.positions = self.previous_atoms.positions.copy()
             self.atoms.set_momenta(
-                self.previous_atoms.get_momenta().copy())
+                self.previous_atoms.get_momenta(), apply_constraint=False)
             self.atoms.calc.results['forces'] = (
                 self.previous_atoms.calc.results['forces'].copy())
 
@@ -1276,7 +1268,8 @@ class SAFIRES:
             # all the work we did here.
             self.previous_boundary_idx = boundary_idx
             self.previous_atoms.positions = self.atoms.positions.copy()
-            self.previous_atoms.set_momenta(self.atoms.get_momenta().copy())
+            self.previous_atoms.set_momenta(self.atoms.get_momenta(),
+                                            apply_constraint=False)
             self.previous_atoms.calc.results['forces'] = (
                 self.atoms.calc.results['forces'].copy())
 
@@ -1366,8 +1359,8 @@ class SAFIRES:
             # back to incase of boundary events in the next iteration
             self.previous_boundary_idx = boundary_idx
             self.previous_atoms.positions = self.atoms.positions.copy()
-            self.previous_atoms.set_momenta(
-                self.atoms.get_momenta().copy())
+            self.previous_atoms.set_momenta(self.atoms.get_momenta(), 
+                                            apply_constraint=False)
             self.previous_atoms.calc.results['forces'] = (
                 self.atoms.calc.results['forces'].copy())
 
