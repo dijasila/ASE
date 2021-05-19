@@ -513,25 +513,9 @@ class SAFIRES:
 
             # find roots
             roots = np.roots([c2, c1, c0])
-            
-            try:
-                self.debuglog("   < TIME STEP EXTRAPOLATION >\n"
-                              "   all extrapolated roots: {:s}\n"
-                              .format(np.array2string(roots)))
-            except:
-                self.debugtraj()
-                message = ("ERROR:\n\n"
-                           "Time step extrapolation failed.\n"
-                           "Configuration did not yield results.\n"
-                           "This should not happen and indicates\n"
-                           "that SAFIRES was unable to properly\n"
-                           "perform for the system. Could be due\n"
-                           "to bad starting conditions, too large\n"
-                           "time step, or an incompatibiliy between\n"
-                           "SAFIRES and the chosen simulation\n"
-                           "conditions.")
-                self.debuglog(message)
-                raise SystemExit(message)
+            self.debuglog("   < TIME STEP EXTRAPOLATION >\n"
+                          "   all extrapolated roots: {:s}\n"
+                          .format(np.array2string(roots)))
 
             for val in roots:
                 if np.isreal(val) and val <= self.mdobject.dt and val > 0:
