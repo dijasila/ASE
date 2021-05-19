@@ -2,9 +2,9 @@ def test_safires():
     """Test for SAFIRES class.
     
     SAFIRES is a boundary-based separation scheme
-    for coupled calculations. The fundamental features
+    for hybrid calculations. The fundamental features
     of the method can however be tested without doing
-    an actual coupled calculation.
+    an actual hybrid calculation (e.g. QM/MM)..
 
     The following unit test includes two tests; one for
     a simple, monoatomic argon LJ model and another one
@@ -16,7 +16,7 @@ def test_safires():
     actually cause by SAFIRES or by changes to the 
     FixBondLengths or TIP4P classes.
 
-    @bjk24, 2021-02-23.
+    @bjk24, 2021-05-19.
     
     """
 
@@ -33,14 +33,14 @@ def test_safires():
     # TEST 1: monoatomic LJ liquid
 
     # Build MWE LJ model system.
-    a_cell = 10
+    a_cell = 30
     cell = ((a_cell, 0, 0), (0, a_cell, 0), (0, 0, a_cell))
     pbc = (1, 1, 1)
 
     atoms = Atoms("Ar3",
-                  [[(a_cell / 2), (a_cell / 2), (a_cell / 2)],
-                  [(a_cell/2 + 2), (a_cell/2 - 1), (a_cell / 2)],
-                  [(a_cell/2 - 4), (a_cell / 2 + 0.5), (a_cell / 2)]])
+            [[(a_cell / 2), (a_cell / 2), (a_cell / 2)],
+            [(a_cell/2 + 2), (a_cell/2 - 1), (a_cell / 2)],
+            [(a_cell/2 - 4), (a_cell / 2 + 0.5), (a_cell / 2)]])
     atoms.set_cell(cell)
     atoms.set_pbc(pbc)
     
@@ -56,23 +56,24 @@ def test_safires():
     
     # Initialize calculator and dynamics objects.
     atoms.calc = LennardJones(epsilon=120 * units.kB,
-                              sigma=3.4, rc=4.9)
+                              sigma=3.4)
     dt = 1.0 * units.fs
     md = VelocityVerlet(atoms, timestep=dt)
 
     # Initialize SAFIRES class.
     safires = SAFIRES(atoms, mdobject=md, natoms=1,
-                      logfile="md.log")
+                      logfile=None)
     md.attach(safires.safires, interval=1)
-    
+
     # Run MD.
     md.run(37)
 
     # Assert results.
-    epot_check = -0.00281226614101
+    epot_check = -0.0204147939862
     epot = atoms.calc.results["energy"]
-    d_check = 3.84999554045
+    d_check = 3.84968261723
     d = np.linalg.norm(atoms[0].position - atoms[1].position)
+    
     assert abs(epot_check - epot) < 1.e-10
     assert abs(d_check - d) < 1.e-10
 
@@ -91,8 +92,8 @@ def test_safires():
         rattle = FixBondLengths(rattle)
         return rattle
 
-    # Built H2O MWE model systen.
-    a_cell = 10
+    # Build H2O MWE model systen.
+    a_cell = 30
     cell = ((a_cell, 0, 0), (0, a_cell, 0), (0, 0, a_cell))
     pbc = (1, 1, 1)
 
@@ -107,6 +108,7 @@ def test_safires():
            [6.7, 6.7 + rOH*np.cos(x), 6.7 + rOH*np.sin(x)],
            [6.7, 6.7 + rOH*np.cos(x), 6.7 - rOH*np.sin(x)]]
     atoms = Atoms('OH2OH2OH2', positions=pos, cell=cell, pbc=pbc)
+    atoms.center()
 
     # Tags: 0 = solute, 1 = inner region, 2 = outer region.
     atoms.set_tags([0,0,0,1,1,1,2,2,2])
@@ -117,28 +119,31 @@ def test_safires():
 
     # Fix central molecule.
     atoms.constraints = ([fixatoms] + [rattle])
+    atoms.set_positions(atoms.get_positions())
 
     # Apply initial momenta.
     atoms[3].momentum = np.asarray([-1, 1, 0])
     atoms[6].momentum = np.asarray([-1, -1, -1])
 
     # Initialize calculator and dynamics objects.
-    atoms.calc = TIP4P(rc=4.9)
+    atoms.calc = TIP4P(rc=14.9)
     dt = 1.0 * units.fs
     md = VelocityVerlet(atoms, timestep=dt)
 
     # Initialize SAFIRES class.
-    safires = SAFIRES(atoms, mdobject=md, natoms=3, 
-                      logfile="md.log")
+    safires = SAFIRES(atoms, mdobject=md, natoms=3,
+                      logfile=None)
     md.attach(safires.safires, interval=1)
     
     # Run MD.
     md.run(28)
     
     # Assert results.
-    epot_check = -0.0763445456798
+    epot_check = -0.083096559019
     epot = atoms.calc.results["energy"]
-    d_check = 2.71021718223
+    d_check = 2.70871422216
     d = np.linalg.norm(atoms[0].position - atoms[3].position)
     assert abs(epot_check - epot) < 1.e-10
     assert abs(d_check - d) < 1.e-10
+
+test_safires()
