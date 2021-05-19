@@ -4,7 +4,6 @@ from operator import itemgetter
 from ase import Atoms
 from ase.calculators.lj import LennardJones as LJ
 from ase.io import write
-from ase.geometry import find_mic
 
 class SAFIRES:
     """
@@ -817,8 +816,6 @@ class SAFIRES:
         # calculate absolute distances and distance vectors between
         # COM of solute and all inner and outer region particles
         # (respect PBCs in distance calculations)
-        sol_com = com_atoms[[atom.index for atom in com_atoms
-                             if atom.tag == 0]].get_center_of_mass()
         r = com_atoms.get_distances([atom.index for atom in com_atoms
                                      if atom.tag == 0][0],
                                     [atom.index for atom in com_atoms],

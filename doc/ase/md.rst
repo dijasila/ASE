@@ -468,8 +468,7 @@ The SAFIRES class uses the following input attributes:
       :class:`Langevin` (NVT) dynamics.
     - The origin needs to be a fixed point in space. If the origin is
       a particle or molecule, all atoms need to be frozen using, for example,
-      the :class:`~ase/constraints/FixBondLengths`constraint class
-      (center of mass needs to be static).
+      the FixBondLengths constraint class (center of mass needs to be static).
     - Periodic surface model systems need to have the vacuum in *z*
       direction. Stepped surface or surfaces models whose surface are
       not parallel to the *xy* plane have not been tested and are
