@@ -4,6 +4,7 @@ from operator import itemgetter
 from ase import Atoms
 from ase.calculators.lj import LennardJones as LJ
 from ase.io import write
+from ase.geometry import find_mic
 
 class SAFIRES:
     """
@@ -70,7 +71,7 @@ class SAFIRES:
     USAGE:
     ------
    1) atoms = Atoms([...])
-       atom.tag = 0 --> solute
+       atom.tag = 0 --> solute molecule or periodic surface
        atom.tag = 1 --> inner region
        atom.tag = 2 --> outer region
 
@@ -244,6 +245,11 @@ class SAFIRES:
         if self.barometer:
             self.impacts = [0,0]
         self.debug = debug
+
+        # keep track of how many atoms are in the solute
+        # or periodic surface model
+        self.nsol =len([atom.index for atom in self.atoms 
+                       if atom.tag == 0])
 
         # if Langevin MD is using 'fix_com', we need to turn that off.
         # SAFIRES handles the COM adjustment internally.
@@ -760,20 +766,21 @@ class SAFIRES:
         self.constraints = atoms.constraints.copy()
         atoms.constraints = []
         while i < len(atoms):
-            if mod > 1:
+            if atoms[i].tag == 0 or mod == 1:
+                # for monoatomic paticles and solute
+                com = atoms[i].position
+                mom = atoms[i].momentum
+                M = atoms[i].mass
+                tag = atoms[i].tag
+                frc = atoms.calc.results['forces'][i]
+
+            elif mod > 1:
                 # for molecules
                 com = atoms[i:i + mod].get_center_of_mass()
                 M = np.sum(atoms[i:i + mod].get_masses())
                 mom = np.sum(atoms[i:i + mod].get_momenta(), axis=0)
                 tag = atoms[i].tag
                 frc = np.sum(atoms.calc.results['forces'][i:i + mod], axis=0)
-            else:
-                # for monoatomic paticles
-                com = atoms[i].position
-                mom = atoms[i].momentum
-                M = atoms[i].mass
-                tag = atoms[i].tag
-                frc = atoms.calc.results['forces'][i]
 
             tmp = Atoms(atoms[i].symbol)
             tmp.set_positions([com])
@@ -797,15 +804,16 @@ class SAFIRES:
                 atom.position[0] = 0.
                 atom.position[1] = 0.
 
+        # calculate distances from solute / surface center of mass
+        sol_com = atoms[[atom.index for atom in com_atoms
+                         if atom.tag == 0]].get_center_of_mass()
+
         # calculate absolute distances and distance vectors between
         # COM of solute and all inner and outer region particles
         # (respect PBCs in distance calculations)
-        r = com_atoms.get_distances([atom.index for atom in com_atoms
-                                     if atom.tag == 0][0],
-                                    [atom.index for atom in com_atoms],
-                                     mic=True, vector=True)
-        d = [np.linalg.norm(dd) for dd in r]
-
+        r,d = find_mic([atom.position for atom in com_atoms] - sol_com, 
+                       com_atoms.cell, com_atoms.pbc)
+        
         # list all particles in the inner region
         inner_mols = [(atom.index, d[atom.index])
                       for atom in com_atoms if atom.tag == 1]
