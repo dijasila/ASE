@@ -800,16 +800,16 @@ class SAFIRES:
                     frc = np.sum(atoms.calc.results['forces'][i:i + mod], axis=0)
                     sym = atoms[i].symbol
             
-                # create a new atom
-                tmp = Atoms(sym)
-                tmp.set_positions([com])
-                tmp.set_momenta([mom])
-                tmp.set_masses([M])
-                tmp.set_tags([tag])
-                forces.append(frc)
-                
-                # append to new atoms object
-                com_atoms += tmp
+                    # create a new atom
+                    tmp = Atoms(sym)
+                    tmp.set_positions([com])
+                    tmp.set_momenta([mom])
+                    tmp.set_masses([M])
+                    tmp.set_tags([tag])
+                    forces.append(frc)
+                    
+                    # append to new atoms object
+                    com_atoms += tmp
 
         if self.surface:
             # we only need z coordinates for surface calculations

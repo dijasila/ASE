@@ -398,6 +398,32 @@ to inform SAFIRES which atoms belong to which region:
    particles or molecules are assigned ``atom.tag = 2``. In a QM/MM
    scheme, the outer region particles constitutes the MM region.
 
+.. note::
+    The atoms object needs to be structured in a certain way in order
+    to work with SAFIRES. Please follow these instructions to set up
+    your atoms object:
+    - The solute or periodic surface model (tag = 0) comes first in
+      the atoms object, i.e. before any of the inner or outer region
+      solvent particles / molecules.
+    - The inner and outer region particles or molecules (tags = 1, 2)
+      are listed after the solute in the atoms object but do not need
+      to be sorted according to tag = 1 or tag = 2.
+    - Individual atoms of each molecule, including the solute or
+      surface model, need to be listed right after each other in 
+      sequence. 
+      
+    Correct example: for a methane molecule solvated by three water 
+    molecules, the atoms object would be (schematically) structured
+    as [CH4 OH2 OH2 OH2]. A corresponding tags list could be
+    [0 0 0 0 0 2 2 2 1 1 1 2 2 2].
+
+    Incorrect example 1: giving the atoms list as one large molecule,
+    i.e. [CH10O3] for the above example.
+
+    Incorrect example 2: solvent molecules before the solute / surface,
+    i.e. [OH2 OH2 CH4 OH2] with corresponding tag list
+    [2 2 2 1 1 1 0 0 0 0 2 2 2].
+
 SAFIRES resolves boundary events through elastic collisions mediated
 by the boundary. In order to match the exact moment that a collision
 occurs, SAFIRES adapts the time step dynamically. A modified propagator

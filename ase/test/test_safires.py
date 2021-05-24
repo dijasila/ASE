@@ -145,5 +145,3 @@ def test_safires():
     d = np.linalg.norm(atoms[0].position - atoms[3].position)
     assert abs(epot_check - epot) < 1.e-10
     assert abs(d_check - d) < 1.e-10
-
-test_safires()
