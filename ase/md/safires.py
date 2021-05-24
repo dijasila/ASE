@@ -257,6 +257,10 @@ class SAFIRES:
             if self.mdobject.fix_com:
                 self.mdobject.fix_com = False
         
+        if hasattr(self.mdobject, "fixcm"):
+            if self.mdobject.fixcm:
+                self.mdobject.fixcm = False
+        
         # setup output logfiles
         if self.logfile is not None:
             self.log = open(self.logfile, "w+")
