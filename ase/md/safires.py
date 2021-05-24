@@ -564,7 +564,7 @@ class SAFIRES:
                      "- bad starting configuration (bond lengths)\n"
                      "- using MD other than Langevin or VV\n"
                      "- exploding temperatures / starting\n"
-                     "  configuration not converged\n"
+                     "  configuration not thermalized\n"
                      "- using SAFIRES beyond its limitations\n"
                      "- using more than one type of atom  /\n"
                      "  molecule in inner and outer region\n"

@@ -108,7 +108,7 @@ Having obtained an equilibrated starting configuration, it is time to
 prepare the actual SAFIRES run. Here, we assume that this follow up
 run is part of the same input script and we can thus get to work on
 the existing atoms object, which now contains the results of the
-previous run.
+previous thermalization.
 
 SAFIRES uses the tag system to differentiate between the solute and
 the inner and outer region. To start preparations on the atoms object,
@@ -129,14 +129,12 @@ box, set this as the solute (``atom.tag = 0``) and fix constrain it::
 
     import numpy as np
     from operator import itemgetter
-    from ase.constraints import FixAtoms
 
     center = atoms.cell.diagonal() / 2
     distances = [[np.linalg.norm(atom.position - center), atom.index]
                  for atom in atoms]
     index_c = sorted(distances, key=itemgetter(0))[0][1]
     atoms[index_c].tag = 0
-    atoms.constraints = [FixAtoms(indices=[index_c])]
 
 Note that ``np.linalg.norm()`` does not respect the periodic boundary
 conditions but this is irrelevant in this case. Unlike in the next
@@ -150,6 +148,34 @@ part, where we expand the inner region around the central particle::
         # Start counting from i+1 to ignore the solute, which
         # is on top of this list with a distance of zero.
         atoms[distances[i+1][1]].tag = 1
+    
+We now need to rearrange the atoms object in a certain way. SAFIRES
+requires that the solute (tag = 0) must always come first in the
+atoms object. The inner and outer region particles / molecules can
+be added afterwards in arbitrary order::
+    newatoms = Atoms()
+    newatoms.extend(atoms[[atom.index for atom in atoms
+                           if atom.tag == 0]])
+    newatoms.extend(atoms[[atom.index for atom in atoms
+                           if atom.tag in [1,2]]])
+    newatoms.cell = atoms.cell
+    newatoms.pbc = atoms.pbc
+    newatoms.calc = atoms.calc
+    atoms = newatoms
+
+Finally, the central particle is constrained. At the time of
+writing this tutorial, SAFIRES requires that a particle or
+molecule is designated as the origin (tag = 0) and that the
+center of mass of the origin is frozen. It is possible in 
+principle to define a ghost atom, which does not take part in
+the chemistry of the simulation, as the origin instead. However,
+for the sake of simplicity, we will simply constrain the central
+LJ particle and use it as the origin. After the earlier
+rearrangement, this particle has index 0::
+
+    from ase.constraints import FixAtoms
+        
+    atoms.constraints = [FixAtoms(indices=[0])]
 
 Now that SAFIRES will know which particle belongs to which region,
 we can prepare the dynamics object for the SAFIRES calculation.
@@ -162,7 +188,8 @@ dynamics class (:class:`~ase/md/verlet/VelocityVerlet`)::
     md = VelocityVerlet(atoms, timestep=1 * units.fs)
 
 After initializing the dynamics object, SAFIRES can be initialized
-and appended to the it::
+and appended to it. Here, ``natoms`` communicates to SAFIRES how
+many atoms are in each solvent molecule (here: only 1)::
 
     from ase.md.safires import SAFIRES
 
@@ -174,8 +201,8 @@ will not properly fulfill its intended purpose.
 
 .. note::
     SAFIRES will change the atomic configuration and re-calculate
-    energy results in order to enforce the boundary. Thus, any
-    results. Thus, the logger and trajectory objects need to be
+    energy results in order to enforce the boundary.
+    Thus, the logger and trajectory objects need to be
     appended to the dynamics object *after* SAFIRES in order for
     them to save the correct information.
 
@@ -215,8 +242,6 @@ boundary on the given system.
 
 If you want to reproduce this RDF test, note that a lot of
 uncorrelated configuration are necessary due to the specific
-way the RDF is sampled. 1,000,000 iterations will results
-in a smooth RDF for this particular example, which will
-complete in less than 2 days of wall time on a single CPU
-(or faster if you choose to perform parallel runs as
-mentioned above).
+way the RDF is sampled. 1,000,000 iterations, sampled every
+0.1 ps, will results in a smooth RDF for this particular 
+example.
