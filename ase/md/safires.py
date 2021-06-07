@@ -50,8 +50,8 @@ class SAFIRES:
     PHRASEOLOGY
     -----------
     "particle": any atom or molecule involved in SAFIRES.
-    "solute"/"center": referring the solute particle
-                       (atom.tag = 0).
+    "solute"/"center": referring the atoms in the solute
+                       or periodic surface (atom.tag = 0).
     "inner"/"INNER": referring to particles in the inner
                      region (atom.tag = 1).
     "outer"/"OUTER": referring to particles in the outer
@@ -62,11 +62,11 @@ class SAFIRES:
                 region. sphere radius or plane distance,
                 respectively, are defined by the distance
                 of the INNER particle furthest away from
-                the solute.
+                the solute / periodic surface.
     "boundary event": if any OUTER particles are detected
                       closer to the solute than the INNER
                       particle currently furthest away from
-                      the solute.
+                      the solute / periodic surface.
 
     USAGE:
     ------
@@ -85,7 +85,8 @@ class SAFIRES:
                          logfile=str custom SAFIRE logfile name,
                          debug=True/False,
                          barometer=True/False,
-                         surface=True/False)
+                         surface=True/False,
+                         reflective=True/False)
 
     4) md.attach(safires.safires, interval=1)
 
@@ -96,8 +97,6 @@ class SAFIRES:
     -----
     - currently fix_com is required to be False for Langevin.
       that shouldn't be the case.
-    - debug output should properly reflect the COM pseudoparticles
-      when molecules are used.
     """
     
     def __init__(self, atoms, mdobject, natoms,
