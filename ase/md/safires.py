@@ -257,8 +257,9 @@ class SAFIRES:
         self.nsol = len([atom.index for atom in self.atoms 
                        if atom.tag == 0])
 
-        # if Langevin MD is using 'fix_com', we need to turn that off.
-        # SAFIRES handles the COM adjustment internally.
+        # if Langevin MD is using 'fix_com', we need to turn that off,
+        # it's currently incompatible with SAFIRES.
+        # (TODO: remove incompatibility)
         if hasattr(self.mdobject, "fix_com"):
             if self.mdobject.fix_com:
                 self.mdobject.fix_com = False
@@ -866,7 +867,7 @@ class SAFIRES:
                    therein.
 
         This method is called after each successful iteration of the
-        superordinate MD propagator. sefires() checks if any boundary
+        superordinate MD propagator. safires() checks if any boundary
         events have occurred as a result of the propagation. If it
         detects a boundary event, the following sequence is triggered:
         0) check for boundary events.
@@ -1383,7 +1384,7 @@ class SAFIRES:
             self.debuglog(checkout_long)
             print(checkout_short)
 
-            # print out barometer results (collisions caused
+            # print out "barometer" results (collisions caused
             # by inner and outer region particles, respectively)
             if self.barometer:
                 pressure = "".join(["Barometer:\ntotal number of "
