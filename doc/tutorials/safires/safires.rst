@@ -153,6 +153,7 @@ We now need to rearrange the atoms object in a certain way. SAFIRES
 requires that the solute (tag = 0) must always come first in the
 atoms object. The inner and outer region particles / molecules can
 be added afterwards in arbitrary order::
+
     newatoms = Atoms()
     newatoms.extend(atoms[[atom.index for atom in atoms
                            if atom.tag == 0]])
