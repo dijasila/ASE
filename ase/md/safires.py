@@ -255,7 +255,7 @@ class SAFIRES:
 
         # keep track of how many atoms are in the solute
         # or periodic surface model
-        self.nsol =len([atom.index for atom in self.atoms 
+        self.nsol = len([atom.index for atom in self.atoms 
                        if atom.tag == 0])
 
         # if Langevin MD is using 'fix_com', we need to turn that off.
@@ -839,7 +839,7 @@ class SAFIRES:
         # calculate absolute distances and distance vectors between
         # COM of solute and all inner and outer region particles
         # (respect PBCs in distance calculations)
-        r,d = find_mic([atom.position for atom in com_atoms] - sol_com,  
+        r, d = find_mic([atom.position for atom in com_atoms] - sol_com, 
                        com_atoms.cell, com_atoms.pbc)
         
         # list all particles in the inner region

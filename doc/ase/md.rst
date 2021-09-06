@@ -441,7 +441,7 @@ to inform SAFIRES which atoms belong to which region:
     solvent particles / molecules.
     - The inner and outer region particles or molecules (tags = 1, 2)
     are listed after the solute in the atoms object but do not need
-      to be sorted according to tag = 1 or tag = 2.
+    to be sorted according to tag = 1 or tag = 2.
     - Individual atoms of each molecule, including the solute or
     surface model, need to be listed right after each other in 
     sequence.
