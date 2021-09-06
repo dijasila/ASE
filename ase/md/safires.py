@@ -29,7 +29,7 @@ class SAFIRES:
 
     DESCRIPTION
     -----------
-    SAFIRES is a partitioning scheme desgined to divide a simulation
+    SAFIRES is a partitioning scheme designed to divide a simulation
     supercell into two regions to be calculated separately, using
     different (or the same) computational methodologies.
 
@@ -42,8 +42,7 @@ class SAFIRES:
     the inner and outer region are the same (the solute can be
     different). If particles are indistinguishable, it can be shown
     that correct average ensemble properties can be obtained despite
-    the presence of the bounadary and its alteration of microscopic
-    kinetics of the simulation.
+    the presence of the bounadary.
     The position of the boundary is flexible with respect to the
     inner region particle that is furthest away from the solute.
     If a boundary event is detected, SAFIRES will redirect the
