@@ -33,7 +33,7 @@ need to be fulfilled.
 
 To learn about the mathematical justification and inner workings
 of the SAFIRES method, refer to the
-:doi:`the method paper for more info <XX.XXXX/acs.jctc.XXXXXXX>`.
+:doi:`the method paper for more info <10.1021/acs.jctc.1c00522>`.
 
 Preparation of the Lennard-Jones model system
 ---------------------------------------------

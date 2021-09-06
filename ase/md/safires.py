@@ -1,4 +1,5 @@
 import numpy as np
+import math
 from operator import itemgetter
 
 from ase import Atoms
@@ -7,6 +8,10 @@ from ase.io import write
 from ase.geometry import find_mic
 
 class SAFIRES:
+
+    # increment version when updating
+    __version = "0.1.0"
+    
     """
     ###################### --- SAFIRES ---- ########################
     # Scattering-Assisted Flexible Inner Region Ensemble Separator #
@@ -14,12 +19,19 @@ class SAFIRES:
     # Authors: Björn Kirchhoff, Elvar Ö. Jónsson,                  #
     #          Asmus O. Dohn, Hannes Jónsson                       #
     #                                                              #
-    # Contact: hj@hi.is                                            #
+    # If you use the code, please cite: 10.1021/acs.jctc.1c00522   #
+    #                                                              #
     ################################################################
+
+    VERSION INFO
+    ------------
+    0.1.0: 
+        2021-09-06 
+        Initial release
 
     DESCRIPTION
     -----------
-    SAFIRES is a partitioning scheme desgined to devide a simulation
+    SAFIRES is a partitioning scheme desgined to divide a simulation
     supercell into two regions to be calculated separately, using
     different (or the same) computational methodologies.
 
@@ -47,8 +59,6 @@ class SAFIRES:
     step and to the Velocity Verlet propagator for a constant time
     step and zero friction.
 
-    PHRASEOLOGY
-    -----------
     "particle": any atom or molecule involved in SAFIRES.
     "solute"/"center": referring the atoms in the solute
                        or periodic surface (atom.tag = 0).
@@ -257,6 +267,7 @@ class SAFIRES:
                 self.mdobject.fix_com = False
         
         if hasattr(self.mdobject, "fixcm"):
+            # old / deprecated version of fix_com; might remove soon
             if self.mdobject.fixcm:
                 self.mdobject.fixcm = False
         
@@ -334,8 +345,8 @@ class SAFIRES:
         Euler-Rodrigues formula, code stolen from
         stackoverflow.com/questions/6802577.
         """
-        a = np.cos(theta / 2.0)
-        b, c, d = -axis * np.sin(theta / 2.0)
+        a = math.cos(theta / 2.0)
+        b, c, d = -axis * math.sin(theta / 2.0)
         aa, bb, cc, dd = a * a, b * b, c * c, d * d
         bc, ad, ac, ab, bd, cd = b * c, a * d, a * c, a * b, b * d, c * d
         return np.array([[aa + bb - cc - dd, 2 * (bc + ad), 2 * (bd - ac)],
@@ -410,7 +421,6 @@ class SAFIRES:
             # of atoms) needs to be accounted for.
             outer_real = self.nsol + (outer_idx - 1) * self.natoms
             inner_real = self.nsol + (inner_idx - 1) * self.natoms
-            mod = self.natoms
 
             # retreive Langevin-specific values (eta and xi random
             # components, friction fr).
@@ -428,6 +438,7 @@ class SAFIRES:
                 # if it is a Langevin-based simulation
                 fr = self.mdobject.fr
                 
+                mod = self.natoms
                 if mod > 1:
                     # we need to remove the constraints again
                     # since get_masses will fail when RATTLE
@@ -436,10 +447,10 @@ class SAFIRES:
                     self.atoms.constraints = []
                     
                     # if inner/outer particles are molecules
-                    m_outer_list = [np.sqrt(xm) for xm in
+                    m_outer_list = [math.sqrt(xm) for xm in
                                     self.atoms[outer_real:outer_real + mod]
                                     .get_masses()]
-                    m_inner_list = [np.sqrt(xm) for xm in
+                    m_inner_list = [math.sqrt(xm) for xm in
                                     self.atoms[inner_real:inner_real + mod]
                                     .get_masses()]
                     xi_outer = (np.dot(m_outer_list,
@@ -454,8 +465,8 @@ class SAFIRES:
                     eta_inner = (np.dot(m_inner_list,
                                  self.mdobject.eta[inner_real:inner_real + mod])
                                  / m_inner)
-                    sig_outer = np.sqrt(2 * self.mdobject.temp * fr)
-                    sig_inner = np.sqrt(2 * self.mdobject.temp * fr)
+                    sig_outer = math.sqrt(2 * self.mdobject.temp * fr)
+                    sig_inner = math.sqrt(2 * self.mdobject.temp * fr)
                 
                     # re-apply the constraints
                     self.atoms.constraints = self.constraints.copy()
@@ -466,8 +477,8 @@ class SAFIRES:
                     xi_inner = self.mdobject.xi[inner_real]
                     eta_outer = self.mdobject.eta[outer_real]
                     eta_inner = self.mdobject.eta[inner_real]
-                    sig_outer = np.sqrt(2 * self.mdobject.temp * fr / m_outer)
-                    sig_inner = np.sqrt(2 * self.mdobject.temp * fr / m_inner)
+                    sig_outer = math.sqrt(2 * self.mdobject.temp * fr / m_outer)
+                    sig_inner = math.sqrt(2 * self.mdobject.temp * fr / m_inner)
 
             # surface calculations: we only need z components
             if self.surface:
@@ -497,18 +508,18 @@ class SAFIRES:
             if not checkup:
                 idt = self.default_dt
                 a_outer = (idt * (f_outer - fr * v_outer) / 2
-                           + idt**0.5 * sig_outer * xi_outer / 2
-                           - idt**2 * fr * (f_outer - fr * v_outer) / 8
+                           + math.sqrt(idt) * sig_outer * xi_outer / 2
+                           - idt * idt * fr * (f_outer - fr * v_outer) / 8
                            - idt**1.5 * fr * sig_outer * (xi_outer / 2
-                           + eta_outer / np.sqrt(3)) / 4)
-                b_outer = idt**0.5 * sig_outer * eta_outer / (2 * np.sqrt(3))
+                           + eta_outer / math.sqrt(3)) / 4)
+                b_outer = math.sqrt(idt) * sig_outer * eta_outer / (2 * math.sqrt(3))
 
                 a_inner = (idt * (f_inner - fr * v_inner) / 2
-                           + idt**0.5 * sig_inner * xi_inner / 2
-                           - idt**2 * fr * (f_inner - fr * v_inner) / 8
+                           + math.sqrt(idt) * sig_inner * xi_inner / 2
+                           - idt * idt * fr * (f_inner - fr * v_inner) / 8
                            - idt**1.5 * fr * sig_inner * (xi_inner / 2
-                           + eta_inner / np.sqrt(3)) / 4)
-                b_inner = idt**0.5 * sig_inner * eta_inner / (2 * np.sqrt(3))
+                           + eta_inner / math.sqrt(3)) / 4)
+                b_inner = math.sqrt(idt) * sig_inner * eta_inner / (2 * math.sqrt(3))
             else:
                 a_outer = 0
                 a_inner = 0
@@ -664,6 +675,7 @@ class SAFIRES:
         m = self.atoms.get_masses()[:, np.newaxis]
         v = self.atoms.get_momenta() / m
         f = self.atoms.calc.results['forces'] / m
+        sqrt_of_3 = math.sqrt(3)
 
         if hasattr(self.mdobject, "fr"):
             # check for langevin friction, random forces
@@ -671,7 +683,7 @@ class SAFIRES:
             fr = self.mdobject.fr
             xi = self.mdobject.xi
             eta = self.mdobject.eta
-            sig = np.sqrt(2 * T * fr / m)
+            sig = math.sqrt(2 * T * fr / m)
         else:
             T = 0
             fr = 0.
@@ -686,10 +698,10 @@ class SAFIRES:
         idt = self.default_dt
         if not checkup:
             c = (idt * (f - fr * v) / 2
-                 + idt**0.5 * sig * xi / 2
-                 - idt**2 * fr * (f - fr * v) / 8
-                 - idt**1.5 * fr * sig * (xi / 2 + eta / np.sqrt(3)) / 4)
-            d = idt**0.5 * sig * eta / (2 * np.sqrt(3))
+                 + math.sqrt(idt) * sig * xi / 2
+                 - idt * idt * fr * (f - fr * v) / 8
+                 - idt**1.5 * fr * sig * (xi / 2 + eta / sqrt_of_3) / 4)
+            d = math.sqrt(idt) * sig * eta / (2 * sqrt_of_3)
         else:
             # if checkup is True, this means we already performed an entire
             # propagation cycle and have already updated the velocities
@@ -715,9 +727,9 @@ class SAFIRES:
             v = (self.atoms.get_positions() - x - dt * d) / dt
             f = self.atoms.get_forces(md=True) / m
             c = (idt * (f - fr * v) / 2
-                 + np.sqrt(idt) * sig * xi / 2
-                 - idt**2 * fr * (f - fr * v) / 8
-                 - idt**1.5 * fr * sig * (xi / 2 + eta / np.sqrt(3)) / 4)
+                 + math.sqrt(idt) * sig * xi / 2
+                 - idt * idt * fr * (f - fr * v) / 8
+                 - idt**1.5 * fr * sig * (xi / 2 + eta / sqrt_of_3) / 4)
             v += c
             self.atoms.set_momenta(v * m)
 
@@ -1159,41 +1171,18 @@ class SAFIRES:
             self.debuglog("   angle (r_outer, r_inner) is: {:.16f}\n"
                           .format(np.degrees(theta)))
 
-            # TODO: checking for np.pi and theta == 0 is a really
-            # bad idea because of numerical accuracy. it's not been
-            # an issue in tests so for but we should rewrite this
-            # in a more consistent way that takes into account 
-            # double precision. right now it's just a waste of
-            # cycles.
-            if not self.surface and theta != 0 and theta != np.pi:
-                # if there is a finite angle > 0 and < 180 degree
-                # between INNER and OUTER particles, we rotate the
-                # OUTER to be exactly on top of the inner for the
-                # collision. this simulates the boundary mediating
-                # a collision between the particles.
-                #
-                # if angle == 0° or angle == 180°, the cross
-                # product will fail. in case of angle == 0, we don't
-                # need to do anything. in case of angle == 180°, we
-                # invert the vectors.
+            # rotate OUTER to be exactly on top of the INNER for
+            # collision. this simulates the boundary mediating
+            # a collision between the particles.
 
-                # calculate rotational axis
-                axis = self.normalize(np.cross(r[outer_reflect],
-                                      r[inner_reflect]))
+            # calculate rotational axis
+            axis = self.normalize(np.cross(r[outer_reflect],
+                                  r[inner_reflect]))
 
-                # rotate velocity of outer region particle
-                v_outer = np.dot(self.rotation_matrix(axis, theta),
-                                 v_outer)
+            # rotate velocity of outer region particle
+            v_outer = np.dot(self.rotation_matrix(axis, theta),
+                             v_outer)
             
-            elif theta == np.pi:
-                # this is a extremely unlikely case in case of a
-                # molecular calculation but common in calculations
-                # uing a periodic surface slab if the system is
-                # symmetric and particles can be on both sides of
-                # the slab. in this case, we just need to invert
-                # the vectors.
-                v_outer = -1 * v_outer
-
             # Perform mass-weighted exchange of normal components of
             # velocitiy, force (, and random forces if Langevin).
             # i.e. elastic collision

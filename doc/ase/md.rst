@@ -366,6 +366,8 @@ SAFIRES boundary method
 
 .. class:: SAFIRES(atoms, mdobject, natoms, logfile="safires.log", debug=False, barometer=False, surface=False, reflective=False)
 
+:doi:`the method paper for more info <10.1021/acs.jctc.1c00522>`
+
 SAFIRES (scattering-assisted flexible inner region ensemble separator) is
 an algorithm that separates a system into an inner and an outer region
 and restricts particle exchange between them. SAFIRES is used for hybrid

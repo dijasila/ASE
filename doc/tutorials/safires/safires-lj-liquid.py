@@ -1,10 +1,12 @@
 """SAFIRES Tutorial input script
+Original publication: 10.1021/acs.jctc.1c00522
 
 @author: bjk24
 date: 2021-01-22
 
 Ar Lennard Jones parameters obtained from
 10.1103/PhysRev.136.A405
+
 """
 
 import numpy as np
