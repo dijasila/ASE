@@ -15,7 +15,7 @@ class SAFIRES:
     # Scattering-Assisted Flexible Inner Region Ensemble Separator #
     #                                                              #
     # Authors: Björn Kirchhoff, Elvar Ö. Jónsson,                  #
-    #          Asmus O. Dohn, Hannes Jónsson                       #
+    #          Asmus O. Dohn, Timo Jacob, Hannes Jónsson*          #
     #                                                              #
     # If you use the code, please cite: 10.1021/acs.jctc.1c00522   #
     #                                                              #
