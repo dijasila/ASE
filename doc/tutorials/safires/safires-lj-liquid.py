@@ -1,5 +1,6 @@
 """SAFIRES Tutorial input script
-Original publication: 10.1021/acs.jctc.1c00522
+
+DOI: 10.1021/acs.jctc.1c00522
 
 @author: bjk24
 date: 2021-01-22
@@ -30,10 +31,9 @@ atoms.center()
 atoms = atoms.repeat((8, 8, 8))
 atoms.pbc = [True, True, True]
 
-atoms.calc = LennardJones(epsilon=120 * units.kB,
-                          sigma=3.4)
+atoms.calc = LennardJones(epsilon=120 * units.kB, sigma=3.4)
 
-md = Langevin(atoms, timestep=1 * units.fs, temperature_K=94.4,
+md = Langevin(atoms, timestep=1 * units.fs, temperature_K=94.4, 
               friction=0.01, logfile='preopt.log')
 traj_preopt = Trajectory('preopt.traj', 'w', atoms)
 md.attach(traj_preopt.write, interval=100)

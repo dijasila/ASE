@@ -404,7 +404,7 @@ SAFIRES (scattering-assisted flexible inner region ensemble separator) is
 an algorithm that separates a system into an inner and an outer region
 and restricts particle exchange between them. SAFIRES is used for hybrid
 calculations where it is necessary to invoke different computational
-methodologies in the inner and outer region (e.g. QM/MM)..
+methodologies in the inner and outer region (e.g. QM/MM).
 
 Simulations using SAFIRES require a model system that is structured in a
 specific way. Three parts need to be present, and the tag system is used
@@ -437,14 +437,14 @@ to inform SAFIRES which atoms belong to which region:
     to work with SAFIRES. Please follow these instructions to set up
     your atoms object:
     - The solute or periodic surface model (tag = 0) comes first in
-      the atoms object, i.e. before any of the inner or outer region
-      solvent particles / molecules.
+    the atoms object, i.e. before any of the inner or outer region
+    solvent particles / molecules.
     - The inner and outer region particles or molecules (tags = 1, 2)
-      are listed after the solute in the atoms object but do not need
+    are listed after the solute in the atoms object but do not need
       to be sorted according to tag = 1 or tag = 2.
     - Individual atoms of each molecule, including the solute or
-      surface model, need to be listed right after each other in 
-      sequence. 
+    surface model, need to be listed right after each other in 
+    sequence.
       
     Correct example: for a methane molecule solvated by three water 
     molecules, the atoms object would be (schematically) structured

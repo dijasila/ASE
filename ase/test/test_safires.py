@@ -1,6 +1,8 @@
 def test_safires():
     """Test for SAFIRES class.
     
+    DOI: 10.1021/acs.jctc.1c00522
+    
     SAFIRES is a boundary-based separation scheme
     for hybrid calculations. The fundamental features
     of the method can however be tested without doing
@@ -16,7 +18,7 @@ def test_safires():
     actually cause by SAFIRES or by changes to the 
     FixBondLengths or TIP4P classes.
 
-    @bjk24, 2021-05-19.
+    @bjk24, 2021-09-06.
     
     """
 
@@ -38,14 +40,14 @@ def test_safires():
     pbc = (1, 1, 1)
 
     atoms = Atoms("Ar3",
-            [[(a_cell / 2), (a_cell / 2), (a_cell / 2)],
-            [(a_cell/2 + 2), (a_cell/2 - 1), (a_cell / 2)],
+            [[(a_cell / 2), (a_cell / 2), (a_cell / 2)], 
+            [(a_cell/2 + 2), (a_cell/2 - 1), (a_cell / 2)], 
             [(a_cell/2 - 4), (a_cell / 2 + 0.5), (a_cell / 2)]])
     atoms.set_cell(cell)
     atoms.set_pbc(pbc)
     
     # Tags: 0 = solute, 1 = inner region, 2 = outer region.
-    atoms.set_tags([0,1,2])
+    atoms.set_tags([0, 1, 2])
 
     # Fix solute particle (tag = 0)
     atoms.constraints = [FixAtoms(indices=[0])]
@@ -55,13 +57,13 @@ def test_safires():
     atoms[2].momentum = np.asarray([2, 0, 0])
     
     # Initialize calculator and dynamics objects.
-    atoms.calc = LennardJones(epsilon=120 * units.kB,
+    atoms.calc = LennardJones(epsilon=120 * units.kB, 
                               sigma=3.4)
     dt = 1.0 * units.fs
     md = VelocityVerlet(atoms, timestep=dt)
 
     # Initialize SAFIRES class.
-    safires = SAFIRES(atoms, mdobject=md, natoms=1,
+    safires = SAFIRES(atoms, mdobject=md, natoms=1, 
                       logfile=None)
     md.attach(safires.safires, interval=1)
 
@@ -98,24 +100,24 @@ def test_safires():
     pbc = (1, 1, 1)
 
     x = angleHOH * np.pi / 180 / 2
-    pos = [[5, 5, 5],
-           [5, 5 + rOH*np.cos(x), 5 + rOH*np.sin(x)],
-           [5, 5 + rOH*np.cos(x), 5 - rOH*np.sin(x)],
-           [3.5, 3.5, 3.5],
-           [3.5, 3.5 + rOH*np.cos(x), 3.5 + rOH*np.sin(x)],
-           [3.5, 3.5 + rOH*np.cos(x), 3.5 - rOH*np.sin(x)],
-           [6.7, 6.7, 6.7],
-           [6.7, 6.7 + rOH*np.cos(x), 6.7 + rOH*np.sin(x)],
+    pos = [[5, 5, 5], 
+           [5, 5 + rOH*np.cos(x), 5 + rOH*np.sin(x)], 
+           [5, 5 + rOH*np.cos(x), 5 - rOH*np.sin(x)], 
+           [3.5, 3.5, 3.5], 
+           [3.5, 3.5 + rOH*np.cos(x), 3.5 + rOH*np.sin(x)], 
+           [3.5, 3.5 + rOH*np.cos(x), 3.5 - rOH*np.sin(x)], 
+           [6.7, 6.7, 6.7], 
+           [6.7, 6.7 + rOH*np.cos(x), 6.7 + rOH*np.sin(x)], 
            [6.7, 6.7 + rOH*np.cos(x), 6.7 - rOH*np.sin(x)]]
     atoms = Atoms('OH2OH2OH2', positions=pos, cell=cell, pbc=pbc)
     atoms.center()
 
     # Tags: 0 = solute, 1 = inner region, 2 = outer region.
-    atoms.set_tags([0,0,0,1,1,1,2,2,2])
+    atoms.set_tags([0, 0, 0, 1, 1, 1, 2, 2, 2])
     
     # Apply RATTLE constraint.
     rattle = rigid(atoms)
-    fixatoms = FixAtoms(indices=[0,1,2])
+    fixatoms = FixAtoms(indices=[0, 1, 2])
 
     # Fix central molecule.
     atoms.constraints = ([fixatoms] + [rattle])
@@ -131,7 +133,7 @@ def test_safires():
     md = VelocityVerlet(atoms, timestep=dt)
 
     # Initialize SAFIRES class.
-    safires = SAFIRES(atoms, mdobject=md, natoms=3,
+    safires = SAFIRES(atoms, mdobject=md, natoms=3, 
                       logfile=None)
     md.attach(safires.safires, interval=1)
     

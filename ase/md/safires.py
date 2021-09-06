@@ -7,11 +7,9 @@ from ase.calculators.lj import LennardJones as LJ
 from ase.io import write
 from ase.geometry import find_mic
 
+
 class SAFIRES:
 
-    # increment version when updating
-    __version = "0.1.0"
-    
     """
     ###################### --- SAFIRES ---- ########################
     # Scattering-Assisted Flexible Inner Region Ensemble Separator #
@@ -252,7 +250,7 @@ class SAFIRES:
         self.ndoubles = 0
         self.barometer = barometer
         if self.barometer:
-            self.impacts = [0,0]
+            self.impacts = [0, 0]
         self.debug = debug
 
         # keep track of how many atoms are in the solute
@@ -294,8 +292,8 @@ class SAFIRES:
               " ##############\n"
               " # SAFIRES    #\n"
               " # ---------- #\n"
-              " # v. 0.0.3   #\n"
-              " # 2021-04-28 #\n"
+              " # v. 0.1.0   #\n"
+              " # 2021-09-06 #\n"
               " ##############\n")
 
     def logger(self, iteration, boundary_idx, boundary):
@@ -375,7 +373,7 @@ class SAFIRES:
         """
 
         # results dict
-        res = {} # structure: {inner particle index: extrapolated factor}
+        res = {}  # structure: {inner particle index: extrapolated factor}
 
         # convert list to set (no duplicate values)
         for inner_idx in set([boundary_idx, previous_boundary_idx]):
@@ -427,10 +425,10 @@ class SAFIRES:
             # if it is a Velocity Verlet based simulation,
             # all of these parameters remain zero
             fr = 0.
-            xi_outer = np.asarray([0.,0.,0.])
-            xi_inner = np.asarray([0.,0.,0.])
-            eta_outer = np.asarray([0.,0.,0.])
-            eta_inner = np.asarray([0.,0.,0.])
+            xi_outer = np.asarray([0., 0., 0.])
+            xi_inner = np.asarray([0., 0., 0.])
+            eta_outer = np.asarray([0., 0., 0.])
+            eta_inner = np.asarray([0., 0., 0.])
             sig_outer = 0.
             sig_inner = 0.
 
@@ -687,9 +685,9 @@ class SAFIRES:
         else:
             T = 0
             fr = 0.
-            xi = np.asarray([np.asarray([0.,0.,0.])
+            xi = np.asarray([np.asarray([0., 0., 0.])
                              for atom in self.atoms])
-            eta = np.asarray([np.asarray([0.,0.,0.])
+            eta = np.asarray([np.asarray([0., 0., 0.])
                               for atom in self.atoms])
             sig = 0.
 
@@ -708,8 +706,8 @@ class SAFIRES:
             # based on values for the full default time step. thus we
             # need to make sure not to update velocities a second time
             # because that would destroy energy conservation.
-            c = np.asarray([np.asarray([0.,0.,0.]) for atom in self.atoms])
-            d = np.asarray([np.asarray([0.,0.,0.]) for atom in self.atoms])
+            c = np.asarray([np.asarray([0., 0., 0.]) for atom in self.atoms])
+            d = np.asarray([np.asarray([0., 0., 0.]) for atom in self.atoms])
 
         if halfstep == 1:
             # friction and (random) forces should only be
@@ -805,7 +803,7 @@ class SAFIRES:
         # region particles. for monoatomic inner/outer particles,
         # a 1:1 copy is created.
         for atom in atoms:
-            if atom.tag in [1,2]:
+            if atom.tag in [1, 2]:
                 if (atom.index - self.nsol) % mod == 0:
                     i = atom.index
                     com = atoms[i:i + mod].get_center_of_mass()
@@ -841,7 +839,7 @@ class SAFIRES:
         # calculate absolute distances and distance vectors between
         # COM of solute and all inner and outer region particles
         # (respect PBCs in distance calculations)
-        r,d = find_mic([atom.position for atom in com_atoms] - sol_com, 
+        r,d = find_mic([atom.position for atom in com_atoms] - sol_com,  
                        com_atoms.cell, com_atoms.pbc)
         
         # list all particles in the inner region
@@ -1192,11 +1190,11 @@ class SAFIRES:
                 if np.dot(v_inner, n) > 0:
                     dV_inner = -2 * np.dot(np.dot(v_inner, n), n) 
                 else:
-                    dV_inner = np.array([0.,0.,0.])
+                    dV_inner = np.array([0., 0., 0.])
                 if np.dot(v_outer, n) < 0:
                     dV_outer = -2 * np.dot(np.dot(v_outer, n), n) 
                 else:
-                    dV_outer = np.array([0.,0.,0.])
+                    dV_outer = np.array([0., 0., 0.])
                 self.debuglog("   dV_inner = {:s}\n"
                               .format(np.array2string(dV_inner)))
                 self.debuglog("   dV_outer = {:s}\n"
