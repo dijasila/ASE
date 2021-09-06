@@ -1,11 +1,8 @@
 """Module for calculating phonons of periodic systems."""
 
-import sys
-import pickle
 from math import pi, sqrt
-from os import remove
-from os.path import isfile
 import warnings
+from pathlib import Path
 
 import numpy as np
 import numpy.linalg as la
@@ -16,7 +13,8 @@ import ase.units as units
 from ase.parallel import world
 from ase.dft import monkhorst_pack
 from ase.io.trajectory import Trajectory
-from ase.utils import opencew, pickleload
+from ase.utils.filecache import MultiFileJSONCache
+from ase.utils import deprecated
 
 
 class Displacement:
@@ -68,6 +66,8 @@ class Displacement:
         self.delta = delta
         self.center_refcell = center_refcell
         self.supercell = supercell
+
+        self.cache = MultiFileJSONCache(self.name)
 
     def define_offset(self):        # Reference cell offset
 
@@ -148,13 +148,20 @@ class Displacement:
 
         self.indices = indices
 
+    def _eq_disp(self):
+        return self._disp(0, 0, 0)
+
+    def _disp(self, a, i, step):
+        from ase.vibrations.vibrations import Displacement as VDisplacement
+        return VDisplacement(a, i, np.sign(step), abs(step), self)
+
     def run(self):
         """Run the calculations for the required displacements.
 
         This will do a calculation for 6 displacements per atom, +-x, +-y, and
         +-z. Only those calculations that are not already done will be
         started. Be aware that an interrupted calculation may produce an empty
-        file (ending with .pckl), which must be deleted before restarting the
+        file (ending with .json), which must be deleted before restarting the
         job. Otherwise the calculation for that displacement will not be done.
 
         """
@@ -168,19 +175,11 @@ class Displacement:
         atoms_N.calc = self.calc
 
         # Do calculation on equilibrium structure
-        self.state = 'eq.pckl'
-        filename = self.name + '.' + self.state
-
-        fd = opencew(filename)
-        if fd is not None:
-            # Call derived class implementation of __call__
-            output = self(atoms_N)
-            # Write output to file
-            if world.rank == 0:
-                pickle.dump(output, fd, protocol=2)
-                sys.stdout.write('Writing %s\n' % filename)
-                fd.close()
-            sys.stdout.flush()
+        eq_disp = self._eq_disp()
+        with self.cache.lock(eq_disp.name) as handle:
+            if handle is not None:
+                output = self.calculate(atoms_N, eq_disp)
+                handle.save(output)
 
         # Positions of atoms to be displaced in the reference cell
         natoms = len(self.atoms)
@@ -191,37 +190,34 @@ class Displacement:
         for a in self.indices:
             for i in range(3):
                 for sign in [-1, 1]:
-                    # Filename for atomic displacement
-                    self.state = '%d%s%s.pckl' % (a, 'xyz'[i], ' +-'[sign])
-                    filename = self.name + '.' + self.state
-                    # Wait for ranks before checking for file
-                    # barrier()
-                    fd = opencew(filename)
-                    if fd is None:
-                        # Skip if already done
-                        continue
+                    disp = self._disp(a, i, sign)
+                    with self.cache.lock(disp.name) as handle:
+                        if handle is None:
+                            continue
+                        try:
+                            atoms_N.positions[offset + a, i] = \
+                                pos[a, i] + sign * self.delta
 
-                    # Update atomic positions
-                    atoms_N.positions[offset + a, i] = \
-                        pos[a, i] + sign * self.delta
-
-                    self.calculate(atoms_N, filename, fd)
-
-                    # Return to initial positions
-                    atoms_N.positions[offset + a, i] = pos[a, i]
+                            result = self.calculate(atoms_N, disp)
+                            handle.save(result)
+                        finally:
+                            # Return to initial positions
+                            atoms_N.positions[offset + a, i] = pos[a, i]
 
     def clean(self):
-        """Delete generated pickle files."""
+        """Delete generated files."""
+        if world.rank != 0:
+            return 0
 
-        if isfile(self.name + '.eq.pckl'):
-            remove(self.name + '.eq.pckl')
+        name = Path(self.name)
 
-        for a in self.indices:
-            for i in 'xyz':
-                for sign in '-+':
-                    name = '%s.%d%s%s.pckl' % (self.name, a, i, sign)
-                    if isfile(name):
-                        remove(name)
+        n = 0
+        if name.is_dir():
+            for fname in name.iterdir():
+                fname.unlink()
+                n += 1
+            name.rmdir()
+        return n
 
 
 class Phonons(Displacement):
@@ -291,7 +287,7 @@ class Phonons(Displacement):
     def __init__(self, *args, **kwargs):
         """Initialize with base class args and kwargs."""
 
-        if 'name' not in kwargs.keys():
+        if 'name' not in kwargs:
             kwargs['name'] = "phonon"
 
         self.deprecate_refcell(kwargs)
@@ -318,37 +314,28 @@ class Phonons(Displacement):
 
     def __call__(self, atoms_N):
         """Calculate forces on atoms in supercell."""
+        return atoms_N.get_forces()
 
-        # Calculate forces
-        forces = atoms_N.get_forces()
-
-        return forces
-
-    def calculate(self, atoms_N, filename, fd):
-        # Call derived class implementation of __call__
-        output = self.__call__(atoms_N)
-        # Write output to file
-        if world.rank == 0:
-            pickle.dump(output, fd, protocol=2)
-            sys.stdout.write('Writing %s\n' % filename)
-            sys.stdout.flush()
+    def calculate(self, atoms_N, disp):
+        forces = self(atoms_N)
+        return {'forces': forces}
 
     def check_eq_forces(self):
         """Check maximum size of forces in the equilibrium structure."""
 
-        fname = '%s.eq.pckl' % self.name
-        with open(fname, 'rb') as fd:
-            feq_av = pickleload(fd)
+        eq_disp = self._eq_disp()
+        feq_av = self.cache[eq_disp.name]['forces']
 
-        fmin = feq_av.max()
-        fmax = feq_av.min()
+        fmin = feq_av.min()
+        fmax = feq_av.max()
         i_min = np.where(feq_av == fmin)
         i_max = np.where(feq_av == fmax)
 
         return fmin, fmax, i_min, i_max
 
-    def read_born_charges(self, name=None, neutrality=True):
-        r"""Read Born charges and dieletric tensor from pickle file.
+    @deprecated('Current implementation of non-analytical correction is likely incorrect, see https://gitlab.com/ase/ase/-/issues/941')
+    def read_born_charges(self, name='born', neutrality=True):
+        r"""Read Born charges and dieletric tensor from JSON file.
 
         The charge neutrality sum-rule::
 
@@ -363,18 +350,15 @@ class Phonons(Displacement):
         neutrality: bool
             Restore charge neutrality condition on calculated Born effective
             charges.
+        name: str
+            Key used to identify the file with Born charges for the unit cell
+            in the JSON cache.
 
         """
 
         # Load file with Born charges and dielectric tensor for atoms in the
         # unit cell
-        if name is None:
-            filename = '%s.born.pckl' % self.name
-        else:
-            filename = name
-
-        with open(filename, 'rb') as fd:
-            Z_avv, eps_vv = pickleload(fd)
+        Z_avv, eps_vv = self.cache[name]
 
         # Neutrality sum-rule
         if neutrality:
@@ -386,7 +370,7 @@ class Phonons(Displacement):
 
     def read(self, method='Frederiksen', symmetrize=3, acoustic=True,
              cutoff=None, born=False, **kwargs):
-        """Read forces from pickle files and calculate force constants.
+        """Read forces from json files and calculate force constants.
 
         Extra keyword arguments will be passed to ``read_born_charges``.
 
@@ -432,11 +416,10 @@ class Phonons(Displacement):
         for i, a in enumerate(self.indices):
             for j, v in enumerate('xyz'):
                 # Atomic forces for a displacement of atom a in direction v
-                basename = '%s.%d%s' % (self.name, a, v)
-                with open(basename + '-.pckl', 'rb') as fd:
-                    fminus_av = pickleload(fd)
-                with open(basename + '+.pckl', 'rb') as fd:
-                    fplus_av = pickleload(fd)
+                # basename = '%s.%d%s' % (self.name, a, v)
+                basename = '%d%s' % (a, v)
+                fminus_av = self.cache[basename + '-']['forces']
+                fplus_av = self.cache[basename + '+']['forces']
 
                 if method == 'frederiksen':
                     fminus_av[a] -= fminus_av.sum(0)
@@ -564,13 +547,11 @@ class Phonons(Displacement):
                 i_a = dist_a > r_c  # np.where(dist_a > r_c)
                 # Zero elements
                 D_Navav[n, i, :, i_a, :] = 0.0
-            # print ""
 
     def get_force_constant(self):
         """Return matrix of force constants."""
 
         assert self.C_N is not None
-
         return self.C_N
 
     def get_band_structure(self, path, modes=False, born=False, verbose=True):
@@ -716,11 +697,11 @@ class Phonons(Displacement):
         return omega_kl
 
     def get_dos(self, kpts=(10, 10, 10), npts=1000, delta=1e-3, indices=None):
+        from ase.spectrum.dosdata import RawDOSData
         # dos = self.dos(kpts, npts, delta, indices)
         kpts_kc = monkhorst_pack(kpts)
         omega_w = self.band_structure(kpts_kc).ravel()
-        from ase.dft.pdos import DOS
-        dos = DOS(omega_w, np.ones_like(omega_w)[None])
+        dos = RawDOSData(omega_w, np.ones_like(omega_w))
         return dos
 
     def dos(self, kpts=(10, 10, 10), npts=1000, delta=1e-3, indices=None):
@@ -823,11 +804,8 @@ class Phonons(Displacement):
             # Repeat and multiply by Bloch phase factor
             mode_Nav = np.vstack(N * [mode_av]) * phase_Na[:, np.newaxis]
 
-            traj = Trajectory('%s.mode.%d.traj' % (self.name, l), 'w')
-
-            for x in np.linspace(0, 2 * pi, nimages, endpoint=False):
-                atoms.set_positions((pos_Nav + np.exp(1.j * x) *
-                                     mode_Nav).real)
-                traj.write(atoms)
-
-            traj.close()
+            with Trajectory('%s.mode.%d.traj' % (self.name, l), 'w') as traj:
+                for x in np.linspace(0, 2 * pi, nimages, endpoint=False):
+                    atoms.set_positions((pos_Nav + np.exp(1.j * x) *
+                                         mode_Nav).real)
+                    traj.write(atoms)
