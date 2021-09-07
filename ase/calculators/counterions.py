@@ -1,4 +1,3 @@
-from __future__ import print_function
 import numpy as np
 from ase.calculators.calculator import Calculator
 from ase import units
@@ -88,4 +87,3 @@ class AtomicCounterIon(Calculator):
 
         self.results['energy'] = energy
         self.results['forces'] = forces
-

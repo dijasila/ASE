@@ -1,4 +1,3 @@
-from __future__ import print_function
 """Function-like objects creating cubic lattices (SC, FCC, BCC and Diamond).
 
 The following lattice creators are defined:
@@ -11,7 +10,6 @@ The following lattice creators are defined:
 from ase.lattice.bravais import Bravais, reduceindex
 import numpy as np
 from ase.data import reference_states as _refstate
-from ase.utils import basestring
 
 
 class SimpleCubicFactory(Bravais):
@@ -73,7 +71,7 @@ class SimpleCubicFactory(Bravais):
     def find_ortho(self, idx):
         "Replace keyword 'ortho' or 'orthogonal' with a direction."
         for i in range(3):
-            if (isinstance(idx[i], basestring)
+            if (isinstance(idx[i], str)
                 and (idx[i].lower() == "ortho" or
                      idx[i].lower() == "orthogonal")):
                 if self.debug:
@@ -85,6 +83,7 @@ class SimpleCubicFactory(Bravais):
 
 
 SimpleCubic = SimpleCubicFactory()
+
 
 class FaceCenteredCubicFactory(SimpleCubicFactory):
     "A factory for creating face-centered cubic lattices."
@@ -101,7 +100,9 @@ class FaceCenteredCubicFactory(SimpleCubicFactory):
 
     atoms_in_unit_cell = 4
 
+
 FaceCenteredCubic = FaceCenteredCubicFactory()
+
 
 class BodyCenteredCubicFactory(SimpleCubicFactory):
     "A factory for creating body-centered cubic lattices."
@@ -118,11 +119,14 @@ class BodyCenteredCubicFactory(SimpleCubicFactory):
 
     atoms_in_unit_cell = 2
 
+
 BodyCenteredCubic = BodyCenteredCubicFactory()
+
 
 class DiamondFactory(FaceCenteredCubicFactory):
     "A factory for creating diamond lattices."
     xtal_name = "diamond"
-    bravais_basis = [[0,0,0], [0.25, 0.25, 0.25]]
+    bravais_basis = [[0, 0, 0], [0.25, 0.25, 0.25]]
+
 
 Diamond = DiamondFactory()

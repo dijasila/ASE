@@ -1,7 +1,5 @@
-# encoding: utf-8
 '''surfaceslab.py - Window for setting up surfaces
 '''
-from __future__ import division, unicode_literals
 from ase.gui.i18n import _, ngettext
 
 import ase.gui.ui as ui
@@ -194,7 +192,7 @@ class SetupSurfaceSlab:
                     self.atoms = surface[3](symbol, size, a, vacuum, ortho)
 
                 if vacuum is not None:
-                    vacuumtext =_(' Vacuum: {} Å.').format(vacuum)
+                    vacuumtext = _(' Vacuum: {} Å.').format(vacuum)
                 else:
                     vacuumtext = ''
 

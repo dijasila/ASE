@@ -42,7 +42,7 @@ def surfaces_with_termination(lattice, indices, layers, vacuum=None, tol=1e-10,
     for item in lats:
         too_similar = False
         surf = surface(item, indices, layers, vacuum=vacuum, tol=tol)
-        surf.wrap(pbc = [True] * 3) # standardize slabs
+        surf.wrap(pbc=[True] * 3)  # standardize slabs
         
         positions = surf.get_scaled_positions().flatten()
         for i, value in enumerate(positions):
@@ -50,7 +50,7 @@ def surfaces_with_termination(lattice, indices, layers, vacuum=None, tol=1e-10,
                 positions[i] -= 1
         surf.set_scaled_positions(np.reshape(positions, (len(surf), 3)))
         #rep = find_z_layers(surf)
-        z_layers, hs = get_layers(surf, (0, 0, 1)) # just z layers matter
+        z_layers, hs = get_layers(surf, (0, 0, 1))  # just z layers matter
         # get the indicies of the atoms in the highest layer
         top_layer = [i for i, val in enumerate(z_layers == max(z_layers)) if val]
          
@@ -132,8 +132,8 @@ def translate_lattice(lattice, indices, tol=10**-3):
         The above method gives you the boundries of between terminations that
         will allow you to build a complete set of terminations. However, it
         does not return all the boundries. Thus you must check both above and
-        below the boundry, and not stray too far from the boundry. If you move
-        too far away, you risk hitting another boundry you did not find.
+        below the boundary, and not stray too far from the boundary. If you move
+        too far away, you risk hitting another boundary you did not find.
         """
         lattice1 = lattice.copy()
         displacement = (h * cell[0] + k * cell[1] + l * cell[2]) \

@@ -1,5 +1,3 @@
-import numpy as np
-
 """Module for wrapping an array without being an array.
 
 This can be desirable because we would like atoms.cell to be like an array,
@@ -25,6 +23,10 @@ for all the interesting ndarray methods.
 """
 
 
+from functools import update_wrapper
+import numpy as np
+
+
 inplace_methods = ['__iadd__', '__imul__', '__ipow__', '__isub__',
                    '__itruediv__', '__imatmul__']
 
@@ -36,6 +38,8 @@ forward_methods = ['__abs__', '__add__', '__contains__', '__eq__',
                    '__rsub__', '__rtruediv__', '__setitem__',
                    '__sub__', '__truediv__']
 
+default_methods = ['__eq__', '__le__', '__lt__', '__ge__',
+                   '__gt__', '__ne__', '__hash__']
 
 if hasattr(np.ndarray, '__matmul__'):
     forward_methods += ['__matmul__', '__rmatmul__']
@@ -43,13 +47,13 @@ if hasattr(np.ndarray, '__matmul__'):
 
 def forward_inplace_call(name):
     arraymeth = getattr(np.ndarray, name)
+
     def f(self, obj):
         a = self.__array__()
         arraymeth(a, obj)
         return self
-    # use update_wrapper()?
-    f.__name__ = name
-    f.__qualname__ = name
+
+    update_wrapper(f, arraymeth)
     return f
 
 
@@ -58,11 +62,19 @@ def wrap_array_attribute(name):
     if wrappee is None:  # For example, __hash__ is None
         assert name == '__hash__'
         return None
+
     def attr(self):
         array = np.asarray(self)
         return getattr(array, name)
-    attr.__name__ = wrappee.__name__
-    attr.__qualname__ == wrappee.__qualname__
+
+    update_wrapper(attr, wrappee)
+
+    # We don't want to encourage too liberal use of the numpy methods,
+    # nor do we want the web docs to explode with numpy docstrings or
+    # break our own doctests.
+    #
+    # Therefore we cheat and remove the docstring:
+    attr.__doc__ = None
     return property(attr)
 
 
@@ -78,11 +90,11 @@ def arraylike(cls):
     for name in inplace_methods:
         if hasattr(np.ndarray, name) and not hasattr(cls, name):
             meth = forward_inplace_call(name)
-        setattr(cls, name, meth)
+            setattr(cls, name, meth)
 
     allnames = [name for name in dir(np.ndarray) if not name.startswith('_')]
     for name in forward_methods + allnames:
-        if hasattr(cls, name) and not name.startswith('_'):
+        if hasattr(cls, name) and name not in default_methods:
             continue  # Was overridden -- or there's a conflict.
 
         prop = wrap_array_attribute(name)

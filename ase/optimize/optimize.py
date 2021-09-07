@@ -1,22 +1,27 @@
 """Structure optimization. """
 
-import sys
-import pickle
 import time
 from math import sqrt
 from os.path import isfile
 
+from ase.io.jsonio import read_json, write_json
 from ase.calculators.calculator import PropertyNotImplementedError
 from ase.parallel import world, barrier
 from ase.io.trajectory import Trajectory
-from ase.utils import basestring
-import collections
+from ase.utils import IOContext
+import collections.abc
 
 
-class Dynamics:
+class RestartError(RuntimeError):
+    pass
+
+
+class Dynamics(IOContext):
     """Base-class for all MD and structure optimization classes."""
-    def __init__(self, atoms, logfile, trajectory,
-                 append_trajectory=False, master=None):
+
+    def __init__(
+        self, atoms, logfile, trajectory, append_trajectory=False, master=None
+    ):
         """Dynamics object.
 
         Parameters:
@@ -45,36 +50,28 @@ class Dynamics:
         """
 
         self.atoms = atoms
-        if master is None:
-            master = world.rank == 0
-        if not master:
-            logfile = None
-        elif isinstance(logfile, basestring):
-            if logfile == '-':
-                logfile = sys.stdout
-            else:
-                logfile = open(logfile, 'a')
-        self.logfile = logfile
-
+        self.logfile = self.openfile(logfile, mode='a', comm=world)
         self.observers = []
         self.nsteps = 0
         # maximum number of steps placeholder with maxint
         self.max_steps = 100000000
 
         if trajectory is not None:
-            if isinstance(trajectory, basestring):
+            if isinstance(trajectory, str):
                 mode = "a" if append_trajectory else "w"
-                trajectory = Trajectory(trajectory, mode=mode,
-                                        atoms=atoms, master=master)
+                trajectory = self.closelater(Trajectory(
+                    trajectory, mode=mode, atoms=atoms, master=master
+                ))
             self.attach(trajectory)
 
     def get_number_of_steps(self):
         return self.nsteps
 
-    def insert_observer(self, function, position=0, interval=1,
-                        *args, **kwargs):
+    def insert_observer(
+        self, function, position=0, interval=1, *args, **kwargs
+    ):
         """Insert an observer."""
-        if not isinstance(function, collections.Callable):
+        if not isinstance(function, collections.abc.Callable):
             function = function.write
         self.observers.insert(position, (function, interval, args, kwargs))
 
@@ -88,11 +85,11 @@ class Dynamics:
         arguments *args* and keyword arguments *kwargs*.  This is
         currently zero indexed."""
 
-        if hasattr(function, 'set_description'):
+        if hasattr(function, "set_description"):
             d = self.todict()
             d.update(interval=interval)
             function.set_description(d)
-        if not hasattr(function, '__call__'):
+        if not hasattr(function, "__call__"):
             function = function.write
         self.observers.append((function, interval, args, kwargs))
 
@@ -121,7 +118,7 @@ class Dynamics:
         >>>     opt1.run()
         """
 
-        # compute inital structure and log the first step
+        # compute initial structure and log the first step
         self.atoms.get_forces()
 
         # yield the first time to inspect before logging
@@ -172,13 +169,25 @@ class Dynamics:
 
     def step(self):
         """this needs to be implemented by subclasses"""
-        raise RuntimeError('step not implemented.')
+        raise RuntimeError("step not implemented.")
 
 
 class Optimizer(Dynamics):
     """Base-class for all structure optimization classes."""
-    def __init__(self, atoms, restart, logfile, trajectory, master=None,
-                 force_consistent=False):
+
+    # default maxstep for all optimizers
+    defaults = {'maxstep': 0.2}
+
+    def __init__(
+        self,
+        atoms,
+        restart,
+        logfile,
+        trajectory,
+        master=None,
+        append_trajectory=False,
+        force_consistent=False,
+    ):
         """Structure optimizer object.
 
         Parameters:
@@ -202,17 +211,30 @@ class Optimizer(Dynamics):
             Defaults to None, which causes only rank 0 to save files.  If
             set to true,  this rank will save files.
 
+        append_trajectory: boolean
+            Appended to the trajectory file instead of overwriting it.
+
         force_consistent: boolean or None
             Use force-consistent energy calls (as opposed to the energy
             extrapolated to 0 K).  If force_consistent=None, uses
             force-consistent energies if available in the calculator, but
             falls back to force_consistent=False if not.
         """
-        Dynamics.__init__(self, atoms, logfile, trajectory, master)
+        Dynamics.__init__(
+            self,
+            atoms,
+            logfile,
+            trajectory,
+            append_trajectory=append_trajectory,
+            master=master,
+        )
+
         self.force_consistent = force_consistent
         if self.force_consistent is None:
             self.set_force_consistent()
+
         self.restart = restart
+
         # initialize attribute
         self.fmax = None
 
@@ -223,8 +245,10 @@ class Optimizer(Dynamics):
             barrier()
 
     def todict(self):
-        description = {'type': 'optimization',
-                       'optimizer': self.__class__.__name__}
+        description = {
+            "type": "optimization",
+            "optimizer": self.__class__.__name__,
+        }
         return description
 
     def initialize(self):
@@ -237,7 +261,6 @@ class Optimizer(Dynamics):
             self.max_steps = steps
         return Dynamics.irun(self)
 
-
     def run(self, fmax=0.05, steps=None):
         """ call Dynamics.run and keep track of fmax"""
         self.fmax = fmax
@@ -249,38 +272,55 @@ class Optimizer(Dynamics):
         """Did the optimization converge?"""
         if forces is None:
             forces = self.atoms.get_forces()
-        if hasattr(self.atoms, 'get_curvature'):
-            return ((forces**2).sum(axis=1).max() < self.fmax**2 and
-                    self.atoms.get_curvature() < 0.0)
-        return (forces**2).sum(axis=1).max() < self.fmax**2
+        if hasattr(self.atoms, "get_curvature"):
+            return (forces ** 2).sum(
+                axis=1
+            ).max() < self.fmax ** 2 and self.atoms.get_curvature() < 0.0
+        return (forces ** 2).sum(axis=1).max() < self.fmax ** 2
 
     def log(self, forces=None):
         if forces is None:
             forces = self.atoms.get_forces()
-        fmax = sqrt((forces**2).sum(axis=1).max())
+        fmax = sqrt((forces ** 2).sum(axis=1).max())
         e = self.atoms.get_potential_energy(
-            force_consistent=self.force_consistent)
+            force_consistent=self.force_consistent
+        )
         T = time.localtime()
         if self.logfile is not None:
             name = self.__class__.__name__
             if self.nsteps == 0:
-                self.logfile.write(
-                    '%s  %4s %8s %15s %12s\n' %
-                    (' ' * len(name), 'Step', 'Time', 'Energy', 'fmax'))
-                if self.force_consistent:
-                    self.logfile.write(
-                        '*Force-consistent energies used in optimization.\n')
-            self.logfile.write('%s:  %3d %02d:%02d:%02d %15.6f%1s %12.4f\n' %
-                               (name, self.nsteps, T[3], T[4], T[5], e,
-                                {1: '*', 0: ''}[self.force_consistent], fmax))
+                args = (" " * len(name), "Step", "Time", "Energy", "fmax")
+                msg = "%s  %4s %8s %15s %12s\n" % args
+                self.logfile.write(msg)
+
+                # if self.force_consistent:
+                #     msg = "*Force-consistent energies used in optimization.\n"
+                #     self.logfile.write(msg)
+
+            # XXX The "force consistent" handling is really arbitrary.
+            # Let's disable the special printing for now.
+            #
+            # ast = {1: "*", 0: ""}[self.force_consistent]
+            ast = ''
+            args = (name, self.nsteps, T[3], T[4], T[5], e, ast, fmax)
+            msg = "%s:  %3d %02d:%02d:%02d %15.6f%1s %12.4f\n" % args
+            self.logfile.write(msg)
+
             self.logfile.flush()
 
     def dump(self, data):
         if world.rank == 0 and self.restart is not None:
-            pickle.dump(data, open(self.restart, 'wb'), protocol=2)
+            with open(self.restart, 'w') as fd:
+                write_json(fd, data)
 
     def load(self):
-        return pickle.load(open(self.restart, 'rb'))
+        with open(self.restart) as fd:
+            try:
+                return read_json(fd, always_array=False)
+            except Exception as ex:
+                msg = ('Could not decode restart file as JSON.  '
+                       f'You may need to delete the restart file {self.restart}')
+                raise RestartError(msg) from ex
 
     def set_force_consistent(self):
         """Automatically sets force_consistent to True if force_consistent

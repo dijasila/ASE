@@ -27,17 +27,12 @@ class Psi4(Calculator):
     calc.psi4
     """
     implemented_properties = ['energy', 'forces']
+    discard_results_on_any_change = True
 
     default_parameters = {
-                  "basis": "aug-cc-pvtz",
-                  "num_threads": None,
-                  "method": "hf",
-                  "memory": None,
-                  'charge': None,
-                  'multiplicity': None,
-                  'reference': None,
-                  'symmetry': 'c1',
-                  'PSI_SCRATCH': None}
+        "basis": "aug-cc-pvtz",
+        "method": "hf",
+        'symmetry': 'c1'}
 
     def __init__(self, restart=None, ignore_bad_restart=False,
                  label='psi4-calc', atoms=None, command=None,
@@ -60,23 +55,21 @@ class Psi4(Calculator):
         # The default is /tmp
         if 'PSI_SCRATCH' in os.environ:
             pass
-        elif self.parameters['PSI_SCRATCH']:
+        elif self.parameters.get('PSI_SCRATCH'):
             os.environ['PSI_SCRATCH'] = self.parameters['PSI_SCRATCH']
 
         # Input spin settings
-        if self.parameters['reference'] is not None:
+        if self.parameters.get('reference') is not None:
             self.psi4.set_options({'reference':
                                    self.parameters['reference']})
         # Memory
-        if self.parameters['memory'] is not None:
+        if self.parameters.get('memory') is not None:
             self.psi4.set_memory(self.parameters['memory'])
 
         # Threads
-        nthreads = self.parameters.get('num_threads')
-        if nthreads is None:
-                nthreads = 1
-        elif nthreads == 'max':
-                nthreads = multiprocessing.cpu_count()
+        nthreads = self.parameters.get('num_threads', 1)
+        if nthreads == 'max':
+            nthreads = multiprocessing.cpu_count()
         self.psi4.set_num_threads(nthreads)
 
         # deal with some ASE specific inputs
@@ -110,35 +103,27 @@ class Psi4(Calculator):
         if self.atoms is None:
             self.atoms = atoms
         # Generate the atomic input
-        result = ''
-        for atom in atoms:
-            temp = '{}\t{:.15f}\t{:.15f}\t{:.15f}\n'.format(atom.symbol,
-                                                            atom.position[0],
-                                                            atom.position[1],
-                                                            atom.position[2])
-            result += temp
-        result += 'symmetry {}\n'.format(self.parameters['symmetry'])
-        result += 'units angstrom\n'
-        if self.parameters['charge'] is not None and \
-                self.parameters['multiplicity'] is not None:
-            result += '{} {}\n'.format(self.parameters['charge'],
-                                       self.parameters['multiplicity'])
-        elif self.parameters['charge'] is not None:
-            warnings.warn('A charge was provided without a spin multiplicity.'
-                          'A multiplicity of 1 is assumed')
-            result += '{} 1\n'.format(self.parameters['charge'])
+        geomline = '{}\t{:.15f}\t{:.15f}\t{:.15f}'
+        geom = [geomline.format(atom.symbol, *atom.position) for atom in atoms]
+        geom.append('symmetry {}'.format(self.parameters['symmetry']))
+        geom.append('units angstrom')
 
-        elif self.parameters['multiplicity'] is not None:
-            result += '0 {}\n'.format(self.parameters['multiplicity'])
+        charge = self.parameters.get('charge')
+        mult = self.parameters.get('multiplicity')
+        if mult is None:
+            mult = 1
+            if charge is not None:
+                warnings.warn('A charge was provided without a spin '
+                              'multiplicity. A multiplicity of 1 is assumed')
+        if charge is None:
+            charge = 0
+
+        geom.append('{} {}'.format(charge, mult))
+        geom.append('no_reorient')
 
         if not os.path.isdir(self.directory):
             os.mkdir(self.directory)
-        self.molecule = self.psi4.geometry(result)
-
-    def set(self, **kwargs):
-        changed_parameters = Calculator.set(self, **kwargs)
-        if changed_parameters:
-            self.reset()
+        self.molecule = self.psi4.geometry('\n'.join(geom))
 
     def read(self, label):
         """Read psi4 outputs made from this ASE calculator
@@ -147,8 +132,8 @@ class Psi4(Calculator):
         if not os.path.isfile(filename):
             raise ReadError('Could not find the psi4 output file: ' + filename)
 
-        with open(filename, 'r') as f:
-            txt = f.read()
+        with open(filename, 'r') as fd:
+            txt = fd.read()
         if '!ASE Information\n' not in txt:
             raise Exception('The output file {} could not be read because '
                             'the file does not contain the "!ASE Information"'
@@ -161,8 +146,7 @@ class Psi4(Calculator):
         saved_dict = json.loads(info)
         # use io read to recode atoms
         with StringIO(str(saved_dict['atoms'])) as g:
-            self.atoms = io.read(g, format = 'json')
-        #return None
+            self.atoms = io.read(g, format='json')
         self.parameters = saved_dict['parameters']
         self.results = saved_dict['results']
         # convert forces to numpy array
@@ -174,7 +158,8 @@ class Psi4(Calculator):
 
         Calculator.calculate(self, atoms=atoms)
         if self.atoms is None:
-            raise CalculatorSetupError('An Atoms object must be provided to perform a calculation')
+            raise CalculatorSetupError('An Atoms object must be provided to '
+                                       'perform a calculation')
         atoms = self.atoms
 
         if atoms.get_initial_magnetic_moments().any():
@@ -207,11 +192,10 @@ class Psi4(Calculator):
 
         # dump the calculator info to the psi4 file
         save_atoms = self.atoms.copy()
-        #del save_atoms.calc
         # use io.write to encode atoms
-        with StringIO() as f:
-            io.write(f, save_atoms, format = 'json')
-            json_atoms = f.getvalue()
+        with StringIO() as fd:
+            io.write(fd, save_atoms, format='json')
+            json_atoms = fd.getvalue()
         # convert forces to list for json storage
         save_results = self.results.copy()
         if 'forces' in save_results:

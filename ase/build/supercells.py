@@ -1,7 +1,6 @@
 """Helper functions for creating supercells."""
 
 import numpy as np
-
 from ase import Atoms
 
 
@@ -147,7 +146,7 @@ def make_supercell(prim, P, wrap=True, tol=1e-5):
     The transformation is described by a 3x3 integer matrix
     `\mathbf{P}`. Specifically, the new cell metric
     `\mathbf{h}` is given in terms of the metric of the input
-    configuraton `\mathbf{h}_p` by `\mathbf{P h}_p =
+    configuration `\mathbf{h}_p` by `\mathbf{P h}_p =
     \mathbf{h}`.
 
     Parameters:
@@ -177,7 +176,7 @@ def make_supercell(prim, P, wrap=True, tol=1e-5):
         superatoms.extend(shifted_atoms)
 
     # check number of atoms is correct
-    n_target = int(np.round(np.linalg.det(supercell_matrix) * len(prim)))
+    n_target = abs(int(np.round(np.linalg.det(supercell_matrix) * len(prim))))
     if n_target != len(superatoms):
         msg = "Number of atoms in supercell: {}, expected: {}".format(
             n_target, len(superatoms)

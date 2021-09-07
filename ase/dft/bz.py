@@ -1,8 +1,10 @@
+import warnings
 from math import pi, sin, cos
 import numpy as np
 
 
 def bz_vertices(icell, dim=3):
+    """See https://xkcd.com/1421 ..."""
     from scipy.spatial import Voronoi
     icell = icell.copy()
     if dim < 3:
@@ -30,7 +32,7 @@ def bz_plot(cell, vectors=False, paths=None, points=None,
     if ax is None:
         fig = plt.gcf()
 
-    dimensions = cell.any(1).sum()
+    dimensions = cell.rank
     assert dimensions > 0, 'No BZ for 0D!'
 
     if dimensions == 3:
@@ -47,16 +49,18 @@ def bz_plot(cell, vectors=False, paths=None, points=None,
             def draw(self, renderer):
                 xs3d, ys3d, zs3d = self._verts3d
                 xs, ys, zs = proj3d.proj_transform(xs3d, ys3d,
-                                                   zs3d, renderer.M)
+                                                   zs3d, ax.axes.M)
                 self.set_positions((xs[0], ys[0]), (xs[1], ys[1]))
                 FancyArrowPatch.draw(self, renderer)
+
         azim = pi / 5
         elev = elev or pi / 6
         x = sin(azim)
         y = cos(azim)
         view = [x * cos(elev), y * cos(elev), sin(elev)]
+
         if ax is None:
-            ax = fig.gca(projection='3d')
+            ax = fig.add_subplot(projection='3d')
     elif dimensions == 2:
         # 2d in xy
         assert all(abs(cell[2][0:2]) < 1e-6) and all(abs(cell.T[2]
@@ -98,39 +102,34 @@ def bz_plot(cell, vectors=False, paths=None, points=None,
             maxp = max(maxp, points.max())
             minp = min(minp, points.min())
 
+    def draw_axis3d(ax, vector):
+        ax.add_artist(Arrow3D(
+            [0, vector[0]],
+            [0, vector[1]],
+            [0, vector[2]],
+            mutation_scale=20,
+            arrowstyle='-|>',
+            color='k',
+        ))
+
+    def draw_axis2d(ax, x, y):
+        ax.arrow(0, 0, x, y,
+                 lw=1, color='k',
+                 length_includes_head=True,
+                 head_width=0.03,
+                 head_length=0.05)
+
     if vectors:
         if dimensions == 3:
-            ax.add_artist(Arrow3D([0, icell[0, 0]],
-                                  [0, icell[0, 1]],
-                                  [0, icell[0, 2]],
-                                  mutation_scale=20, lw=1,
-                                  arrowstyle='-|>', color='k'))
-            ax.add_artist(Arrow3D([0, icell[1, 0]],
-                                  [0, icell[1, 1]],
-                                  [0, icell[1, 2]],
-                                  mutation_scale=20, lw=1,
-                                  arrowstyle='-|>', color='k'))
-            ax.add_artist(Arrow3D([0, icell[2, 0]],
-                                  [0, icell[2, 1]],
-                                  [0, icell[2, 2]],
-                                  mutation_scale=20, lw=1,
-                                  arrowstyle='-|>', color='k'))
+            for i in range(3):
+                draw_axis3d(ax, vector=icell[i])
             maxp = max(maxp, 0.6 * icell.max())
         elif dimensions == 2:
-            ax.arrow(0, 0, icell[0, 0], icell[0, 1],
-                     lw=1, color='k',
-                     length_includes_head=True,
-                     head_width=0.03, head_length=0.05)
-            ax.arrow(0, 0, icell[1, 0], icell[1, 1],
-                     lw=1, color='k',
-                     length_includes_head=True,
-                     head_width=0.03, head_length=0.05)
+            for i in range(2):
+                draw_axis2d(ax, icell[i, 0], icell[i, 1])
             maxp = max(maxp, icell.max())
         else:
-            ax.arrow(0, 0, icell[0, 0], 0,
-                     lw=1, color='k',
-                     length_includes_head=True,
-                     head_width=0.03, head_length=0.05)
+            draw_axis2d(ax, icell[0, 0], 0)
             maxp = max(maxp, icell.max())
 
     if paths is not None:
@@ -154,16 +153,23 @@ def bz_plot(cell, vectors=False, paths=None, points=None,
                     if num:
                         name = '{}_{{{}}}'.format(name, num)
                 if dimensions == 3:
-                    ax.text(x, y, z, '$' + name + '$',
-                            ha='center', va='bottom', color='r')
+                    ax.text(x, y, z, '$\\mathrm{' + name + '}$',
+                            ha='center', va='bottom', color='g')
                 elif dimensions == 2:
+                    ha_s = ['right', 'left', 'right']
+                    va_s = ['bottom', 'bottom', 'top']
+
+                    ha = ha_s[int(np.sign(x))]
+                    va = va_s[int(np.sign(y))]
                     if abs(z) < 1e-6:
-                        ax.text(x, y, '$' + name + '$',
-                                ha='center', va='bottom', color='r')
+                        ax.text(x, y, '$\\mathrm{' + name + '}$',
+                                ha=ha, va=va, color='g',
+                                zorder=5)
                 else:
                     if abs(y) < 1e-6 and abs(z) < 1e-6:
-                        ax.text(x, y, '$' + name + '$',
-                                ha='center', va='bottom', color='r')
+                        ax.text(x, y, '$\\mathrm{' + name + '}$',
+                                ha='center', va='bottom', color='g',
+                                zorder=5)
 
     if kpoints is not None:
         kw = {'c': 'b'}
@@ -173,9 +179,9 @@ def bz_plot(cell, vectors=False, paths=None, points=None,
             if dimensions == 3:
                 ax.scatter(p[0], p[1], p[2], **kw)
             elif dimensions == 2:
-                ax.scatter(p[0], p[1], c='b')
+                ax.scatter(p[0], p[1], zorder=4, **kw)
             else:
-                ax.scatter(p[0], 0, c='b')
+                ax.scatter(p[0], 0, zorder=4, **kw)
 
     ax.set_axis_off()
 
@@ -202,12 +208,24 @@ def bz_plot(cell, vectors=False, paths=None, points=None,
         xx = plt.figaspect(1.0)
         fig.set_figheight(xx[1])
         fig.set_figwidth(xx[0])
-        ax.set_proj_type('ortho')
+
+        # oldlibs tests with matplotlib 2.0.0 say we have no set_proj_type:
+        if hasattr(ax, 'set_proj_type'):
+            ax.set_proj_type('ortho')
+
         minp0 = 0.9 * minp  # Here we cheat a bit to trim spacings
         maxp0 = 0.9 * maxp
         ax.set_xlim3d(minp0, maxp0)
         ax.set_ylim3d(minp0, maxp0)
         ax.set_zlim3d(minp0, maxp0)
+
+        if hasattr(ax, 'set_box_aspect'):
+            ax.set_box_aspect([1, 1, 1])
+        else:
+            msg = ('Matplotlib axes have no set_box_aspect() method.  '
+                   'Aspect ratio will likely be wrong.  '
+                   'Consider updating to Matplotlib >= 3.3.')
+            warnings.warn(msg)
 
     if show:
         plt.show()

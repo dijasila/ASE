@@ -6,7 +6,7 @@ from subprocess import Popen, PIPE
 import time
 
 
-class PBSQueueRun(object):
+class PBSQueueRun:
 
     """ Class for communicating with the commonly used PBS queing system
          at a computer cluster.
@@ -58,9 +58,9 @@ class PBSQueueRun(object):
                                           a.info['confid'])
         write(fname, a)
         job_name = '{0}_{1}'.format(self.job_prefix, a.info['confid'])
-        f = open('tmp_job_file.job', 'w')
-        f.write(self.job_template_generator(job_name, fname))
-        f.close()
+        fd = open('tmp_job_file.job', 'w')
+        fd.write(self.job_template_generator(job_name, fname))
+        fd.close()
         os.system('{0} tmp_job_file.job'.format(self.qsub_command))
 
     def enough_jobs_running(self):
