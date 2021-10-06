@@ -245,8 +245,8 @@ class SAFIRES:
         self.previous_atoms.calc = LJ()
         self.previous_atoms.set_momenta(self.atoms.get_momenta(),
                                         apply_constraint=False)
-        self.previous_atoms.calc.results['forces'] = (
-            self.atoms.calc.results['forces'].copy())
+        self.previous_atoms.calc.results = (
+            self.atoms.calc.results.copy())
         self.mdobject = mdobject
         self.default_dt = self.mdobject.dt
         self.remaining_dt = 0.
@@ -605,10 +605,9 @@ class SAFIRES:
         checkup -- True/False, is used internally to indicate if
                    this is a checkup run which occurs after a
                    successful boundary event resolution. this is done
-                   to catch rare cases where a secon outer region
+                   to catch rare cases where a second outer region
                    particle has entered the inner region during the
-                   resolution of a first boundary event. in this case,
-                   slightly different rules apply.
+                   resolution of a first boundary event.
         halfstep -- 1/2, indicates if we're propagating so that the
                     conflicting inner and outer particle are at the
                     same distance from the center using the
