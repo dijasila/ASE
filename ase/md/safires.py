@@ -6,6 +6,7 @@ from ase import Atoms
 from ase.calculators.lj import LennardJones as LJ
 from ase.io import write
 from ase.geometry import find_mic
+from ase.parallel import parprint
 
 
 class SAFIRES:
@@ -288,7 +289,7 @@ class SAFIRES:
                               "within SAFIRES. Keep that in mind!\n")
 
         # say hi to the user
-        print("\n"
+        parprint("\n"
               " ##############\n"
               " # SAFIRES    #\n"
               " # ---------- #\n"
@@ -1052,7 +1053,7 @@ class SAFIRES:
                              "adjusted to a value < 0. This should not"
                              " happen. remaining_dt was now reset"
                              " to zero.\n")
-                    print("<SAFIRES>" + error)
+                    parprint("<SAFIRES>" + error)
                     self.debuglog(error)
 
             if self.barometer:
@@ -1104,7 +1105,7 @@ class SAFIRES:
             self.debuglog("   < ELASTIC COLLISION >\n")
 
             # write boundary event info to stdout
-            print("".join(["<SAFIRES> Iteration {:d}: "
+            parprint("".join(["<SAFIRES> Iteration {:d}: "
                            .format(iteration),
                            "Treating atoms {:d} and {:d} at d = {:.5f}"
                            .format(outer_reflect, inner_reflect,
@@ -1131,7 +1132,7 @@ class SAFIRES:
                 # bit too high? anyways the code is usually robust
                 # enough to deal with that. but  we inform the user,
                 # just in case this leads to a complete meltdown.
-                print("WARNING: INNER and OUTER particle are not "
+                parprint("WARNING: INNER and OUTER particle are not "
                       "exactly on the border! Difference > 0.001 "
                       "A but < 0.01 A.")
 
@@ -1284,7 +1285,7 @@ class SAFIRES:
                 # simulation but are concerning, so the user
                 # will be warned in case of a complete meltdown
                 # later on.
-                print("<SAFIRES> Remaining dt after collision is "
+                parprint("<SAFIRES> Remaining dt after collision is "
                       "larger than initial dt. Resetting to intial dt.")
                 self.debuglog("".join([
                               "   WARNING: Remaining dt after collision"
@@ -1382,7 +1383,7 @@ class SAFIRES:
                               "Total number of collisions: "
                               "{:d}\n".format(self.ncollisions))
             self.debuglog(checkout_long)
-            print(checkout_short)
+            parprint(checkout_short)
 
             # print out "barometer" results (collisions caused
             # by inner and outer region particles, respectively)
@@ -1400,7 +1401,7 @@ class SAFIRES:
                                     "region particle; symmetric, "
                                     "\"heads-on\" collisions of both "
                                     "particles are not counted."])
-                print(pressure)
+                parprint(pressure)
                 self.debuglog(pressure)
 
             # close logfiles
