@@ -243,6 +243,10 @@ class SAFIRES:
         self.reflective = reflective
         self.previous_atoms = atoms.copy()
         self.previous_atoms.calc = LJ()
+        self.previous_atoms.set_momenta(self.atoms.get_momenta(),
+                                        apply_constraint=False)
+        self.previous_atoms.calc.results['forces'] = (
+            self.atoms.calc.results['forces'].copy())
         self.mdobject = mdobject
         self.default_dt = self.mdobject.dt
         self.remaining_dt = 0.

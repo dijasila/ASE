@@ -522,15 +522,21 @@ The SAFIRES class uses the following input attributes:
 .. note::
     Current limitations of SAFIRES:
 
-    - The :class:`Langevin` parameter ``fixcm`` cannot be True with
-      SAFIRES and will be automatically turned off if activated.
+    - The :class:`Langevin` flying-ice-cube fix which removes the center
+      of mass velocity at each iteration (``fix_com == True``) is currently
+      not compatible with SAFIRES and will be turned off by SAFIRES if 
+      active.
     - SAFIRES currently only supports :class:`VelocityVerlet` (NVE) and
       :class:`Langevin` (NVT) dynamics.
     - The origin needs to be a fixed point in space. If the origin is
-      a particle or molecule, all atoms need to be frozen using, for example,
-      the FixBondLengths constraint class (center of mass needs to be static).
+      a particle or molecule, the center of mass needs to be static,
+      otherwise a crash will be produced.
     - Periodic surface model systems need to have the vacuum in *z*
       direction. Stepped surface or surfaces models whose surface are
       not parallel to the *xy* plane have not been tested and are
       likely to break since the boundary will be constructed parallel
       to the *xy* plane.
+    - If a boundary conflict is produced during the first iteration, 
+      SAFIRES will crash because there is no conflict-free state it can
+      reset to in order to solve the conflict. Make sure your starting
+      configuration is set up accordingly.
