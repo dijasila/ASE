@@ -24,9 +24,13 @@ class SAFIRES:
 
     VERSION INFO
     ------------
+    0.1.1:
+        2021-10-06
+        Replacing print by parprint.    
+    
     0.1.0: 
         2021-09-06 
-        Initial release
+        Initial release.
 
     DESCRIPTION
     -----------
@@ -293,8 +297,8 @@ class SAFIRES:
               " ##############\n"
               " # SAFIRES    #\n"
               " # ---------- #\n"
-              " # v. 0.1.0   #\n"
-              " # 2021-09-06 #\n"
+              " # v. 0.1.1   #\n"
+              " # 2021-10-06 #\n"
               " ##############\n")
 
     def logger(self, iteration, boundary_idx, boundary):
