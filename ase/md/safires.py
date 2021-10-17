@@ -689,7 +689,7 @@ class SAFIRES:
             fr = self.mdobject.fr
             xi = self.mdobject.xi
             eta = self.mdobject.eta
-            sig = math.sqrt(2 * T * fr / m)
+            sig = np.sqrt(2 * T * fr / m)
         else:
             T = 0
             fr = 0.
