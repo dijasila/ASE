@@ -903,10 +903,11 @@ class SAFIRES:
 
         # iteration 0: initialize previous_atoms object with calc
         # results from the starting configuration
-        self.previous_atoms.set_momenta(self.atoms.get_momenta(),
-                                        apply_constraint=False)
-        self.previous_atoms.calc.results = (
-            self.atoms.calc.results.copy())
+        if iteration == 0:
+            self.previous_atoms.set_momenta(self.atoms.get_momenta(),
+                                            apply_constraint=False)
+            self.previous_atoms.calc.results = (
+                self.atoms.calc.results.copy())
 
         # start writing new debugging block if debugging is enabled
         if not checkup:
