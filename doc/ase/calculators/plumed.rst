@@ -12,7 +12,7 @@ Introduction
 Plumed_ is an open source library which allows to implement several 
 kind of enhanced sampling methods and contains a variety of tools to 
 analyze data obtained from molecular dynamics simulations. With this 
-calculator can be carried out biased simulations incluing metadynamics 
+calculator can be carried out biased simulations including metadynamics 
 or its variation well-tempered metadynamics, among others. Besides, it 
 is possible to compute a large set of collective variables that plumed 
 has already implemented for being calculated on-the-fly in MD simulations 
@@ -20,15 +20,47 @@ or for postprocessing tasks.
 
 .. _Plumed: https://www.plumed.org/ 
 
-Setup
-=====
+Installation
+============
+The ASE-Plumed calculator uses the python wrap of Plumed. An easy way to
+install it is using conda::
 
-Typically, plumed simulations need an external file, commonly called plumed.dat
-for setting up the plumed functions. In this ASE calculator interface, plumed information is
+    conda install -c conda-forge py-plumed
+
+However, the installation preferencies could be easier to modify using
+any of the others options presented in `this page <https://www.plumed.org/doc-v2.7/user-doc/html/_installation.html#installingpython>`_.
+
+Test the correct installation of plumed doing this:
+
+    >>> from plumed import Plumed
+    >>> Plumed()
+
+
+Set-up
+======
+
+Typically, Plumed simulations need an external file, commonly called plumed.dat
+for setting up its functions. In this ASE calculator interface, Plumed information is
 given to the calculator through a string list containing the lines that would be included
-in the plumed.dat file. Something like this::
+in the plumed.dat file. As an example::
 
-    setup = ["d: DISTANCE ATOMS=1,2",
+    setup = [f"UNITS LENGTH=A TIME={1/(1000 * units.fs)} ENERGY={units.mol/units.kJ}",
+             "d: DISTANCE ATOMS=1,2",
              "PRINT ARG=d STRIDE=10 FILE=COLVAR"]
+
+
+Units
+"""""
+
+Note that the first element of setup list is refered to units. That is because
+Plumed will consider all parameters in input set-up in plumed internal units.
+Then, it is necessary to add this line in order to remain the units same as ASE. 
+You can ignore this line but be aware of the units changes.
+
+
+.. seealso::
+
+    Visit the :doc:`Metadynamics tutorial <../../tutorials/metadynamics/metadynamics>`, for larger explanation of the Plumed calculator.
+
 
 .. autoclass:: ase.calculators.plumed.Plumed

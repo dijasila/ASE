@@ -8,16 +8,28 @@ from ase.units import fs, mol, kJ, nm
 
 
 def restart_from_trajectory(prev_traj, *args, prev_steps=None, atoms=None, **kwargs):
-    """ This function helps the user to restart a plumed simulation 
+    """This function helps the user to restart a plumed simulation 
     from a trajectory file. 
 
     Parameters
-        ----------  
-        calc: Calculator object
-            It  computes the unbiased forces
+    ----------  
+    prev_traj : Trajectory object
+        previous simulated trajectory
+
+    prev_steps : int. Default steps in prev_traj.
+        number of previous steps
+
+    others :
+       Same parameters of :mod:`~ase.calculators.plumed` calculator
     
-    .. note:: As alternative for restarting a plumed simulation, the user
-            has to fix the positions, momenta and Plumed.istep
+    Returns
+    -------
+    Plumed calculator
+
+
+    .. note:: prev_steps is crucial when trajectory does not contain
+        all the previous steps.
+
     """
     atoms.calc = Plumed(*args, atoms=atoms, restart=True, **kwargs)
 
@@ -58,12 +70,6 @@ class Plumed(Calculator):
         atoms: Atoms
             Atoms object to be attached
 
-
-        .. note:: For this case, the calculator is defined strictly with the
-            object atoms inside. This is necessary for initializing the
-            Plumed object. For conserving ASE convention, it can be initialized as
-            atoms.calc = (..., atoms=atoms, ...)
-
         kT: float. Default 1.
             Value of the thermal energy in eV units. It is important for
             some of the methods of plumed like Well-Tempered Metadynamics.
@@ -84,11 +90,18 @@ class Plumed(Calculator):
             fail in case that calc does not have 'charges' in its properties. 
 
 
+        .. note:: For this case, the calculator is defined strictly with the
+            object atoms inside. This is necessary for initializing the
+            Plumed object. For conserving ASE convention, it can be initialized as
+            atoms.calc = (..., atoms=atoms, ...)
+
+
         .. note:: In order to guarantee a well restart, the user has to fix momenta,
             positions and Plumed.istep, where the positions and momenta corresponds
             to the last coniguration in the previous simulation, while Plumed.istep 
             is the number of timesteps performed previously. This can be done 
             using ase.calculators.plumed.restart_from_trajectory.
+        
         
         """
 
