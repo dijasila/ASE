@@ -229,7 +229,7 @@ Upon a collision the new velocity is drawn from the
 Maxwell-Boltzmann distribution at the corresponding temperature.
 The system is then integrated numerically at constant energy
 according to the Newtonian laws of motion. The collision probability
-is defined as the average number of collisions per atom and timestep.
+is defined as the average number of collisions per atom and timestep. 
 The algorithm generates a canonical distribution. [1] However, due
 to the random decorrelation of velocities, the dynamics are
 unphysical and cannot represent dynamical properties like e.g.
@@ -238,7 +238,7 @@ are stochastic in nature, so repeating the simulation will not give
 exactly the same trajectory.
 
 When the ``Andersen`` object is created, you must specify a time step,
-a temperature (in Kelvin) and a collision probability. Typical
+a temperature (in Kelvin) and a collision probability. Typical 
 values for this probability are in the order of 1e-4 to 1e-1.
 
 ::
@@ -293,20 +293,20 @@ Constant NPT simulations (the isothermal-isobaric ensemble)
 
 .. autoclass:: NPT
 
-    .. automethod:: run
+    .. automethod:: run 
     .. automethod:: set_stress
-    .. automethod:: set_temperature
-    .. automethod:: set_mask
-    .. automethod:: set_fraction_traceless
-    .. automethod:: get_strain_rate
-    .. automethod:: set_strain_rate
-    .. automethod:: get_time
+    .. automethod:: set_temperature 
+    .. automethod:: set_mask 
+    .. automethod:: set_fraction_traceless 
+    .. automethod:: get_strain_rate 
+    .. automethod:: set_strain_rate 
+    .. automethod:: get_time 
     .. automethod:: initialize
-    .. automethod:: get_gibbs_free_energy
-    .. automethod:: zero_center_of_mass_momentum
-    .. automethod:: attach
+    .. automethod:: get_gibbs_free_energy 
+    .. automethod:: zero_center_of_mass_momentum 
+    .. automethod:: attach 
 
-
+       
 Berendsen NPT dynamics
 -----------------------
 .. module:: ase.md.nptberendsen
@@ -443,10 +443,10 @@ to inform SAFIRES which atoms belong to which region:
     are listed after the solute in the atoms object but do not need
     to be sorted according to tag = 1 or tag = 2.
     - Individual atoms of each molecule, including the solute or
-    surface model, need to be listed right after each other in 
+    surface model, need to be listed right after each other in
     sequence.
-      
-    Correct example: for a methane molecule solvated by three water 
+
+    Correct example: for a methane molecule solvated by three water
     molecules, the atoms object would be (schematically) structured
     as [CH4 OH2 OH2 OH2]. A corresponding tags list could be
     [0 0 0 0 0 2 2 2 1 1 1 2 2 2].
@@ -483,7 +483,7 @@ The SAFIRES class uses the following input attributes:
     Set ``natoms = 3`` if water is used for example.
 
 *logfile*:
-    Custom file name for log file. 
+    Custom file name for log file.
     SAFIRES writes a custom logile containing additional information
     about the position of the boundary for each iteration.
     Pass "None" to suppress output. The SAFIRES logger does not
@@ -500,7 +500,7 @@ The SAFIRES class uses the following input attributes:
     events triggered by inner and outer region particles, respectively.
     This can help to identify artifical pressure in the system.
     The barometer uses the direction of the velocity vector relative to the
-    solute to judge which particle is responsible for the event. 
+    solute to judge which particle is responsible for the event.
     Default: False.
 
 *surface*:
@@ -510,21 +510,21 @@ The SAFIRES class uses the following input attributes:
     collisions. Default: False.
 
 *reflective*:
-    SAFIRES resolves boundary events through (i) elastic collisions either 
+    SAFIRES resolves boundary events through (i) elastic collisions either
     between the involved pair of outer and inner region particles mediated
     by the boundary (particles are not required to be in actual physical
     contact) or (ii) through collision of the particles with the boundary
-    treated as a hard wall. The behavior can be switched using the 
+    treated as a hard wall. The behavior can be switched using the
     ``reflective=True/False`` option, where the dafault ``reflective=False``
     refers to implementation (i).
-    
+
 
 .. note::
     Current limitations of SAFIRES:
 
     - The :class:`Langevin` flying-ice-cube fix which removes the center
       of mass velocity at each iteration (``fix_com == True``) is currently
-      not compatible with SAFIRES and will be turned off by SAFIRES if 
+      not compatible with SAFIRES and will be turned off by SAFIRES if
       active.
     - SAFIRES currently only supports :class:`VelocityVerlet` (NVE) and
       :class:`Langevin` (NVT) dynamics.
@@ -536,7 +536,7 @@ The SAFIRES class uses the following input attributes:
       not parallel to the *xy* plane have not been tested and are
       likely to break since the boundary will be constructed parallel
       to the *xy* plane.
-    - If a boundary conflict is produced during the first iteration, 
+    - If a boundary conflict is produced during the first iteration,
       SAFIRES will crash because there is no conflict-free state it can
       reset to in order to solve the conflict. Make sure your starting
       configuration is set up accordingly.
