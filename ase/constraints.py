@@ -2719,4 +2719,3 @@ class ExpCellFilter(UnitCellFilter):
         forces[natoms:] = deform_grad_log_force
         self.stress = full_3x3_to_voigt_6_stress(convergence_crit_stress)
         return forces
-
