@@ -272,6 +272,14 @@ class SAFIRES:
         # Set up natoms array according to tag : 0, 1, 2
         self.nall = np.array([self.nsol,self.nin,self.nout])
         
+        # NEED to add assertion that the mass of solvent in inner has
+        # the same mass as solvent in outer
+        # NEED to add assertion that the solut is either fixed or it has
+        # a constraint which fixes the center of mass in place
+        # NEED to add assertion that the constraints on the solvent molecules
+        # conserves the COM positions after applying the constraints (i.e. shake/rattle
+        # conserve the COM pos / FixLinearTriatomics does not...)
+
         # if Langevin MD is using 'fix_com', we need to turn that off,
         # it's currently incompatible with SAFIRES.
         # (TODO: remove incompatibility)
