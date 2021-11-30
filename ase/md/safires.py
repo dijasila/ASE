@@ -242,7 +242,7 @@ class SAFIRES:
         self.natoms = natoms
 
         self.nout = natoms
-        if natoms_in != None:
+        if natoms_in is not None:
             self.nin = natoms_in
         else:
             self.nin = natoms
@@ -270,7 +270,7 @@ class SAFIRES:
                        if atom.tag == 0])
 
         # Set up natoms array according to tag : 0, 1, 2
-        self.nall = np.array([self.nsol,self.nin,self.nout])
+        self.nall = np.array([self.nsol, self.nin, self.nout])
         
         # NEED to add assertion that the mass of solvent in inner has
         # the same mass as solvent in outer
@@ -478,28 +478,28 @@ class SAFIRES:
                         xi_outer = (np.dot(m_outer_list,
                                     self.mdobject.xi[outer_real:outer_real + self.nout])
                                     / m_outer)
-                    except:
-                        xi_out = np.zeros(3)
+                    except AttributeError:
+                        xi_outer = np.zeros(3)
 
                     try:
                         xi_inner = (np.dot(m_inner_list,
                                     self.mdobject.xi[inner_real:inner_real + self.nin])
                                     / m_inner)
-                    except:
+                    except AttributeError:
                         xi_inner = np.zeros(3)
 
                     try:
                         eta_outer = (np.dot(m_outer_list,
                                      self.mdobject.eta[outer_real:outer_real + self.nout])
                                      / m_outer)
-                    except:
+                    except AttributeError:
                         eta_outer = np.zeros(3)
 
                     try:    
                         eta_inner = (np.dot(m_inner_list,
                                      self.mdobject.eta[inner_real:inner_real + self.nin])
                                      / m_inner)
-                    except:
+                    except AttributeError:
                         eta_inner = np.zeros(3)
 
                     # Need to expand this since it can be an array of fr values
@@ -514,22 +514,22 @@ class SAFIRES:
                     # if inner/outer particles are monoatomic
                     try:
                         xi_outer = self.mdobject.xi[outer_real]
-                    except:
+                    except AttributeError:
                         xi_outer = np.zeros(3)
 
                     try:    
                         xi_inner = self.mdobject.xi[inner_real]
-                    except:
+                    except AttributeError:
                         xi_inner = np.zeros(3)
 
                     try:    
                         eta_outer = self.mdobject.eta[outer_real]
-                    except:
+                    except AttributeError:
                         eta_outer = np.zeros(3)
 
                     try:
                         eta_inner = self.mdobject.eta[inner_real]
-                    except:
+                    except AttributeError:
                         eta_inner = np.zeros(3)
 
                     sig_outer = math.sqrt(2 * self.mdobject.temp * fr / m_outer)
@@ -847,7 +847,7 @@ class SAFIRES:
             tag = atoms[i].tag
             nat = self.nall[tag]
             com = atoms[idx:idx + nat].get_center_of_mass()
-            M   = np.sum(atoms[idx:idx + nat].get_masses())
+            M = np.sum(atoms[idx:idx + nat].get_masses())
             mom = np.sum(atoms[idx:idx + nat].get_momenta(), axis=0)
             frc = np.sum(atoms.calc.results['forces'][idx:idx + nat], axis=0)
             sym = atoms[idx].symbol
@@ -1294,14 +1294,14 @@ class SAFIRES:
             inner_actual = (self.nsol + (inner_reflect - 1) 
                             * self.nin)
 
-            mom  = self.atoms.get_momenta()
+            mom = self.atoms.get_momenta()
             mass = self.atoms.get_masses()
 
-            mom[outer_actual:outer_actual+self.nout] += np.tile(dV_outer, (self.nout,1)) * \
-                         np.tile(mass[outer_actual:outer_actual+self.nout], (3,1)).T
+            mom[outer_actual:outer_actual+self.nout] += np.tile(dV_outer, (self.nout, 1)) * \
+                         np.tile(mass[outer_actual:outer_actual+self.nout], (3, 1)).T
 
-            mom[inner_actual:inner_actual+self.nin] += np.tile(dV_inner, (self.nin,1)) * \
-                         np.tile(mass[inner_actual:inner_actual+self.nin], (3,1)).T
+            mom[inner_actual:inner_actual+self.nin] += np.tile(dV_inner, (self.nin, 1)) * \
+                         np.tile(mass[inner_actual:inner_actual+self.nin], (3, 1)).T
 
             self.atoms.set_momenta(mom, apply_constraint=False)
 
