@@ -264,6 +264,9 @@ class SAFIRES:
             self.impacts = [0, 0]
         self.debug = debug
 
+        # Relative index of pseudoparticle in total atoms object
+        self.idx_real = None
+
         # keep track of how many atoms are in the solute
         # or periodic surface model
         self.nsol = len([atom.index for atom in self.atoms 
@@ -440,8 +443,8 @@ class SAFIRES:
             # furthermore, shift in the indexing due to the solute or
             # periodic surface model (which can have arbitrary number
             # of atoms) needs to be accounted for.
-            outer_real = self.nsol + (outer_idx - 1) * self.nout
-            inner_real = self.nsol + (inner_idx - 1) * self.nin
+            outer_real = self.idx_real[outer_idx]
+            inner_real = self.idx_real[inner_idx]
 
             # retreive Langevin-specific values (eta and xi random
             # components, friction fr).
@@ -841,6 +844,7 @@ class SAFIRES:
         # region particles. for monoatomic inner/outer particles,
         # a 1:1 copy is created.
         forces = []
+        idx_real = [] # This should be done elsewhere since it does not change...
 
         while i < len(atoms):
             idx = atoms[i].index
@@ -865,6 +869,7 @@ class SAFIRES:
                     
             # Append and iterate
             com_atoms += tmp
+            idx_real.append(i)
             i += nat
 
         if self.surface:
@@ -873,6 +878,7 @@ class SAFIRES:
                 atom.position[0] = 0.
                 atom.position[1] = 0.
 
+        self.idx_real = idx_real
         # we can no reapply the constraints to the original
         # atoms object. all further processing will be done
         # on the pseudoparticle com_atoms object, which does
@@ -1289,10 +1295,8 @@ class SAFIRES:
 
             # expand the pseudoparticle atoms object back into the
             # real atoms object (inverse action to self.update())
-            outer_actual = (self.nsol + (outer_reflect - 1) 
-                            * self.nout)
-            inner_actual = (self.nsol + (inner_reflect - 1) 
-                            * self.nin)
+            outer_actual = self.idx_real[outer_reflect]
+            inner_actual = self.idx_real[inner_reflect]
 
             mom = self.atoms.get_momenta()
             mass = self.atoms.get_masses()
