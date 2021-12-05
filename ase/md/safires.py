@@ -844,7 +844,9 @@ class SAFIRES:
         # region particles. for monoatomic inner/outer particles,
         # a 1:1 copy is created.
         forces = []
-        idx_real = [] # This should be done elsewhere since it does not change...
+        # This should be done elsewhere since it does not change 
+        # during the simulation
+        idx_real = []
 
         while i < len(atoms):
             idx = atoms[i].index
