@@ -1,8 +1,8 @@
 .. module:: ase.calculators.plumed
 
-========
+======
 PLUMED
-========
+======
 
 .. image:: ../../static/plumed.png
 
@@ -68,6 +68,6 @@ You can ignore this line, but be aware of the units changes.
     for further explanation of the Plumed calculator.
 
 Plumed Calculator Class
-======================
+=======================
 
 .. autoclass:: ase.calculators.plumed.Plumed
