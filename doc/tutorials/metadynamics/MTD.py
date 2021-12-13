@@ -41,7 +41,7 @@ atoms.calc = Plumed(calc=LennardJones(rc=2.5, r0=3.0),
                     atoms=atoms,
                     kT=0.1)
 
-dyn = Langevin(atoms, timestep, temperature_K=0.1/units.kB, friction=1, 
+dyn = Langevin(atoms, timestep, temperature_K=0.1/units.kB, friction=1,
                fixcm=False, trajectory='MTD.traj')
 
 dyn.run(500000)
