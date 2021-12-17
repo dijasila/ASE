@@ -111,7 +111,7 @@ class SAFIRES:
       that shouldn't be the case.
     """
     
-    def __init__(self, atoms, mdobject, natoms,
+    def __init__(self, atoms, mdobject, natoms, natoms_in=None,
                  logfile="safires.log", debug=False,
                  barometer=False, surface=False, reflective=False):
         """"Initial setup of the SAFIRES class.
@@ -240,6 +240,13 @@ class SAFIRES:
         self.surface = surface
         self.constraints = self.atoms.constraints.copy()
         self.natoms = natoms
+
+        self.nout = natoms
+        if natoms_in is not None:
+            self.nin = natoms_in
+        else:
+            self.nin = natoms
+
         self.reflective = reflective
         self.previous_atoms = atoms.copy()
         self.previous_atoms.calc = LJ()
@@ -257,10 +264,24 @@ class SAFIRES:
             self.impacts = [0, 0]
         self.debug = debug
 
+        # Relative index of pseudoparticle in total atoms object
+        self.idx_real = None
+
         # keep track of how many atoms are in the solute
         # or periodic surface model
         self.nsol = len([atom.index for atom in self.atoms 
                        if atom.tag == 0])
+
+        # Set up natoms array according to tag : 0, 1, 2
+        self.nall = np.array([self.nsol, self.nin, self.nout])
+        
+        # NEED to add assertion that the mass of solvent in inner has
+        # the same mass as solvent in outer
+        # NEED to add assertion that the solut is either fixed or it has
+        # a constraint which fixes the center of mass in place
+        # NEED to add assertion that the constraints on the solvent molecules
+        # conserves the COM positions after applying the constraints (i.e. shake/rattle
+        # conserve the COM pos / FixLinearTriatomics does not...)
 
         # if Langevin MD is using 'fix_com', we need to turn that off,
         # it's currently incompatible with SAFIRES.
@@ -422,8 +443,8 @@ class SAFIRES:
             # furthermore, shift in the indexing due to the solute or
             # periodic surface model (which can have arbitrary number
             # of atoms) needs to be accounted for.
-            outer_real = self.nsol + (outer_idx - 1) * self.natoms
-            inner_real = self.nsol + (inner_idx - 1) * self.natoms
+            outer_real = self.idx_real[outer_idx]
+            inner_real = self.idx_real[inner_idx]
 
             # retreive Langevin-specific values (eta and xi random
             # components, friction fr).
@@ -451,23 +472,41 @@ class SAFIRES:
                     
                     # if inner/outer particles are molecules
                     m_outer_list = [math.sqrt(xm) for xm in
-                                    self.atoms[outer_real:outer_real + mod]
+                                    self.atoms[outer_real:outer_real + self.nout]
                                     .get_masses()]
                     m_inner_list = [math.sqrt(xm) for xm in
-                                    self.atoms[inner_real:inner_real + mod]
+                                    self.atoms[inner_real:inner_real + self.nin]
                                     .get_masses()]
-                    xi_outer = (np.dot(m_outer_list,
-                                self.mdobject.xi[outer_real:outer_real + mod])
-                                / m_outer)
-                    xi_inner = (np.dot(m_inner_list,
-                                self.mdobject.xi[inner_real:inner_real + mod])
-                                / m_inner)
-                    eta_outer = (np.dot(m_outer_list,
-                                 self.mdobject.eta[outer_real:outer_real + mod])
-                                 / m_outer)
-                    eta_inner = (np.dot(m_inner_list,
-                                 self.mdobject.eta[inner_real:inner_real + mod])
-                                 / m_inner)
+                    try:
+                        xi_outer = (np.dot(m_outer_list,
+                                    self.mdobject.xi[outer_real:outer_real + self.nout])
+                                    / m_outer)
+                    except AttributeError:
+                        xi_outer = np.zeros(3)
+
+                    try:
+                        xi_inner = (np.dot(m_inner_list,
+                                    self.mdobject.xi[inner_real:inner_real + self.nin])
+                                    / m_inner)
+                    except AttributeError:
+                        xi_inner = np.zeros(3)
+
+                    try:
+                        eta_outer = (np.dot(m_outer_list,
+                                     self.mdobject.eta[outer_real:outer_real + self.nout])
+                                     / m_outer)
+                    except AttributeError:
+                        eta_outer = np.zeros(3)
+
+                    try:    
+                        eta_inner = (np.dot(m_inner_list,
+                                     self.mdobject.eta[inner_real:inner_real + self.nin])
+                                     / m_inner)
+                    except AttributeError:
+                        eta_inner = np.zeros(3)
+
+                    # Need to expand this since it can be an array of fr values
+                    # CHECK HERE IF FR is ARRAY
                     sig_outer = math.sqrt(2 * self.mdobject.temp * fr)
                     sig_inner = math.sqrt(2 * self.mdobject.temp * fr)
                 
@@ -476,10 +515,26 @@ class SAFIRES:
                 
                 else:
                     # if inner/outer particles are monoatomic
-                    xi_outer = self.mdobject.xi[outer_real]
-                    xi_inner = self.mdobject.xi[inner_real]
-                    eta_outer = self.mdobject.eta[outer_real]
-                    eta_inner = self.mdobject.eta[inner_real]
+                    try:
+                        xi_outer = self.mdobject.xi[outer_real]
+                    except AttributeError:
+                        xi_outer = np.zeros(3)
+
+                    try:    
+                        xi_inner = self.mdobject.xi[inner_real]
+                    except AttributeError:
+                        xi_inner = np.zeros(3)
+
+                    try:    
+                        eta_outer = self.mdobject.eta[outer_real]
+                    except AttributeError:
+                        eta_outer = np.zeros(3)
+
+                    try:
+                        eta_inner = self.mdobject.eta[inner_real]
+                    except AttributeError:
+                        eta_inner = np.zeros(3)
+
                     sig_outer = math.sqrt(2 * self.mdobject.temp * fr / m_outer)
                     sig_inner = math.sqrt(2 * self.mdobject.temp * fr / m_inner)
 
@@ -778,7 +833,6 @@ class SAFIRES:
         com_atoms = Atoms()
         com_atoms.pbc = atoms.pbc
         com_atoms.cell = atoms.cell
-        mod = self.natoms
                 
         # need to make sure constraints are off
         # get_com method breaks GPAW fast FixBondLength
@@ -786,47 +840,39 @@ class SAFIRES:
         self.constraints = atoms.constraints.copy()
         atoms.constraints = []
         
-        # calculate cumulative properties for solute / surface
-        # (solute is always the first entry)
-        idx_sol = [atom.index for atom in atoms if atom.tag == 0]
-        sol_com = atoms[idx_sol].get_center_of_mass()
-        M = np.sum(atoms[idx_sol].get_masses())
-        mom = np.sum(atoms[idx_sol].get_momenta(), axis=0)
-        tag = 0
-        frc = np.sum(atoms.calc.results['forces'][idx_sol], axis=0)
-        sym = atoms[idx_sol[0]].symbol
-        tmp = Atoms(sym)
-        tmp.set_positions([sol_com])
-        tmp.set_momenta([mom])
-        tmp.set_masses([M])
-        tmp.set_tags([tag])
-        forces = [frc]
-        com_atoms += tmp
-        
         # calculate cumulative properties for all inner/outer
         # region particles. for monoatomic inner/outer particles,
         # a 1:1 copy is created.
-        for atom in atoms:
-            if atom.tag in [1, 2]:
-                if (atom.index - self.nsol) % mod == 0:
-                    i = atom.index
-                    com = atoms[i:i + mod].get_center_of_mass()
-                    M = np.sum(atoms[i:i + mod].get_masses())
-                    mom = np.sum(atoms[i:i + mod].get_momenta(), axis=0)
-                    tag = atoms[i].tag
-                    frc = np.sum(atoms.calc.results['forces'][i:i + mod], axis=0)
-                    sym = atoms[i].symbol
-            
-                    # create a new atom
-                    tmp = Atoms(sym)
-                    tmp.set_positions([com])
-                    tmp.set_momenta([mom])
-                    tmp.set_masses([M])
-                    tmp.set_tags([tag])
-                    forces.append(frc)
+        forces = []
+        # This should be done elsewhere since it does not change 
+        # during the simulation
+        idx_real = []
+
+        while i < len(atoms):
+            idx = atoms[i].index
+            tag = atoms[i].tag
+            nat = self.nall[tag]
+            com = atoms[idx:idx + nat].get_center_of_mass()
+            M = np.sum(atoms[idx:idx + nat].get_masses())
+            mom = np.sum(atoms[idx:idx + nat].get_momenta(), axis=0)
+            frc = np.sum(atoms.calc.results['forces'][idx:idx + nat], axis=0)
+            sym = atoms[idx].symbol
+
+            if tag == 0:
+                sol_com = com
+
+            # Create new atoms
+            tmp = Atoms(sym)
+            tmp.set_positions([com])
+            tmp.set_momenta([mom])
+            tmp.set_masses([M])
+            tmp.set_tags([tag])
+            forces.append(frc)
                     
-                    # append to new atoms object
-                    com_atoms += tmp
+            # Append and iterate
+            com_atoms += tmp
+            idx_real.append(i)
+            i += nat
 
         if self.surface:
             # we only need z coordinates for surface calculations
@@ -834,6 +880,7 @@ class SAFIRES:
                 atom.position[0] = 0.
                 atom.position[1] = 0.
 
+        self.idx_real = idx_real
         # we can no reapply the constraints to the original
         # atoms object. all further processing will be done
         # on the pseudoparticle com_atoms object, which does
@@ -1223,6 +1270,9 @@ class SAFIRES:
                 self.debuglog("   dot(v12, r12) = {:.16f}\n"
                               .format(np.dot(v12, r12)))
                 v_norm = np.dot(v12, r12) * r12 / (np.linalg.norm(r12)**2)
+                # dV_inner and dV_outer should be mass weighted differently
+                # to allow for momentum exchange between solvent with diff
+                # total masses.
                 dV_inner = 2 * m_inner / M * v_norm
                 self.debuglog("   dV_inner = {:s}\n"
                               .format(np.array2string(dV_inner)))
@@ -1247,17 +1297,19 @@ class SAFIRES:
 
             # expand the pseudoparticle atoms object back into the
             # real atoms object (inverse action to self.update())
-            for i in range(self.natoms):
-                # redistribute the velocity change normal
-                # component to individual atoms
-                outer_actual = (self.nsol + (outer_reflect - 1) 
-                                * self.natoms + i)
-                inner_actual = (self.nsol + (inner_reflect - 1) 
-                                * self.natoms + i)
-                self.atoms[outer_actual].momentum += (
-                        dV_outer * self.atoms[outer_actual].mass)
-                self.atoms[inner_actual].momentum += (
-                        dV_inner * self.atoms[inner_actual].mass)
+            outer_actual = self.idx_real[outer_reflect]
+            inner_actual = self.idx_real[inner_reflect]
+
+            mom = self.atoms.get_momenta()
+            mass = self.atoms.get_masses()
+
+            mom[outer_actual:outer_actual+self.nout] += np.tile(dV_outer, (self.nout, 1)) * \
+                         np.tile(mass[outer_actual:outer_actual+self.nout], (3, 1)).T
+
+            mom[inner_actual:inner_actual+self.nin] += np.tile(dV_inner, (self.nin, 1)) * \
+                         np.tile(mass[inner_actual:inner_actual+self.nin], (3, 1)).T
+
+            self.atoms.set_momenta(mom, apply_constraint=False)
 
             # reset list that tracks conflicting particle pairs
             # since conflict is resolved now
