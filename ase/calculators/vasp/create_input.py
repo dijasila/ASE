@@ -27,6 +27,7 @@ from typing import List, Sequence, Tuple
 import numpy as np
 
 import ase
+from ase.io import jsonio
 from ase.calculators.calculator import kpts2ndarray
 from ase.calculators.vasp.setups import get_default_setups
 
@@ -1223,7 +1224,8 @@ class GenerateVaspInput:
 
         special_setups = []
 
-        # Default setup lists are available: 'minimal', 'recommended' and 'GW'
+        # Default setup lists are available: 'minimal', 'recommended',
+        # 'materialsproject', and 'GW'
         # These may be provided as a string e.g.::
         #
         #     calc = Vasp(setups='recommended')
@@ -1245,9 +1247,24 @@ class GenerateVaspInput:
             p['setups'] = {'base': 'minimal'}
 
         # String shortcuts are initialised to dict form
+
+        # If the user requests a local setup, read in the .json from ASE_VASP_SETUPS
         elif isinstance(p['setups'], str):
             if p['setups'].lower() in setups_defaults.keys():
                 p['setups'] = {'base': p['setups']}
+            elif p['setups'][0] == "$":
+                if 'ASE_VASP_SETUPS' in os.environ:
+                    local_setups_path = os.path.join(os.environ['ASE_VASP_SETUPS'], p['setups'][0].split('$')[-1])
+                    if '.json' not in os.path.basename(local_setups_path):
+                        local_setups_path += '.json'
+                    if not os.path.exists(local_setups_path):
+                        raise ValueError(f'Could not find {local_setups_path}')
+                    local_setups = jsonio.read_json(local_setups_path)
+                    p['setups'] = {'base': local_setups}
+                else:
+                    raise EnvironmentError('ASE_VASP_SETUPS environment variable not set')
+            else:
+                raise ValueError('Unknown requested setup')
 
         # Dict form is then queried to add defaults from setups.py.
         if 'base' in p['setups']:

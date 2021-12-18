@@ -1,4 +1,5 @@
 import pytest
+import os
 from ase.atoms import Atoms
 
 calc = pytest.mark.calculator
@@ -46,11 +47,15 @@ def do_check():
     return _do_check
 
 
+os.environ['ASE_VASP_SETUPS'] = os.getcwd()
+
+
 @calc('vasp')
 @pytest.mark.parametrize('settings, expected', [
     (dict(xc='pbe'), ('Ca_pv', 'Gd', 'Cs_sv')),
     (dict(xc='pbe', setups='recommended'), ('Ca_sv', 'Gd_3', 'Cs_sv')),
     (dict(xc='pbe', setups='materialsproject'), ('Ca_sv', 'Gd', 'Cs_sv')),
+    (dict(xc='pbe', setups='$test_local_setups'), ('Am', 'W_sv', 'Yb_3')),
 ])
 def test_vasp_setup_atoms_1(factory, do_check, atoms_1, settings, expected):
     """
