@@ -238,11 +238,10 @@ Four base setups are provided:
     gw:
         corresponds to the `table of recommended setups for GW <https://cms.mpi.univie.ac.at/vasp/vasp/Recommended_GW_PAW_potentials_vasp_5_2.html>`_ supplied by the VASP developers.
 
-Additionally, it is possible to read in a custom dictionary of VASP setups.
-First, define the environment variable `ASE_VASP_SETUPS`, which should point to a directory where the VASP setups are stored.
-For instance, in `ASE_VASP_SETUPS`, you might create a file called `mysetups.json` containing {"Ac": "Ac", "Ag": "Ag", ...}.
-Then, calling Vasp(setups = '$mysetups') will read in this custom setup. The '$' sign informs ASE that a local setup is requested, rather
-than an internally defined pre-set. The remainder of the string is the name of the `.json` file.
+Additionally, it is possible to read in a custom dictionary of VASP setups by providing the full path to a `.json` file with the desired pseudopotentials.
+For convenience, if the environment variable `ASE_VASP_SETUPS` is set and points to a directory where `.json` files of desired VASP setups are stored,
+then you can call Vasp(setups = '$mysetups') to read in a custom dictionary of setups called `mysetups.json` located in the `ASE_VASP_SETUPS` directory.
+The '$' sign informs ASE that a local setup is requested, rather than an internally defined pre-set. The remainder of the string is the name of the `.json` file.
 
 Where elements are missing from the default sets, the Vasp Calculator
 will attempt to use a setup folder with the same name as the element.

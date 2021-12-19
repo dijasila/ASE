@@ -1263,8 +1263,11 @@ class GenerateVaspInput:
                     p['setups'] = {'base': local_setups}
                 else:
                     raise EnvironmentError('ASE_VASP_SETUPS environment variable not set')
+            elif os.path.exists(p['setups']):
+                local_setups = jsonio.read_json(p['setups'])
+                p['setups'] = {'base': local_setups}
             else:
-                raise ValueError('Unknown requested setup')
+                raise ValueError(f'Unknown requested setup {p["setups"]}')
 
         # Dict form is then queried to add defaults from setups.py.
         if 'base' in p['setups']:

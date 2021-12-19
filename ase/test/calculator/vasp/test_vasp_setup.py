@@ -56,6 +56,7 @@ os.environ['ASE_VASP_SETUPS'] = os.getcwd()
     (dict(xc='pbe', setups='recommended'), ('Ca_sv', 'Gd_3', 'Cs_sv')),
     (dict(xc='pbe', setups='materialsproject'), ('Ca_sv', 'Gd', 'Cs_sv')),
     (dict(xc='pbe', setups='$test_local_setups'), ('Am', 'W_sv', 'Yb_3')),
+    (dict(xc='pbe', setups='test_local_setups.json'), ('Am', 'W_sv', 'Yb_3')),
 ])
 def test_vasp_setup_atoms_1(factory, do_check, atoms_1, settings, expected):
     """
