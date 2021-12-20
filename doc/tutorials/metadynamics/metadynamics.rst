@@ -5,9 +5,8 @@ ASE for  Metadynamics Simulations
 =================================
 
 This tutorial shows how to use the :mod:`~ase.calculators.plumed` calculator
-for computing Collective Variables from a Molecular Dynamics (MD) trajectory.
-Besides, you will find an example of a Well-Tempered Metadynamics simulation 
-using this calculator.
+for computing Collective Variables from a Molecular Dynamics (MD) trajectory
+and implementing Well-Tempered Metadynamics.
 
 Plumed actually allows several actions like implementing enhanced sampling 
 methods (besides metadynamics), computing other different Collective variables
@@ -127,7 +126,7 @@ distinguished in a space of the CVs second and third central moments of the
 distribution of coordinations.
 
 .. image:: cluster.png
-   :width: 800
+   :width: 500
    :align: center
 
 The n-th central moment `\mu_n` of an N-atoms cluster is defined as
@@ -155,22 +154,24 @@ let's start with a Langevin simulation without bias. In LJ dimensionless
 reduced units, the parameters of the simulation are  `k_\text{B}T=0.1`, 
 friction coefficient fixed equal to 1. 
 
-It is supposed that the system explores all the space of configurations 
+It is supposed that the system should explore all the space of configurations 
 due to thermal fluctuations. However, we can see that the system remains in the 
 same state, even when we simulate an evolution of the system for a long time 
 lapse. That is because a complete exploration of the configuration space could 
 take much more time than the possible to simulate. This can be shown running 
-the next code (this could take some minutes running):
+the next code (it could take some minutes running):
 
 .. literalinclude:: MD.py
 
 This simulation is started with the configuration of minimum energy, whose 
-coordinates are imported from :download:`isomer.xyz`. Note that in the plumed 
-set-up, it is added a line with the keyword UNITS. This is necessary because 
-all parameters in the plumed set-up are assumed to be in plumed internal units. 
-Then, this line is important to remain the units of the plumed parameters in 
-the same units as in ASE. You can ignore this line but be aware of the units 
-changes.
+coordinates are imported from :download:`isomer.xyz`. From this simulation 
+is clear that the system remains in the same state.
+
+Note that in the plumed set-up, it is added a line with the keyword UNITS. 
+This is necessary because all parameters in the plumed set-up are assumed 
+to be in plumed internal units. Then, this line is important to remain the 
+units of the plumed parameters in the same units as in ASE. You can ignore 
+this line, but be aware of the unit differences.
 
 Post Processing Analysis
 ========================
@@ -194,21 +195,13 @@ fields that it contains. In this case, it generates this head::
 As you can see, the first column correspond to the time, the second one is the 
 second central moment (SCM) and the third column is the third central moment 
 (TCM). When we plot this trajectory in the space of this CVs (that is, the 
-second and third columns) we obtain this result:
-
-.. image:: MD.png
-   :width: 400
-   :align: center
-
-
-where we show the points that correspond with the location of the different 
-isomers in the space of these collective variables. Note 
-that the system remains confined in the same stable state. That means, for this
-case, MD is not enough for exploring all possible configurations and obtaining 
-a statistical study of the possible configurations of the system in this 
-simulation time scale -and even in a longer one-. Then, an alternative is to 
-use an enhanced sampling method. In this case, we implement Well-Tempered 
-Metadynamics for reconstructing the Free Energy Surface (FES).
+second and third columns) we can observe clearly the system remains confined 
+in the same stable state. That means, for this case, MD is not enough for 
+exploring all possible configurations and obtaining a statistical study of 
+the possible configurations of the system in this simulation time scale -and 
+even in a longer one-. Then, an alternative is to use an enhanced sampling 
+method. In this case, we implement Well-Tempered Metadynamics for 
+reconstructing the Free Energy Surface (FES).
 
 
 Well-Tempered Metadynamics Simulation
@@ -233,8 +226,9 @@ semi-harmonic potential with this form:
 
 Where `d_i` is the distance of each atom to the center of mass. Note that this 
 potential does not do anything whereas the distance between the atom and the 
-center of mass is lower than 2 `\sigma` (LJ units), but if it is greater (trying to escape),
-this potential begins to work and send it back to be close the other atoms.
+center of mass is lower than 2 `\sigma` (LJ units), but if it is greater 
+(trying to escape), this potential begins to work and send it back to be close 
+the other atoms.
 
 Then, the code for running this Well-Tempered Metadynamics in ASE is this one:
 
@@ -253,11 +247,7 @@ namely, :math:`{\bf F}_i` forces in equation :math:`\ref{bias-force}`.
 Likewise, you could use your preferred calculator. Plumed adds the bias forces.
 
 In contrast to the MD case, Metadynamics achieves a complete exploration 
-to different configurations as seen in the next figure:
-
-.. image:: MTD.png
-   :width: 400
-   :align: center
+to different configurations.
 
 When one runs a metadynamics simulation, Plumed generates a file called HILLS 
 that contains the information of the deposited Gaussians. You can reconstruct 
@@ -267,12 +257,10 @@ The simplest way of using it is::
 
     $ plumed sum_hills --hills HILLS
 
-After this, Plumed creates a fes.dat file with the FES reconstructed. When the 
-FES of this example is plotted, it yields:
+After this, Plumed creates a fes.dat file with the FES reconstructed. For
+this example, you can visualize the result using the following code:
 
-.. image:: fes.png
-   :width: 400
-   :align: center
+.. literalinclude:: plotter_MTD.py
 
 Restart
 =======
@@ -293,10 +281,8 @@ as follows::
 and the definition of the calculator becomes in::
     
     atoms.calc = Plumed( ... , restart=True)
-    atoms.calc.istep = 500000
+    atoms.calc.istep = 120000
 
 Alternatively, you can use the next function:
 
 .. autoclass:: ase.calculators.plumed.restart_from_trajectory
-
-

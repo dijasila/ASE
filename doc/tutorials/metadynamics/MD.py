@@ -28,4 +28,4 @@ atoms.calc = Plumed(calc=LennardJones(rc=2.5, r0=3.),
 dyn = Langevin(atoms, timestep, temperature_K=0.1/units.kB, friction=1,
                fixcm=False, trajectory='UnbiasMD.traj')
 
-dyn.run(10000)
+dyn.run(120000)

@@ -6,7 +6,6 @@ from ase.calculators.idealgas import IdealGas
 traj = read('UnbiasMD.traj', index=':')
 
 atoms = traj[0]
-atoms.set_masses([1, 1, 1, 1, 1, 1, 1])
 
 timestep = 0.005
 ps = 1000 * units.fs
