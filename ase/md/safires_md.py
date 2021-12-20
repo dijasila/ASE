@@ -8,7 +8,7 @@ from ase.geometry import find_mic
 from ase.parallel import parprint, world, DummyMPI
 from ase.md.md import MolecularDynamics
 from ase.utils import IOContext
-
+import warnings
 
 class SAFIRES(MolecularDynamics):
     """
