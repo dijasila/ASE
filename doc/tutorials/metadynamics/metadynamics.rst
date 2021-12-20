@@ -10,8 +10,8 @@ Besides, you will find an example of a Well-Tempered Metadynamics simulation
 using this calculator.
 
 Plumed actually allows several actions like implementing enhanced sampling 
-methods (besides metadynamics), to compute other different Collective variables
-that are not shown here, among other possibilities. For larger description of 
+methods (besides metadynamics), computing other different Collective variables
+that are not shown here, among other possibilities. For further description of 
 plumed actions and details, visit `this page <http://www.plumed.org/doc>`_.
 The use of other tools of Plumed with ASE is absolutely analogous to what it is
 explained here.
@@ -23,28 +23,28 @@ Collective Variables
 ====================
 
 In the most of the cases, it is impossible to extract clear information about 
-the system of interest in monitoring the coordinates of all atoms directly, 
-even more if our system contains a large quantity of atoms. Instead of that, it
+the system of interest by monitoring the coordinates of all atoms directly, 
+even more if our system contains a many atoms. Instead of that, it
 is possible to make the monitoring simpler by defining functions of those 
 coordinates that describe the chemical properties that we are interested in. 
 Those functions are called Collective Variables (CVs) and allows biasing 
-specific degrees of freedom or to analyze how those properties evolve.
+specific degrees of freedom or analyzing how those properties evolve.
 
 An example of CV is the radius of gyration defined by:
 
 
 .. math::
    \begin{align}
-     R= \left(\frac{\sum_i^N |r_i - r_{CM}|^2}{N}\right)^{1/2}
+     R= \left(\frac{\sum_i^N m_i|r_i - r_{CM}|^2}{\sum_i^N m_i}\right)^{1/2}
    \end{align}
 
 Where `r_{CM}` is the center of mass of the atoms, *N* is the number of atoms
 and `r_i` is the position of atom i. From this definition, it is clear that the
 radius of gyration contains information about how disperse is the system in 
-respect to the center of mass. That from just one scalar!
+respect to the center of mass.
 
 Plumed has numerous CVs already implemented that can be used with ASE. For a 
-complete explanation of CVs implemented in Plumed, go to 
+complete explanation of CVs implemented in Plumed, go 
 `here <https://www.plumed.org/doc-v2.7/user-doc/html/colvarintro.html>`_.
 
 Metadynamics
@@ -86,13 +86,13 @@ Metadynamics is defined as:
 
 Here, *W* is the maximum height of the Gaussians, `\beta` is the inverse of
 the thermal energy (:math:`1/k_BT`) and `\gamma` is a bias factor greater than
-zero that regulates how fast the height of the bias decreases. The higher the 
+one that regulates how fast the height of the bias decreases. The higher the 
 bias factor, the slower is the decreasing of the heights. Note that when 
 `\gamma` approaches infinity, this equation becomes constant and simple 
-metadynamics is recovered. On contrast, when `\gamma` approaches 0, no bias is
-added, namely, the case of Molecular Dynamics.
+metadynamics is recovered. On contrast, when `\gamma` approaches zero, no bias is
+added, which is the case of Molecular Dynamics.
 
-In this way, the force acting over the i-th atom becomes in:
+In this way, the force with bias acting over the i-th atom becomes in:
 
 .. math::
    \begin{align}
@@ -102,7 +102,7 @@ In this way, the force acting over the i-th atom becomes in:
    \end{align}
 
 where :math:`{\bf F}_i` is the force over the atom i due to interactions with 
-the rest of atoms and the other term is the additional force due to the added 
+the rest of atoms and the second term is the additional force due to the added 
 bias.
 
 Part of the power of metadynamics is that it can be used for exploring 
@@ -124,13 +124,13 @@ interactions in a planar space. This simple model is presented in the
 `Plumed Masterclass 21.2 <https://www.plumed.org/doc-v2.7/user-doc/html/masterclass-21-2.html#masterclass-21-2-ex-9>`_.
 The LJ cluster has several stable isomers (shown below), which can be 
 distinguished in a space of the CVs second and third central moments of the 
-distribution of coordination numbers.
+distribution of coordinations.
 
 .. image:: cluster.png
    :width: 800
    :align: center
 
-The nth central moment `\mu_n` of an N-atoms cluster is defined as
+The n-th central moment `\mu_n` of an N-atoms cluster is defined as
 
 .. math::
    \begin{equation}
@@ -138,7 +138,7 @@ The nth central moment `\mu_n` of an N-atoms cluster is defined as
                 \left< {X} \right> \right)^n
    \end{equation}
 
-where `X_i` is the coordination number of the i-th atom:
+where `X_i` is the coordination of the i-th atom:
 
 .. math::
    \begin{equation}
@@ -185,7 +185,7 @@ the last code for rewriting the COLVAR file as follows:
 
 This code, as well as the previous one, generates a file called COLVAR with 
 the value of the CVs. All plumed files begin with a head that describes the 
-fields that it contains. In this case, it generates this result::
+fields that it contains. In this case, it generates this head::
 
    $ head -n 2 COLVAR
    #! FIELDS time c1.moment-2 c1.moment-3
@@ -200,13 +200,15 @@ second and third columns) we obtain this result:
    :width: 400
    :align: center
 
-Where we marked the points that corresponds with the different isomers. Note 
+
+where we show the points that correspond with the location of the different 
+isomers in the space of these collective variables. Note 
 that the system remains confined in the same stable state. That means, for this
 case, MD is not enough for exploring all possible configurations and obtaining 
-a statistical study of the possible configurations of the system in the 
-simulation time scale. Then, an alternative is to use an enhanced sampling 
-method. In this case, we implement Well-Tempered Metadynamics for 
-reconstructing the Free Energy Surface (FES).
+a statistical study of the possible configurations of the system in this 
+simulation time scale -and even in a longer one-. Then, an alternative is to 
+use an enhanced sampling method. In this case, we implement Well-Tempered 
+Metadynamics for reconstructing the Free Energy Surface (FES).
 
 
 Well-Tempered Metadynamics Simulation
@@ -231,7 +233,7 @@ semi-harmonic potential with this form:
 
 Where `d_i` is the distance of each atom to the center of mass. Note that this 
 potential does not do anything whereas the distance between the atom and the 
-center of mass is lower than 2 `\sigma`, but if it is greater (trying to escape),
+center of mass is lower than 2 `\sigma` (LJ units), but if it is greater (trying to escape),
 this potential begins to work and send it back to be close the other atoms.
 
 Then, the code for running this Well-Tempered Metadynamics in ASE is this one:
@@ -240,15 +242,22 @@ Then, the code for running this Well-Tempered Metadynamics in ASE is this one:
 
 Note that Well-Tempered Metadynamics requires the value of the temperature 
 according to equation :math:`\ref{hills}`. Then, it is necessary to define the 
-kT argument of the calculator in the desired units. SIGMA and PACE are the 
-initial  standard deviation and the deposition interval in terms of number of 
-steps (`\tau` of the equation :math:`\ref{bias}`). HEIGHT and BIASFACTOR are the 
-maximum height of the Gaussians (W) and the `\gamma` factor of the equation 
-:math:`\ref{hills}`, respectively. 
+kT argument of the calculator in the ASE units. SIGMA and PACE are the 
+standard deviation of the Gaussians and the deposition interval in terms of 
+number of steps (`\tau` of the equation :math:`\ref{bias}`). HEIGHT and 
+BIASFACTOR are the maximum height of the Gaussians (W) and the `\gamma` factor 
+of the equation :math:`\ref{hills}`, respectively. 
 
 In this case, the Lennard-Jones calculator computes the forces between atoms, 
 namely, :math:`{\bf F}_i` forces in equation :math:`\ref{bias-force}`. 
 Likewise, you could use your preferred calculator. Plumed adds the bias forces.
+
+In contrast to the MD case, Metadynamics achieves a complete exploration 
+to different configurations as seen in the next figure:
+
+.. image:: MTD.png
+   :width: 400
+   :align: center
 
 When one runs a metadynamics simulation, Plumed generates a file called HILLS 
 that contains the information of the deposited Gaussians. You can reconstruct 
@@ -271,16 +280,16 @@ Restart
 Suppose you realized it was not enough added bias when it finalized. Then, you 
 have to restart your simulation during some steps more. For doing so, you have 
 to configure the atoms object in the last state of previous simulation and to 
-fix the value of steps in the plumed calculator. Taking the last code as an 
+fix the value of steps (isteps) in the plumed calculator. Taking the last code as an 
 example, this means you would have to change the definition of the object atoms 
 as follows::
 
     from ase.io import read
+
     last_configuration = read('MTD.traj')
     atoms.set_positions(last_configuration.get_positions())
     atoms.set_momenta(last_configuration.get_momenta())
 
-This allows to 
 and the definition of the calculator becomes in::
     
     atoms.calc = Plumed( ... , restart=True)

@@ -17,8 +17,6 @@ setup = [f"UNITS LENGTH=A TIME={1/ps} ENERGY={units.mol/units.kJ}",
          "PRINT ARG=c1.* STRIDE=100 FILE=COLVAR_postpro",
          "FLUSH STRIDE=1000"]
 
-print(setup[1])
-
 calc = Plumed(calc=IdealGas(),
               input=setup,
               timestep=timestep,

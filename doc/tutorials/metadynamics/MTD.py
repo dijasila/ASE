@@ -4,7 +4,10 @@ from ase.md.langevin import Langevin
 from ase.constraints import FixedPlane
 from ase.calculators.plumed import Plumed
 from ase.calculators.lj import LennardJones
+import numpy as np
 
+
+np.random.seed(10)
 timestep = 0.005
 ps = 1000 * units.fs
 
@@ -44,4 +47,4 @@ atoms.calc = Plumed(calc=LennardJones(rc=2.5, r0=3.0),
 dyn = Langevin(atoms, timestep, temperature_K=0.1/units.kB, friction=1,
                fixcm=False, trajectory='MTD.traj')
 
-dyn.run(500000)
+dyn.run(120000)
