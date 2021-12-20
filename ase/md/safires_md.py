@@ -242,9 +242,25 @@ class SAFIRES(MolecularDynamics):
         # Set up natoms array according to tag : 0, 1, 2, 3
         self.nall = np.array([1, self.nsol, self.nin, self.nout])
        
-        # MISSING A TAG; assertion
-        # NEED to add assertion that the mass of solvent in inner has
-        # the same mass as solvent in outer
+        # TAGS
+        assert any(4 > atom.tag for atom in self.atoms), \
+                   'Atom tag not supported'
+        assert any(1 == atom.tag for atom in self.atoms), \
+                   'Solute is not tagged correctly'
+        assert any(2 == atom.tag for atom in self.atoms), \
+                   'Inner solvent is not tagged correctly'
+        assert any(3 == atom.tag for atom in self.atoms), \
+                   'Outer solvent is not tagged correctly'
+
+        m_out = np.array([atom.mass for atom in self.atoms if atom.tag == 3])
+        nm_out = int(len(m_out) / self.nout)
+
+        m_in = np.array([atom.mass for atom in self.atoms if atom.tag == 2])
+        nm_in = int(len(m_in) / self.nin)
+        # Raise warning if masses of inner and outer solvent are different
+        if not m_out.sum() / nm_out == m_in.sum() / nm_in:
+            warnings.warn('The mass of inner and outer solvent molecules is 
+                           not exactly the same')
 
         # NEED to add assertion that the solute is either fixed or it has
         # a constraint which fixes the center of mass in place
