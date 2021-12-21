@@ -754,6 +754,8 @@ class GenerateVaspInput:
     # Parameters corresponding to 'xc' settings.  This may be modified
     # by the user in-between loading calculators.vasp submodule and
     # instantiating the calculator object with calculators.vasp.Vasp()
+    setups_env_name = 'ASE_VASP_SETUPS'
+
     xc_defaults = {
         'lda': {
             'pp': 'LDA'
@@ -1253,8 +1255,8 @@ class GenerateVaspInput:
             if p['setups'].lower() in setups_defaults.keys():
                 p['setups'] = {'base': p['setups']}
             elif p['setups'][0] == "$":
-                if 'ASE_VASP_SETUPS' in os.environ:
-                    local_setups_path = os.path.join(os.environ['ASE_VASP_SETUPS'], p['setups'].split('$')[-1])
+                if self.setups_env_name in os.environ:
+                    local_setups_path = os.path.join(os.environ[self.setups_env_name], p['setups'].split('$')[-1])
                     _, ext = os.path.splitext(local_setups_path)
                     if not ext:
                         local_setups_path += '.json'
@@ -1263,7 +1265,7 @@ class GenerateVaspInput:
                     local_setups = jsonio.read_json(local_setups_path)
                     p['setups'] = {'base': local_setups}
                 else:
-                    raise EnvironmentError('ASE_VASP_SETUPS environment variable not set')
+                    raise EnvironmentError(f'{self.setups_env_name} environment variable not set')
             elif os.path.exists(p['setups']):
                 local_setups = jsonio.read_json(p['setups'])
                 p['setups'] = {'base': local_setups}
