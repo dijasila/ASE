@@ -78,6 +78,14 @@ def test_vasp_setup_atoms_1(factory, do_check, atoms_1, settings, expected):
         'Ca': '_sv',
         2: 'I'
     }), ('Ca_sv', 'In_d_GW', 'I')),
+    (dict(xc='pbe', setups={
+        'base': 'recommended',
+        'In': ''
+    }), ('Ca_sv', 'In', 'I')),
+    (dict(xc='pbe', setups={
+        'base': '$test_local_setups2',
+        'Ca': '_pv'
+    }), ('Ca_pv', 'In_d', 'I')),
 ])
 def test_vasp_setup_atoms_2(factory, do_check, atoms_2, settings, expected):
     do_check(factory, atoms_2, expected, settings)
