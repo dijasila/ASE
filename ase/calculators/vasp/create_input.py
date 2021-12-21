@@ -1230,9 +1230,6 @@ class GenerateVaspInput:
             # Read a setup from the ASE_VASP_SETUPS directory
             if self.setups_env_name in os.environ:
                 local_setups_path = os.path.join(os.environ[self.setups_env_name], setup_name.split('$')[-1])
-                _, ext = os.path.splitext(local_setups_path)
-                if not ext:
-                    local_setups_path += '.json'
                 if not os.path.exists(local_setups_path):
                     raise ValueError(f'Could not find {local_setups_path}')
                 local_setups = jsonio.read_json(local_setups_path)
@@ -1266,16 +1263,24 @@ class GenerateVaspInput:
         elif isinstance(p['setups'], str):
             if p['setups'].lower() in setups_defaults.keys():
                 p['setups'] = {'base': p['setups']}
-            elif p['setups'][0] == '$':
-                p['setups'] = {'base': get_local_setup(p['setups'])}
-            elif os.path.exists(p['setups']):
-                p['setups'] = {'base': jsonio.read_json(p['setups'])}
             else:
-                raise ValueError(f'Unknown requested setup {p["setups"]}')
+                local_setups_path = p['setups']
+                _, ext = os.path.splitext(local_setups_path)
+                if not ext:
+                    local_setups_path += '.json'
+                if os.path.exists(local_setups_path):
+                    p['setups'] = {'base': jsonio.read_json(local_setups_path)}
+                elif p['setups'][0] == '$':
+                    p['setups'] = {'base': get_local_setup(local_setups_path)}
+                else:
+                    raise ValueError(f'Unknown requested setup {p["setups"]}')
 
         # Dict form is then queried to add defaults from setups.py.
         if 'base' in p['setups']:
-            setups = setups_defaults[p['setups']['base'].lower()]
+            if isinstance(p['setups']['base'], str):
+                setups = setups_defaults[p['setups']['base'].lower()]
+            else:
+                setups = p['setups']['base']
         else:
             setups = {}
 
