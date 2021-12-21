@@ -8,7 +8,9 @@ from ase.geometry import find_mic
 from ase.parallel import parprint, world, DummyMPI
 from ase.md.md import MolecularDynamics
 from ase.utils import IOContext
+import warnings
 
+_allowed_constraints = {'FixAtoms', 'FixCom'}
 
 class SAFIRES(MolecularDynamics):
     """
@@ -242,13 +244,31 @@ class SAFIRES(MolecularDynamics):
         # Set up natoms array according to tag : 0, 1, 2, 3
         self.nall = np.array([1, self.nsol, self.nin, self.nout])
        
-        # MISSING A TAG; assertion
-        # NEED to add assertion that the mass of solvent in inner has
-        # the same mass as solvent in outer
+        # Assertions / warnings
+        assert any(4 > atom.tag for atom in self.atoms), \
+                   'Atom tag 4 and above not supported'
+        assert any(1 == atom.tag for atom in self.atoms), \
+                   'Solute is not tagged (tag=1) correctly'
+        assert any(2 == atom.tag for atom in self.atoms), \
+                   'Inner region is not tagged (tag=2) correctly'
+        assert any(3 == atom.tag for atom in self.atoms), \
+                   'Outer region is not tagged (tag=3) correctly'
 
-        # NEED to add assertion that the solute is either fixed or it has
-        # a constraint which fixes the center of mass in place
-        # FixCom
+        m_out = np.array([atom.mass for atom in self.atoms if atom.tag == 3])
+        nm_out = int(len(m_out) / self.nout)
+
+        m_in = np.array([atom.mass for atom in self.atoms if atom.tag == 2])
+        nm_in = int(len(m_in) / self.nin)
+        # Raise warning if masses of inner and outer solvent are different
+        if not m_out.sum() / nm_out == m_in.sum() / nm_in:
+            warnings.warn('The mass of inner and outer solvent molecules is \
+                           not exactly the same')
+       
+        assert self.atoms.constraints, \
+               'Constraints are not set (solute can not move)'
+
+        if self.atoms.constraints:
+            self.check_constraints()
 
         # NEED to add assertion that the constraints on the solvent molecules
         # conserves the COM positions after applying the full constraints 
@@ -280,6 +300,20 @@ class SAFIRES(MolecularDynamics):
               " # v. 0.1.1   #\n"
               " # 2021-10-06 #\n"
               " ##############\n")
+
+    def check_constraints(self):
+        """ Check that solute has either FixAtoms or FixCom """
+        sol_idx = np.array([atom.index for atom in self.atoms if atom.tag == 1])
+        correct = False
+
+        for i, c in enumerate(self.atoms.constraints):
+            if c.todict()['name'] in _allowed_constraints:
+                correct = c.index == sol_idx
+
+            if correct.all():
+                break
+
+        assert correct.all(), 'Solute constraint not correctly set'
 
     def logger(self, iteration, boundary_idx, boundary):
         """SAFIRES-specific results to log file."""
