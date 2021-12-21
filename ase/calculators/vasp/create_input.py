@@ -1226,6 +1226,20 @@ class GenerateVaspInput:
 
         special_setups = []
 
+        def get_local_setup(setup_name):
+            # Read a setup from the ASE_VASP_SETUPS directory
+            if self.setups_env_name in os.environ:
+                local_setups_path = os.path.join(os.environ[self.setups_env_name], setup_name.split('$')[-1])
+                _, ext = os.path.splitext(local_setups_path)
+                if not ext:
+                    local_setups_path += '.json'
+                if not os.path.exists(local_setups_path):
+                    raise ValueError(f'Could not find {local_setups_path}')
+                local_setups = jsonio.read_json(local_setups_path)
+            else:
+                raise EnvironmentError(f'{self.setups_env_name} environment variable not set')
+            return local_setups
+            
         # Default setup lists are available: 'minimal', 'recommended',
         # 'materialsproject', and 'GW'
         # These may be provided as a string e.g.::
@@ -1249,26 +1263,13 @@ class GenerateVaspInput:
             p['setups'] = {'base': 'minimal'}
 
         # String shortcuts are initialised to dict form
-
-        # If the user requests a local setup, read in the .json from ASE_VASP_SETUPS
         elif isinstance(p['setups'], str):
             if p['setups'].lower() in setups_defaults.keys():
                 p['setups'] = {'base': p['setups']}
             elif p['setups'][0] == "$":
-                if self.setups_env_name in os.environ:
-                    local_setups_path = os.path.join(os.environ[self.setups_env_name], p['setups'].split('$')[-1])
-                    _, ext = os.path.splitext(local_setups_path)
-                    if not ext:
-                        local_setups_path += '.json'
-                    if not os.path.exists(local_setups_path):
-                        raise ValueError(f'Could not find {local_setups_path}')
-                    local_setups = jsonio.read_json(local_setups_path)
-                    p['setups'] = {'base': local_setups}
-                else:
-                    raise EnvironmentError(f'{self.setups_env_name} environment variable not set')
+                p['setups'] = {'base': get_local_setup(p['setups'])}
             elif os.path.exists(p['setups']):
-                local_setups = jsonio.read_json(p['setups'])
-                p['setups'] = {'base': local_setups}
+                p['setups'] = {'base': jsonio.read_json(p['setups'])}
             else:
                 raise ValueError(f'Unknown requested setup {p["setups"]}')
 
