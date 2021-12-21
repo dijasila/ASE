@@ -1254,8 +1254,9 @@ class GenerateVaspInput:
                 p['setups'] = {'base': p['setups']}
             elif p['setups'][0] == "$":
                 if 'ASE_VASP_SETUPS' in os.environ:
-                    local_setups_path = os.path.join(os.environ['ASE_VASP_SETUPS'], p['setups'][0].split('$')[-1])
-                    if '.json' not in os.path.basename(local_setups_path):
+                    local_setups_path = os.path.join(os.environ['ASE_VASP_SETUPS'], p['setups'].split('$')[-1])
+                    _, ext = os.path.splitext(local_setups_path)
+                    if not ext:
                         local_setups_path += '.json'
                     if not os.path.exists(local_setups_path):
                         raise ValueError(f'Could not find {local_setups_path}')
