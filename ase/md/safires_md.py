@@ -10,10 +10,9 @@ from ase.md.md import MolecularDynamics
 from ase.utils import IOContext
 import warnings
 
+_allowed_constraints = {'FixAtoms', 'FixCom'}
+
 class SAFIRES(MolecularDynamics):
-
-    _allowed_constraints  = {'FixAtoms', 'FixCom'}
-
     """
     ###################### --- SAFIRES ---- ########################
     # Scattering-Assisted Flexible Inner Region Ensemble Separator #
@@ -306,14 +305,15 @@ class SAFIRES(MolecularDynamics):
         """ Check that solute has either FixAtoms or FixCom """
         sol_idx = np.array([atom.index for atom in self.atoms if atom.tag == 1])
         correct = False
+
         for i, c in enumerate(self.atoms.constraints):
             if c.todict()['name'] in _allowed_constraints:
                 correct = c.index == sol_idx
 
-            if correct:
+            if correct.all():
                 break
 
-        assert correct, 'Solute constraint not correctly set'
+        assert correct.all(), 'Solute constraint not correctly set'
 
     def logger(self, iteration, boundary_idx, boundary):
         """SAFIRES-specific results to log file."""
