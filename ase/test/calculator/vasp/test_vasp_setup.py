@@ -55,8 +55,8 @@ os.environ['ASE_VASP_SETUPS'] = os.getcwd()
     (dict(xc='pbe'), ('Ca_pv', 'Gd', 'Cs_sv')),
     (dict(xc='pbe', setups='recommended'), ('Ca_sv', 'Gd_3', 'Cs_sv')),
     (dict(xc='pbe', setups='materialsproject'), ('Ca_sv', 'Gd', 'Cs_sv')),
-    (dict(xc='pbe', setups='$test_local_setups'), ('Am', 'W_sv', 'Yb_3')),
-    (dict(xc='pbe', setups='test_local_setups.json'), ('Am', 'W_sv', 'Yb_3')),
+    (dict(xc='pbe', setups='$test_local_setups'), ('Ca_sv', 'Gd_3', 'Cs')),
+    (dict(xc='pbe', setups='test_local_setups.json'), ('Ca_sv', 'Gd_3', 'Cs')),
 ])
 def test_vasp_setup_atoms_1(factory, do_check, atoms_1, settings, expected):
     """
@@ -88,8 +88,7 @@ def test_vasp_setup_atoms_2(factory, do_check, atoms_2, settings, expected):
     (dict(xc='pbe'), ('Ca_sv', 'Gd', 'Cs_sv')),
     (dict(xc='pbe', setups='recommended'), ('Ca_sv', 'Gd_31', 'Cs_sv')),
     (dict(xc='pbe', setups='materialsproject'), ('Ca_sv', 'Gd', 'Cs')),
-    (dict(xc='pbe', setups='$test_local_setups'), ('Am_d', 'W_pv', 'Yb_2')),
-    (dict(xc='pbe', setups='test_local_setups.json'), ('Am_d', 'W_pv', 'Yb_2')),
+    (dict(xc='pbe', setups='test_local_setups.json'), ('Ca', 'Gd', 'Cs')),
 ])
 def test_setup_error(factory, do_check, atoms_1, settings, expected):
     """Do a test, where we purposely make mistakes"""
