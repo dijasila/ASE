@@ -1266,7 +1266,7 @@ class GenerateVaspInput:
         elif isinstance(p['setups'], str):
             if p['setups'].lower() in setups_defaults.keys():
                 p['setups'] = {'base': p['setups']}
-            elif p['setups'][0] == "$":
+            elif p['setups'][0] == '$':
                 p['setups'] = {'base': get_local_setup(p['setups'])}
             elif os.path.exists(p['setups']):
                 p['setups'] = {'base': jsonio.read_json(p['setups'])}
