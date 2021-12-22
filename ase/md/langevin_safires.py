@@ -110,7 +110,7 @@ class Langevin(MolecularDynamics):
         self.nall = np.array([1, self.nsol, self.nin, self.nout])
         # Keeping track of collisions.
         self.recent = []
-
+        self.remaining_dt = 0
 
         MolecularDynamics.__init__(self, atoms, timestep, trajectory,
                                    logfile, loginterval,
@@ -131,6 +131,36 @@ class Langevin(MolecularDynamics):
 
     def set_timestep(self, timestep):
         self.dt = timestep
+
+    def debuglog(self, content):
+        print(content)
+
+    def normalize(self, x):
+        """Return normalized 3D vector x."""
+        return x / np.linalg.norm(x)
+
+    def calc_angle(self, n1, n2):
+        """Return angle between 3D vectors n1 and n2.
+
+        Reference: Vincenty, T. Survey Review 23, 88–93 (1975).
+        """
+        return(np.arctan2(np.linalg.norm(np.cross(n1, n2)), np.dot(n1, n2)))
+
+    def rotation_matrix(self, axis, theta):
+        """ Return rotation matrix for rotation by theta around axis.
+
+        Return the rotation matrix associated with counterclockwise
+        rotation about the given axis by theta radians.
+        Euler-Rodrigues formula, code stolen from
+        stackoverflow.com/questions/6802577.
+        """
+        a = math.cos(theta / 2.0)
+        b, c, d = -axis * math.sin(theta / 2.0)
+        aa, bb, cc, dd = a * a, b * b, c * c, d * d
+        bc, ad, ac, ab, bd, cd = b * c, a * d, a * c, a * b, b * d, c * d
+        return np.array([[aa + bb - cc - dd, 2 * (bc + ad), 2 * (bd - ac)],
+                         [2 * (bc - ad), aa + cc - bb - dd, 2 * (cd + ab)],
+                         [2 * (bd + ac), 2 * (cd - ab), aa + dd - bb - cc]])
 
     def update(self, atoms, forces):
         """Return reduced pseudoparticle atoms object.
@@ -241,7 +271,6 @@ class Langevin(MolecularDynamics):
                                         reverse=True)[0]
 
         return com_atoms, com_forces, r, d, boundary_idx, boundary
-
     
     def extrapolate_dt(self, atoms, forces, ftr_boundary_idx, 
                        outer_idx, checkup):
@@ -265,7 +294,7 @@ class Langevin(MolecularDynamics):
         """
 
         # results dict
-        res = {}  # structure: {inner particle index: extrapolated factor}
+        res = []  # structure: (inner particle index, extrapolated factor)
             
         # Extrapolation uses the center of mass atoms object instead
         # of the "real" one.
@@ -447,7 +476,7 @@ class Langevin(MolecularDynamics):
                     # the quadratic polynomial yields four roots.
                     # we're only interested in the SMALLEST positive real
                     # value, which is the required time step.
-                    res.update({inner_idx: np.real(val)})
+                    res.append((inner_idx, outer_idx, np.real(val)))
 
                     #if self.debug:
                     #    # debug logging
@@ -468,15 +497,16 @@ class Langevin(MolecularDynamics):
             # if none of the obtained roots fit the criteria (real,
             # positive, <= initial time step), then we have a problem.
             # this is indicative of a major issue.
-            error = ("ERROR:\n\n"
-                     "Unable to extrapolate time step (all real roots\n"
-                     "<= 0 or > default time step).\n"
+            error = ("\nERROR:\n"
+                     "Unable to extrapolate time step.\n"
+                     "All real roots <= 0 or > default time step).\n"
                      "Roots: {:s}\n".format(np.array2string(roots)))
             #self.debuglog(error)
             #self.debugtraj()
             raise SystemExit(error)
         else:
-            return res
+            # return smallest timestep
+            return sorted(res, key=itemgetter(2))[0]
 
 
     def propagate(self, atoms, forces, dt, checkup, halfstep, 
@@ -528,8 +558,8 @@ class Langevin(MolecularDynamics):
             # based on values for the full default time step. thus we
             # need to make sure not to update velocities a second time
             # because that would destroy energy conservation.
-            c = np.asarray([np.asarray([0., 0., 0.]) for atom in self.atoms])
-            d = np.asarray([np.asarray([0., 0., 0.]) for atom in self.atoms])
+            c = np.asarray([np.asarray([0., 0., 0.]) for atom in atoms])
+            d = np.asarray([np.asarray([0., 0., 0.]) for atom in atoms])
 
         if halfstep == 1:
             # friction and (random) forces should only be
@@ -551,6 +581,113 @@ class Langevin(MolecularDynamics):
                 atoms.set_positions(x + dt * v)
             else:
                 atoms.set_positions(x + dt * v, apply_constraint=False)
+
+        return atoms
+
+    def collide(self, atoms, forces, inner_reflect, outer_reflect):
+        """Perform elastic collision between two paticles."""
+        
+        com_atoms, com_forces, r, d, boundary_idx, boundary = (
+                self.update(atoms, forces))
+
+        r_inner = r[inner_reflect]
+        r_outer = r[outer_reflect]
+        m_outer = com_atoms[outer_reflect].mass
+        m_inner = com_atoms[inner_reflect].mass
+        v_outer = com_atoms[outer_reflect].momentum / m_outer
+        v_inner = com_atoms[inner_reflect].momentum / m_inner
+
+        # find angle between r_outer and r_inner
+        theta = self.calc_angle(r_inner, r_outer)
+        self.debuglog("   angle (r_outer, r_inner) is: {:.16f}\n"
+                      .format(np.degrees(theta)))
+
+        # rotate OUTER to be exactly on top of the INNER for
+        # collision. this simulates the boundary mediating
+        # a collision between the particles.
+
+        # calculate rotational axis
+        axis = self.normalize(np.cross(r[outer_reflect],
+                              r[inner_reflect]))
+
+        # rotate velocity of outer region particle
+        v_outer = np.dot(self.rotation_matrix(axis, theta),
+                         v_outer)
+
+        # Perform mass-weighted exchange of normal components of
+        # velocitiy, force (, and random forces if Langevin).
+        # i.e. elastic collision
+        if self.reflective:
+            self.debuglog("   -> hard wall reflection\n")
+            n = self.normalize(r_inner)
+            if np.dot(v_inner, n) > 0:
+                dV_inner = -2 * np.dot(np.dot(v_inner, n), n)
+            else:
+                dV_inner = np.array([0., 0., 0.])
+            if np.dot(v_outer, n) < 0:
+                dV_outer = -2 * np.dot(np.dot(v_outer, n), n)
+            else:
+                dV_outer = np.array([0., 0., 0.])
+            self.debuglog("   dV_inner = {:s}\n"
+                          .format(np.array2string(dV_inner)))
+            self.debuglog("   dV_outer = {:s}\n"
+                          .format(np.array2string(dV_outer)))
+        else:
+            self.debuglog("   -> momentum exchange collision\n")
+            M = m_outer + m_inner
+            r12 = r_inner
+            v12 = v_outer - v_inner
+            self.debuglog("   r12 = {:s}\n"
+                          .format(np.array2string(r12)))
+            self.debuglog("   v12 = {:s}\n"
+                          .format(np.array2string(v12)))
+            self.debuglog("   dot(v12, r12) = {:.16f}\n"
+                          .format(np.dot(v12, r12)))
+            v_norm = np.dot(v12, r12) * r12 / (np.linalg.norm(r12)**2)
+            # dV_inner and dV_outer should be mass weighted differently
+            # to allow for momentum exchange between solvent with diff
+            # total masses.
+            dV_inner = 2 * m_inner / M * v_norm
+            self.debuglog("   dV_inner = {:s}\n"
+                          .format(np.array2string(dV_inner)))
+            dV_outer = -2 * m_outer / M * v_norm
+            self.debuglog("   dV_outer = {:s}\n"
+                          .format(np.array2string(dV_outer)))
+
+        if not self.surface and theta != 0 and theta != np.pi:
+            # rotate outer particle velocity change component
+            # back to inital direction after collision
+            dV_outer = np.dot(self.rotation_matrix(
+                              axis, -1 * theta), dV_outer)
+
+        if theta == np.pi:
+            # flip velocity change component of outer particle
+            # to the other side of the slab (if applicable)
+            dV_outer = -1 * dV_outer
+
+        # commit new momenta to pseudoparticle atoms object
+        com_atoms[outer_reflect].momentum += (dV_outer * m_outer)
+        com_atoms[inner_reflect].momentum += (dV_inner * m_inner)
+
+        # expand the pseudoparticle atoms object back into the
+        # real atoms object (inverse action to self.update())
+        outer_actual = self.idx_real[outer_reflect]
+        inner_actual = self.idx_real[inner_reflect]
+
+        mom = atoms.get_momenta()
+        mass = atoms.get_masses()
+
+        mom[outer_actual:outer_actual+self.nout] += np.tile(dV_outer, (self.nout, 1)) * \
+                     np.tile(mass[outer_actual:outer_actual+self.nout], (3, 1)).T
+
+        mom[inner_actual:inner_actual+self.nin] += np.tile(dV_inner, (self.nin, 1)) * \
+                     np.tile(mass[inner_actual:inner_actual+self.nin], (3, 1)).T
+
+        atoms.set_momenta(mom, apply_constraint=False)
+
+        # keep track of which pair of conflicting particles
+        # was just resolved for future reference
+        self.recent = [inner_reflect, outer_reflect]
 
         return atoms
 
@@ -578,7 +715,7 @@ class Langevin(MolecularDynamics):
         # present, ask the constraints to redistribute xi and eta within each
         # triple defined in the constraints. This is needed to achieve the
         # correct target temperature.
-        for constraint in self.atoms.constraints:
+        for constraint in atoms.constraints:
             if hasattr(constraint, 'redistribute_forces_md'):
                 constraint.redistribute_forces_md(atoms, self.xi, rand=True)
                 constraint.redistribute_forces_md(atoms, self.eta, rand=True)
@@ -604,7 +741,7 @@ class Langevin(MolecularDynamics):
         future_atoms = self.propagate(atoms.copy(), forces, self.dt, checkup=False,
                 halfstep=1, constraints=True)
         
-        # Convert atoms and future_atoms to COM atoms objects.
+        # Convert future_atoms to COM atoms objects.
         ftr_com_atoms, ftr_forces, ftr_r, ftr_d, ftr_boundary_idx, ftr_boundary = (
                 self.update(future_atoms, forces))
 
@@ -620,32 +757,80 @@ class Langevin(MolecularDynamics):
             # Find the conflict that occurs earliest in time
             dt_list = [self.extrapolate_dt(atoms, forces, c[0], c[1], 
                        checkup=False) for c in conflicts]
+            conflict = sorted(dt_list, key=itemgetter(2))[0]
+            print("First conflict = ", conflict)
+            
 
-            print("dt_list = ", dt_list)
-            raise SystemExit()
-    
-        # No conflict: we can use future_atoms right away.
+            print("d before boundary propagation")
+            xx, xx, xx, d, xx, xx = (
+                self.update(atoms, forces))
+            print("d_inner = ", d[conflict[0]])
+            print("d_outer = ", d[conflict[1]])
+
+            # Propagate to boundary.
+            atoms = self.propagate(atoms, forces, conflict[2], checkup=False,
+                        halfstep=1, constraints=True)
+            
+            print("d after boundary propagation")
+            xx, xx, xx, d, xx, xx = (
+                self.update(atoms, forces))
+            print("d_inner = ", d[conflict[0]])
+            print("d_outer = ", d[conflict[1]])
+
+            # Resolve elastic collision.
+            atoms = self.collide(atoms, forces, conflict[0], conflict[1])
+            
+            print("d after collision")
+            xx, xx, xx, d, xx, xx = (
+                self.update(atoms, forces))
+            print("d_inner = ", d[conflict[0]])
+            print("d_outer = ", d[conflict[1]])
+
+            # Propagate remaining time step.
+            if self.remaining_dt == 0:
+                self.remaining_dt = self.dt - conflict[2]
+            else:
+                self.remaining_dt -= conflict[2]
+            print("Remaining´_dt after collision = ", self.remaining_dt)
+            atoms = self.propagate(atoms, forces, self.remaining_dt,
+                        checkup=False, halfstep=2, constraints=True)
+            
+            print("d after makeup propagation")
+            xx, xx, xx, d, xx, xx = (
+                self.update(atoms, forces))
+            print("d_inner = ", d[conflict[0]])
+            print("d_outer = ", d[conflict[1]])
+
+        # No conflict: regular propagation
         else:
             atoms = self.propagate(atoms, forces, self.dt, checkup=False,
                 halfstep=1, constraints=True)
 
-            # Finish propagation as usual.
-            m = self.masses
-            v = self.v
-            T = self.temp
-            fr = self.fr
-            xi = self.xi
-            eta = self.eta
-            sig = np.sqrt(2 * T * fr / m)
-            sqrt_of_3 = math.sqrt(3)
+        # Finish propagation as usual.
+        m = self.masses
+        v = atoms.get_velocities()
+        T = self.temp
+        fr = self.fr
+        xi = self.xi
+        eta = self.eta
+        sig = np.sqrt(2 * T * fr / m)
+        sqrt_of_3 = math.sqrt(3)
 
-            forces = atoms.get_forces(md=True)
-            f = forces / m
-            c = (self.dt * (f - fr * v) / 2
-                 + math.sqrt(self.dt) * sig * xi / 2
-                 - self.dt * self.dt * fr * (f - fr * v) / 8
-                 - self.dt**1.5 * fr * sig * (xi / 2 + eta / sqrt_of_3) / 4)
-            v += c
-            atoms.set_momenta(v * m)
+        forces = atoms.get_forces(md=True)
+        f = forces / m
+        c = (self.dt * (f - fr * v) / 2
+             + math.sqrt(self.dt) * sig * xi / 2
+             - self.dt * self.dt * fr * (f - fr * v) / 8
+             - self.dt**1.5 * fr * sig * (xi / 2 + eta / sqrt_of_3) / 4)
+        v += c
+        atoms.set_momenta(v * m)
+
+        #if self.recent:
+        #   raise SystemExit()
+
+        # Unset tracking variables.
+        self.remaining_dt = 0
+        self.recent = []
+
 
         return forces
