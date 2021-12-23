@@ -382,6 +382,13 @@ class SAFIRES(MolecularDynamics):
                 # CHECK HERE IF FR is ARRAY
                 sig_outer = math.sqrt(2 * T * fr)
                 sig_inner = math.sqrt(2 * T * fr)
+                
+                print("xi_outer = ", xi_outer)
+                print("xi_inner = ", xi_inner)
+                print("eta_outer = ", eta_outer)
+                print("eta_inner = ", eta_inner)
+                print("sig_outer = ", sig_outer)
+                print("sig_inner = ", sig_inner)
 
             # if inner/outer particles are monoatomic
             else:
@@ -391,12 +398,6 @@ class SAFIRES(MolecularDynamics):
                 eta_inner = self.eta[inner_real]
                 sig_outer = math.sqrt(2 * T * fr / m_outer)
                 sig_inner = math.sqrt(2 * T * fr / m_inner)
-                print("xi_outer = ", xi_outer)
-                print("xi_inner = ", xi_inner)
-                print("eta_outer = ", eta_outer)
-                print("eta_inner = ", eta_inner)
-                print("sig_outer = ", sig_outer)
-                print("sig_inner = ", sig_inner)
 
             # surface calculations: we only need z components
             if self.surface:
@@ -723,20 +724,6 @@ class SAFIRES(MolecularDynamics):
         self.communicator.broadcast(self.xi, 0)
         self.communicator.broadcast(self.eta, 0)
 
-        """
-            PLAN FOR LANGEVIN_SAFIRES IMPLEMENTATION
-            
-            1) future_atoms = safires_propagate(atoms, NO CONSTRAINTS, halfstep=1, dt=dt)
-            2) check if future_atoms causes issues
-            3a) issues detected:
-                i) extrapolate smallest frac_dt
-                ii) safires_propagate(atoms, NO CONSTRAINTS, halfstep=1, dt=frac_dt)
-                iii) safires_collide(atoms, inner_conflict, outer_conflict)
-                iv) safires_propagate(atoms, constraints, halfstep=2, dt=dt-frac_dt)
-                v) go back to 2 with future_atoms = atoms
-            3b) no issues detected: update forces
-
-        """
         # Propagate a copy of the atoms object by self.dt.
         future_atoms = self.propagate(atoms.copy(), forces, self.dt, checkup=False,
                 halfstep=1, constraints=True)
@@ -791,7 +778,7 @@ class SAFIRES(MolecularDynamics):
                 self.remaining_dt = self.dt - conflict[2]
             else:
                 self.remaining_dt -= conflict[2]
-            print("Remaining´_dt after collision = ", self.remaining_dt)
+            print("Remaining_dt after collision = ", self.remaining_dt)
             atoms = self.propagate(atoms, forces, self.remaining_dt,
                         checkup=False, halfstep=2, constraints=True)
             
