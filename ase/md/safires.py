@@ -361,6 +361,7 @@ class SAFIRES(MolecularDynamics):
 
             # if inner/outer particles are molecules
             if self.nout > 1 or self.nin > 1:
+                
                 m_outer_list = [math.sqrt(xm) for xm in
                                 self.masses[outer_real:outer_real + self.nout]]
                 m_inner_list = [math.sqrt(xm) for xm in
@@ -427,20 +428,23 @@ class SAFIRES(MolecularDynamics):
             if not checkup:
                 idt = self.dt
                 sqrt_3 = math.sqrt(3)
+                sqrt_idt = math.sqrt(idt)
+                pwr_15_idt = idt**1.5
+
                 a_outer = (idt * (f_outer - fr * v_outer) / 2
-                           + math.sqrt(idt) * sig_outer * xi_outer / 2
+                           + sqrt_idt * sig_outer * xi_outer / 2
                            - idt * idt * fr * (f_outer - fr * v_outer) / 8
-                           - idt**1.5 * fr * sig_outer * (xi_outer / 2
-                           + eta_outer / sqrt_3 / 4))
-                b_outer = math.sqrt(idt) * sig_outer * eta_outer / (2 * sqrt_3)
+                           - pwr_15_idt * fr * sig_outer * (xi_outer / 2
+                           + eta_outer / sqrt_3) / 4)
+                b_outer = sqrt_idt * sig_outer * eta_outer / (2 * sqrt_3)
 
                 a_inner = (idt * (f_inner - fr * v_inner) / 2
-                           + math.sqrt(idt) * sig_inner * xi_inner / 2
+                           + sqrt_idt * sig_inner * xi_inner / 2
                            - idt * idt * fr * (f_inner - fr * v_inner) / 8
-                           - idt**1.5 * fr * sig_inner * (xi_inner / 2
-                           + eta_inner / sqrt_3 / 4))
-                b_inner = math.sqrt(idt) * sig_inner * eta_inner / (2 * sqrt_3)
-
+                           - pwr_15_idt * fr * sig_inner * (xi_inner / 2
+                           + eta_inner / sqrt_3) / 4)
+                b_inner = sqrt_idt * sig_inner * eta_inner / (2 * sqrt_3)
+            
                 print("a_outer = ", a_outer)
                 print("a_inner = ", a_inner)
                 print("b_outer = ", b_outer)
@@ -543,16 +547,17 @@ class SAFIRES(MolecularDynamics):
         eta = self.eta
         sig = np.sqrt(2 * T * fr / m)
         sqrt_3 = math.sqrt(3)
+        sqrt_idt = math.sqrt(idt)
 
         # pre-calculate (random) force constant
         # based on default time step
         idt = self.dt
         if not checkup:
             c = (idt * (f - fr * v) / 2
-                 + math.sqrt(idt) * sig * xi / 2
+                 + sqrt_idt * sig * xi / 2
                  - idt * idt * fr * (f - fr * v) / 8
                  - idt**1.5 * fr * sig * (xi / 2 + eta / sqrt_3) / 4)
-            d = math.sqrt(idt) * sig * eta / (2 * sqrt_3)
+            d = sqrt_idt * sig * eta / (2 * sqrt_3)
         else:
             # if checkup is True, this means we already performed an entire
             # propagation cycle and have already updated the velocities
