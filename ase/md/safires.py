@@ -681,15 +681,15 @@ class SAFIRES(MolecularDynamics):
         inner_actual = self.idx_real[inner_reflect]
 
         mom = atoms.get_momenta()
-        mass = atoms.get_masses()
+        m = self.masses
 
-        mom[outer_actual:outer_actual+self.nout] += np.tile(dV_outer, (self.nout, 1)) * \
-                     np.tile(mass[outer_actual:outer_actual+self.nout], (3, 1)).T
+        mom[outer_actual:outer_actual+self.nout] += np.tile(dV_outer, 
+                (self.nout, 1)) * m[outer_actual:outer_actual+self.nout]
 
-        mom[inner_actual:inner_actual+self.nin] += np.tile(dV_inner, (self.nin, 1)) * \
-                     np.tile(mass[inner_actual:inner_actual+self.nin], (3, 1)).T
-
-        atoms.set_momenta(mom, apply_constraint=False)
+        mom[inner_actual:inner_actual+self.nin] += np.tile(dV_inner, 
+                (self.nin, 1)) * m[inner_actual:inner_actual+self.nin]
+        
+        atoms.set_momenta(mom)
 
         # keep track of which pair of conflicting particles
         # was just resolved for future reference
@@ -734,8 +734,8 @@ class SAFIRES(MolecularDynamics):
                 halfstep=1, constraints=True)
         
         # Convert future_atoms to COM atoms objects.
-        ftr_com_atoms, ftr_forces, ftr_r, ftr_d, ftr_boundary_idx, ftr_boundary = (
-                self.update(future_atoms, forces))
+        (ftr_com_atoms, ftr_com_forces, ftr_r, ftr_d, 
+        ftr_boundary_idx, ftr_boundary) = self.update(future_atoms, forces)
 
         # Check if future_atoms contains boundary conflict.
         conflicts = [(ftr_boundary_idx, atom.index) for atom in ftr_com_atoms
