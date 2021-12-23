@@ -547,11 +547,11 @@ class SAFIRES(MolecularDynamics):
         eta = self.eta
         sig = np.sqrt(2 * T * fr / m)
         sqrt_3 = math.sqrt(3)
+        idt = self.dt
         sqrt_idt = math.sqrt(idt)
 
         # pre-calculate (random) force constant
         # based on default time step
-        idt = self.dt
         if not checkup:
             c = (idt * (f - fr * v) / 2
                  + sqrt_idt * sig * xi / 2
