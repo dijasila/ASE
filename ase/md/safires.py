@@ -9,7 +9,9 @@ from ase.md.md import MolecularDynamics
 from ase.parallel import world, DummyMPI
 from ase import units
 from ase.geometry import find_mic
+import warnings
 
+_allowed_constraints = {'FixAtoms', 'FixCom'}
 
 class SAFIRES(MolecularDynamics):
     """Langevin (constant N, V, T) molecular dynamics."""
@@ -112,15 +114,56 @@ class SAFIRES(MolecularDynamics):
         self.recent = []
         self.remaining_dt = 0
 
+        # Assertions / Warnings
+        assert any(4 > atom.tag for atom in atoms), \
+                   'Atom tag 4 and above not supported'
+        assert any(1 == atom.tag for atom in atoms), \
+                   'Solute is not tagged (tag=1) correctly'
+        assert any(2 == atom.tag for atom in atoms), \
+                   'Inner region is not tagged (tag=2) correctly'
+        assert any(3 == atom.tag for atom in atoms), \
+                   'Outer region is not tagged (tag=3) correctly'
+
+        m_out = np.array([atom.mass for atom in atoms if atom.tag == 3])
+        nm_out = int(len(m_out) / self.nout)
+
+        m_in = np.array([atom.mass for atom in atoms if atom.tag == 2])
+        nm_in = int(len(m_in) / self.nin)
+        # Raise warning if masses of inner and outer solvent are different
+        if not m_out.sum() / nm_out == m_in.sum() / nm_in:
+            warnings.warn('The mass of inner and outer solvent molecules is \
+                           not exactly the same')
+
+        assert atoms.constraints, \
+               'Constraints are not set (solute can not move)'
+
+        if atoms.constraints:
+            self.check_constraints(atoms)
+
         MolecularDynamics.__init__(self, atoms, timestep, trajectory,
                                    logfile, loginterval,
                                    append_trajectory=append_trajectory)
+
     def todict(self):
         d = MolecularDynamics.todict(self)
         d.update({'temperature_K': self.temp / units.kB,
                   'friction': self.fr,
                   'fixcm': self.fix_com})
         return d
+
+    def check_constraints(self, atoms):
+        """ Check that solute has either FixAtoms or FixCom """
+        sol_idx = np.array([atom.index for atom in atoms if atom.tag == 1])
+        correct = False
+ 
+        for i, c in enumerate(atoms.constraints):
+            if c.todict()['name'] in _allowed_constraints:
+                correct = c.index == sol_idx
+ 
+            if correct.all():
+                break
+ 
+        assert correct.all(), 'Solute constraint not correctly set'
 
     def set_temperature(self, temperature=None, temperature_K=None):
         self.temp = units.kB * self._process_temperature(temperature,
