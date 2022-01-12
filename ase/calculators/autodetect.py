@@ -24,6 +24,7 @@ default_executables = {'abinit': ['abinit'],
                        'octopus': ['octopus'],
                        'openmx': ['openmx'],
                        'psi4': ['psi4'],
+                       'rescuplus': ['rescuplus_scf'],
                        'siesta': ['siesta'],
                        }
 
