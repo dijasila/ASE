@@ -1,9 +1,10 @@
 """Check that RESCU+ calculation can run."""
 import pytest
 from ase.build import bulk
-from ase.calculators.rescuplus import Rescuplus
+
 
 calc = pytest.mark.calculator
+
 
 def verify(calc):
     assert calc.get_eigenvalues(spin=0, kpt=0) is not None

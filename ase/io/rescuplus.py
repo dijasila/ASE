@@ -7,7 +7,6 @@ structures from ``rescuplus_scf`` input files.
 from ase.atoms import Atoms
 from ase.calculators.singlepoint import SinglePointDFTCalculator
 from ase.calculators.singlepoint import SinglePointKPoint
-from rescupy import TotalEnergy
 
 
 def read_rescu_out(fileobj):
@@ -29,6 +28,7 @@ def read_rescu_out(fileobj):
         parsed from the file.
 
     """
+    from rescupy import TotalEnergy
     if isinstance(fileobj, str):
         fileobj = open(fileobj, 'rU')
 
@@ -101,7 +101,8 @@ def write_rescu_in(fd, atoms, input_data={}, pseudopotentials=None,
         List of 3 integers giving the dimensions of a Monkhorst-Pack grid.
         If ``kpts`` is set to ``None``, only the Γ-point will be included.
     """
-
+    from rescupy import TotalEnergy
+    
     # init input_data dict
     if 'system' not in input_data.keys():
         input_data['system'] = {}
