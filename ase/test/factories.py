@@ -488,6 +488,22 @@ class OctopusFactory:
     def fromconfig(cls, config):
         return cls(config.executables['octopus'])
 
+@factory('rescuplus')
+class RescuplusFactory:
+    def __init__(self, executable="rescuplus_scf", nproc=1):
+        self.executable = str(executable)
+        self.nproc = int(nproc)
+
+    def calc(self, input_data, pseudopotentials, **kwargs):
+        from ase.calculators.rescuplus import Rescuplus
+        command = f"""mpiexec -n {self.nproc} {self.executable} 
+        -i PREFIX.rsi > resculog.out && cp nano_scf_out.json PREFIX.rso"""
+        return Rescuplus(command=command, input_data=input_data, \
+            pseudopotentials=pseudopotentials)
+
+    @classmethod
+    def fromconfig(cls, config):
+        return cls(config.executables['rescuplus'])
 
 @factory('siesta')
 class SiestaFactory:

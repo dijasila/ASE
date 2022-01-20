@@ -1,8 +1,9 @@
-"""Check that RESCU calculation can run."""
-
+"""Check that RESCU+ calculation can run."""
+import pytest
 from ase.build import bulk
-from ase.calculators.rescu import Rescuplus
+from ase.calculators.rescuplus import Rescuplus
 
+calc = pytest.mark.calculator
 
 def verify(calc):
     assert calc.get_eigenvalues(spin=0, kpt=0) is not None
@@ -14,12 +15,12 @@ def verify(calc):
     assert calc.get_stress() is not None
 
 
-def test_main():
+@calc('rescuplus')
+def test_main(factory):
     atoms = bulk('Si')
     pp = [{"label": "Si", "path": "Si_AtomicData.mat"}]
-    input_data = {"system": {"cell": {"res": 0.25}, "kpoint": {"grid": [5, 5, 5]}}}
-    input_data["energy"] = {"frcReturn": True, "stressReturn": True}
-    rsccmd = "mpiexec -n 1 rescuplus_scf -i PREFIX.rsi > resculog.out && cp rescu_scf_out.json PREFIX.rso"
-    atoms.calc = Rescuplus(command=rsccmd, input_data=input_data, pseudopotentials=pp)
+    inp = {"system": {"cell": {"res": 0.25}, "kpoint": {"grid": [5, 5, 5]}}}
+    inp["energy"] = {"frcReturn": True, "stressReturn": True}
+    atoms.calc = factory.calc(input_data=inp, pseudopotentials=pp)
     atoms.get_potential_energy()
     verify(atoms.calc)

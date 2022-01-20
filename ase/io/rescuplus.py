@@ -103,6 +103,8 @@ def write_rescu_in(fd, atoms, input_data={}, pseudopotentials=None,
     """
 
     # init input_data dict
+    if 'system' not in input_data.keys():
+        input_data['system'] = {}
     if 'atoms' not in input_data['system'].keys():
         input_data['system']['atoms'] = {}
     if 'cell' not in input_data['system'].keys():
