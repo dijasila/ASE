@@ -1,23 +1,25 @@
+import datetime
 import sys
+
 import sphinx_rtd_theme
 
-from ase import __version__
-
 sys.path.append('.')
-assert sys.version_info >= (2, 7)
+assert sys.version_info >= (3, 6)
 
 extensions = ['ext',
-              'images',
               'sphinx.ext.autodoc',
               'sphinx.ext.doctest',
+              'sphinx.ext.extlinks',
               'sphinx.ext.mathjax',
               'sphinx.ext.viewcode',
               'sphinx.ext.napoleon',
               'sphinx.ext.intersphinx']
+extlinks = {'doi': ('https://doi.org/%s', 'doi:'),
+            'arxiv': ('https://arxiv.org/abs/%s', 'arXiv:')}
 source_suffix = '.rst'
 master_doc = 'index'
 project = 'ASE'
-copyright = '2017, ASE-developers'
+copyright = f'{datetime.date.today().year}, ASE-developers'
 templates_path = ['templates']
 exclude_patterns = ['build']
 default_role = 'math'
@@ -41,17 +43,6 @@ html_favicon = 'static/ase.ico'
 html_static_path = ['static']
 html_last_updated_fmt = '%a, %d %b %Y %H:%M:%S'
 
-ase_dev_version = '3.20.0b1'  # This line auto-edited by newrelease script
-ase_stable_version = '3.19.0'  # This line auto-edited by newrelease script
-
-html_context = {
-    'current_version': __version__,
-    'versions':
-        [('{} (development)'.format(ase_dev_version),
-          'https://wiki.fysik.dtu.dk/ase/dev'),
-         ('{} (latest stable)'.format(ase_stable_version),
-          'https://wiki.fysik.dtu.dk/ase')]}
-
 latex_elements = {'papersize': 'a4paper'}
 latex_show_urls = 'inline'
 latex_show_pagerefs = True
@@ -59,7 +50,7 @@ latex_documents = [
     ('index', 'ASE.tex', 'ASE', 'ASE-developers', 'howto', not True)]
 
 intersphinx_mapping = {'gpaw': ('https://wiki.fysik.dtu.dk/gpaw', None),
-                       'python': ('https://docs.python.org/3.7', None)}
+                       'python': ('https://docs.python.org/3.10', None)}
 
 # Avoid GUI windows during doctest:
 doctest_global_setup = """
@@ -70,4 +61,4 @@ visualize.view = lambda atoms: None
 Atoms.edit = lambda self: None
 """
 
-autodoc_mock_imports = ["kimpy"]
+autodoc_mock_imports = ['kimpy']

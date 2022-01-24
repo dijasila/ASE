@@ -32,22 +32,23 @@ Quick links:
     - :mod:`~ase.phasediagram`
     - :mod:`~ase.phonons`
     - :mod:`~ase.spacegroup`
-  * - :mod:`~ase.symbols`
+  * - :mod:`~ase.spectrum`
+    - :mod:`~ase.symbols`
     - :mod:`~ase.transport`
     - :mod:`~ase.thermochemistry`
-    - :mod:`~ase.units`
-  * - :mod:`~ase.utils`
+  * - :mod:`~ase.units`
+    - :mod:`~ase.utils`
     - :mod:`~ase.vibrations`
     - :mod:`~ase.visualize`
-    -
 
 .. seealso::
 
    * :ref:`tutorials`
    * :ref:`cli`
    * :git:`Source code <>`
-   * Presentation about ASE: :download:`ase-talk.pdf`
-
+   * Presentation about ASE:
+     `ase-talk.pdf <https://wiki.fysik.dtu.dk/ase-files/ase-talk.pdf>`__
+   * List of :ref:`removed features <removed_features>`
 
 List of all modules:
 
@@ -82,6 +83,7 @@ List of all modules:
    vibrations/vibrations
    phonons
    phasediagram/phasediagram
+   spectrum/spectrum
    thermochemistry/thermochemistry
    utils
    parallel
@@ -89,3 +91,4 @@ List of all modules:
    atom
    transport/transport
    calculators/qmmm
+   legacy

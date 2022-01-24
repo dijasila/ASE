@@ -2,6 +2,8 @@ import os
 import copy
 from collections.abc import Iterable
 from shutil import which
+from typing import Dict, Optional
+
 from ase.io import read, write
 from ase.calculators.calculator import FileIOCalculator, EnvironmentError
 
@@ -9,8 +11,8 @@ from ase.calculators.calculator import FileIOCalculator, EnvironmentError
 class GaussianDynamics:
     calctype = 'optimizer'
     delete = ['force']
-    keyword = None
-    special_keywords = dict()
+    keyword: Optional[str] = None
+    special_keywords: Dict[str, str] = dict()
 
     def __init__(self, atoms, calc=None):
         self.atoms = atoms
@@ -116,7 +118,7 @@ class Gaussian(FileIOCalculator):
     def write_input(self, atoms, properties=None, system_changes=None):
         FileIOCalculator.write_input(self, atoms, properties, system_changes)
         write(self.label + '.com', atoms, properties=properties,
-              format='gaussian-in', **self.parameters)
+              format='gaussian-in', parallel=False, **self.parameters)
 
     def read_results(self):
         output = read(self.label + '.log', format='gaussian-out')

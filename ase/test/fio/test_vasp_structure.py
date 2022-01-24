@@ -1,3 +1,4 @@
+# type: ignore
 import os
 import numpy as np
 import numpy.testing
@@ -8,6 +9,7 @@ import ase.build
 import ase.io
 from ase.io.vasp import write_vasp_xdatcar
 from ase.calculators.calculator import compare_atoms
+
 
 class TestXdatcarRoundtrip(unittest.TestCase):
     def setUp(self):
@@ -62,23 +64,16 @@ class TestXdatcarRoundtrip(unittest.TestCase):
             ase.io.write(self.outfile, not_traj, format='vasp-xdatcar')
 
 
-def suite():
-    suite = unittest.defaultTestLoader.loadTestsFromTestCase(
-        TestXdatcarRoundtrip)
-    return suite
+def test_wrap():
+    atoms = ase.build.bulk('Ge')
+    # Shift atomic positions to get negative coordinates
+    atoms.wrap(center=(-1, -1, -1))
 
+    atoms.write('POSCAR', direct=True, wrap=False)
+    new_atoms = ase.io.read('POSCAR')
+    assert np.allclose(atoms.positions, new_atoms.positions)
 
-# Instead of keeping/displaying unittest results, escalate errors so ASE unit
-# test system can handle them. "noqa" tells flake8 that it's ok for these
-# functions to have camelCase names (as required by unittest).
-class XdatcarTestResults(unittest.TestResult):
-    def addFailure(self, test, err):      # noqa: N802
-        raise err[1]
-
-    def addError(self, test, err):        # noqa: N802
-        raise err[1]
-
-
-if __name__ in ['__main__', 'test']:
-    runner = unittest.TextTestRunner(resultclass=XdatcarTestResults)
-    runner.run(suite())
+    atoms.write('POSCAR', direct=True, wrap=True)
+    new_atoms = ase.io.read('POSCAR')
+    atoms.wrap()
+    assert np.allclose(atoms.positions, new_atoms.positions)

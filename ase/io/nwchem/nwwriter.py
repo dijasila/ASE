@@ -6,7 +6,7 @@ from ase.calculators.calculator import KPoints, kpts2kpts
 
 _special_kws = ['center', 'autosym', 'autoz', 'theory', 'basis', 'xc', 'task',
                 'set', 'symmetry', 'label', 'geompar', 'basispar', 'kpts',
-                'bandpath']
+                'bandpath', 'restart_kw']
 
 _system_type = {1: 'polymer', 2: 'surface', 3: 'crystal'}
 
@@ -27,7 +27,7 @@ def _get_geom(atoms, **params):
             if pbci:
                 outpos[:, i] = scpos[:, i]
         npbc = pbc.sum()
-        cellpars = atoms.get_cell_lengths_and_angles()
+        cellpars = atoms.cell.cellpar()
         geom.append('  system {} units angstrom'.format(_system_type[npbc]))
         if npbc == 3:
             geom.append('    lattice_vectors')
@@ -135,7 +135,7 @@ def _format_block(key, val, nindent=0):
             if isinstance(subval, dict):
                 subval = ' '.join([_format_line(a, b)
                                    for a, b in subval.items()])
-            out.append(prefix2 + ' '.join([subkey, str(subval)]))
+            out.append(prefix2 + ' '.join([_format_line(subkey, subval)]))
     out.append(prefix + 'end')
     return out
 
@@ -255,7 +255,25 @@ def _get_kpts(atoms, **params):
     return params
 
 
-def write_nwchem_in(fd, atoms, properties=None, **params):
+def write_nwchem_in(fd, atoms, properties=None, echo=False, **params):
+    """Writes NWChem input file.
+
+    Parameters
+    ----------
+    fd
+        file descriptor
+    atoms
+        atomic configuration
+    properties
+        list of properties to compute; by default only the
+        calculation of the energy is requested
+    echo
+        if True include the `echo` keyword at the top of the file,
+        which causes the content of the input file to be included
+        in the output file
+    params
+        dict of instructions blocks to be included
+    """
     params = deepcopy(params)
 
     if properties is None:
@@ -280,7 +298,7 @@ def write_nwchem_in(fd, atoms, properties=None, **params):
     xc = params.get('xc')
     if 'xc' in params:
         xc = _xc_conv.get(params['xc'].lower(), params['xc'])
-        if theory == 'dft':
+        if theory in ['dft', 'tddft']:
             if 'dft' not in params:
                 params['dft'] = dict()
             params['dft']['xc'] = xc
@@ -295,15 +313,24 @@ def write_nwchem_in(fd, atoms, properties=None, **params):
     label = params.get('label', 'nwchem')
     perm = os.path.abspath(params.pop('perm', label))
     scratch = os.path.abspath(params.pop('scratch', label))
-    out = ['title "{}"'.format(label),
-           'permanent_dir {}'.format(perm),
-           'scratch_dir {}'.format(scratch),
-           'start {}'.format(label),
-           '\n'.join(_get_geom(atoms, **params)),
-           '\n'.join(_get_basis(**params)),
-           '\n'.join(_get_other(**params)),
-           '\n'.join(_get_set(**params.get('set', dict()))),
-           'task {} {}'.format(theory, task),
-           '\n'.join(_get_bandpath(params.get('bandpath', None)))]
+    restart_kw = params.get('restart_kw', 'start')
+    if restart_kw not in ('start', 'restart'):
+        raise ValueError("Unrecognised restart keyword: {}!"
+                         .format(restart_kw))
+    short_label = label.rsplit('/', 1)[-1]
+    if echo:
+        out = ['echo']
+    else:
+        out = []
+    out.extend(['title "{}"'.format(short_label),
+                'permanent_dir {}'.format(perm),
+                'scratch_dir {}'.format(scratch),
+                '{} {}'.format(restart_kw, short_label),
+                '\n'.join(_get_geom(atoms, **params)),
+                '\n'.join(_get_basis(**params)),
+                '\n'.join(_get_other(**params)),
+                '\n'.join(_get_set(**params.get('set', dict()))),
+                'task {} {}'.format(theory, task),
+                '\n'.join(_get_bandpath(params.get('bandpath', None)))])
 
     fd.write('\n\n'.join(out))

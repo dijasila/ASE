@@ -33,7 +33,14 @@ class Cell:
         self.array = array
 
     def cellpar(self, radians=False):
-        """Get cell lengths and angles of this cell.
+        """Get unit cell parameters. Sequence of 6 numbers.
+
+        First three are unit cell vector lengths and second three
+        are angles between them::
+
+            [len(a), len(b), len(c), angle(b,c), angle(a,c), angle(a,b)]
+
+        in degrees.
 
         See also :func:`ase.geometry.cell.cell_to_cellpar`."""
         from ase.geometry.cell import cell_to_cellpar
@@ -106,7 +113,7 @@ class Cell:
 
         """
         from ase.lattice import identify_lattice
-        pbc = self.any(1) & pbc2pbc(pbc)
+        pbc = self.mask() & pbc2pbc(pbc)
         lat, op = identify_lattice(self, eps=eps, pbc=pbc)
         return lat
 
@@ -166,18 +173,10 @@ class Cell:
             return bandpath.transform(op)
         else:
             from ase.dft.kpoints import BandPath, resolve_custom_points
-            path = resolve_custom_points(path, special_points, eps=eps)
+            path, special_points = resolve_custom_points(
+                path, special_points, eps=eps)
             bandpath = BandPath(cell, path=path, special_points=special_points)
             return bandpath.interpolate(npoints=npoints, density=density)
-
-
-    # XXX adapt the transformation stuff and include in the bandpath method.
-    def oldbandpath(self, path=None, npoints=None, density=None, eps=2e-4):
-        """Legacy implementation, please ignore."""
-        bravais = self.get_bravais_lattice(eps=eps)
-        transformation = bravais.get_transformation(self.array)
-        return bravais.bandpath(path=path, npoints=npoints, density=density,
-                                transformation=transformation)
 
     def uncomplete(self, pbc):
         """Return new cell, zeroing cell vectors where not periodic."""
@@ -190,31 +189,33 @@ class Cell:
     def complete(self):
         """Convert missing cell vectors into orthogonal unit vectors."""
         from ase.geometry.cell import complete_cell
-        cell = Cell(complete_cell(self.array))
-        return cell
+        return Cell(complete_cell(self.array))
 
     def copy(self):
         """Return a copy of this cell."""
-        cell = Cell(self.array.copy())
-        return cell
+        return Cell(self.array.copy())
+
+    def mask(self):
+        """Boolean mask of which cell vectors are nonzero."""
+        return self.any(1)
 
     @property
-    def rank(self):
+    def rank(self) -> int:
         """"Return the dimension of the cell.
 
         Equal to the number of nonzero lattice vectors."""
         # The name ndim clashes with ndarray.ndim
-        return self.any(1).sum()
+        return sum(self.mask())  # type: ignore
 
     @property
-    def orthorhombic(self):
+    def orthorhombic(self) -> bool:
         """Return whether this cell is represented by a diagonal matrix."""
         from ase.geometry.cell import is_orthorhombic
         return is_orthorhombic(self)
 
     def lengths(self):
         """Return the length of each lattice vector as an array."""
-        return np.array([np.linalg.norm(v) for v in self])
+        return np.linalg.norm(self, axis=1)
 
     def angles(self):
         """Return an array with the three angles alpha, beta, and gamma."""
@@ -229,10 +230,8 @@ class Cell:
     def __bool__(self):
         return bool(self.any())  # need to convert from np.bool_
 
-    __nonzero__ = __bool__
-
     @property
-    def volume(self):
+    def volume(self) -> float:
         """Get the volume of this cell.
 
         If there are less than 3 lattice vectors, return 0."""
@@ -241,24 +240,58 @@ class Cell:
         # I think normally it is more convenient just to get zero
         return np.abs(np.linalg.det(self))
 
-    def scaled_positions(self, positions):
+    @property
+    def handedness(self) -> int:
+        """Sign of the determinant of the matrix of cell vectors.
+
+        1 for right-handed cells, -1 for left, and 0 for cells that
+        do not span three dimensions."""
+        return int(np.sign(np.linalg.det(self)))
+
+    def scaled_positions(self, positions) -> np.ndarray:
         """Calculate scaled positions from Cartesian positions.
 
         The scaled positions are the positions given in the basis
         of the cell vectors.  For the purpose of defining the basis, cell
         vectors that are zero will be replaced by unit vectors as per
         :meth:`~ase.cell.Cell.complete`."""
-        return np.linalg.solve(self.complete().T, positions.T).T
+        return np.linalg.solve(self.complete().T, np.transpose(positions)).T
 
-    def cartesian_positions(self, scaled_positions):
+    def cartesian_positions(self, scaled_positions) -> np.ndarray:
         """Calculate Cartesian positions from scaled positions."""
         return scaled_positions @ self.complete()
 
-    def reciprocal(self):
-        """Get reciprocal lattice as a 3x3 array.
+    def reciprocal(self) -> 'Cell':
+        """Get reciprocal lattice as a Cell object.
+
+        The reciprocal cell is defined such that
+
+            cell.reciprocal() @ cell.T == np.diag(cell.mask())
+
+        within machine precision.
 
         Does not include factor of 2 pi."""
-        return Cell(np.linalg.pinv(self).transpose())
+        icell = Cell(np.linalg.pinv(self).transpose())
+        icell[~self.mask()] = 0.0  # type: ignore
+        return icell
+
+    def normal(self, i):
+        """Normal vector of the two vectors with index different from i.
+
+        This is the cross product of those vectors in cyclic order from i."""
+        return np.cross(self[i - 2], self[i - 1])
+
+    def normals(self):
+        """Normal vectors of each axis as a 3x3 matrix."""
+        return np.array([self.normal(i) for i in range(3)])
+
+    def area(self, i):
+        """Area spanned by the two vectors with index different from i."""
+        return np.linalg.norm(self.normal(i))
+
+    def areas(self):
+        """Areas spanned by cell vector pairs (1, 2), (2, 0), and (0, 2)."""
+        return np.linalg.norm(self.normals(), axis=1)
 
     def __repr__(self):
         if self.orthorhombic:
@@ -282,7 +315,7 @@ class Cell:
 
         See also :func:`ase.geometry.minkowski_reduction.minkowski_reduce`."""
         from ase.geometry.minkowski_reduction import minkowski_reduce
-        cell, op = minkowski_reduce(self, self.any(1))
+        cell, op = minkowski_reduce(self, self.mask())
         result = Cell(cell)
         return result, op
 
@@ -309,8 +342,7 @@ class Cell:
             is the input cell and rcell is the lower triangular (output) cell.
         """
 
-        # get cell handedness (right or left)
-        sign = np.sign(np.linalg.det(self))
+        sign = self.handedness
         if sign == 0:
             sign = 1
 

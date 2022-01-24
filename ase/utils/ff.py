@@ -109,7 +109,7 @@ class Coulomb:
                               * units.m * units.J / units.C / units.C )
         elif chargei is not None and chargej is not None:
             self.chargeij = ( scale * chargei * chargej * 8.9875517873681764e9
-                            * units.m * units.J / units.C / units.C )
+                              * units.m * units.J / units.C / units.C )
         else:
             raise NotImplementedError("not implemented combination"
                                       "of Coulomb parameters.")
@@ -433,32 +433,32 @@ def get_angle_potential_hessian(atoms, angle, morses=None, spectral=False):
     if angle.cos and np.abs(sina) > 0.001:
         factor = 1.0-2.0*cosa*cosa+cosa*cosa0
         Hr[0:3,0:3] = ( angle.k*(factor*QijPkjQij/sina 
-                       - sina*da*(-ctga*QijPkjQij/sina+np.dot(Qij, Pki)
-                       -np.dot(Pij, Pki)*2.0+(Pik+P)))/sina/dij2 ) 
+                                 - sina*da*(-ctga*QijPkjQij/sina+np.dot(Qij, Pki)
+                                            -np.dot(Pij, Pki)*2.0+(Pik+P)))/sina/dij2 ) 
         Hr[0:3,3:6] = ( angle.k*(factor*QijPkiQkj/sina 
-                       - sina*da*(-ctga*QijPkiQkj/sina
-                       -np.dot(Qij, Qkj)))/sina/dijdkj )
+                                 - sina*da*(-ctga*QijPkiQkj/sina
+                                            -np.dot(Qij, Qkj)))/sina/dijdkj )
         Hr[3:6,0:3] = Hr[0:3,3:6].T
         Hr[3:6,3:6] = ( angle.k*(factor*QkjPijQkj/sina 
-                       - sina*da*(-ctga*QkjPijQkj/sina
-                       +np.dot(Qkj, Pik)-np.dot(Pkj, Pik)
-                       *2.0+(Pki+P)))/sina/dkj2 )
+                                 - sina*da*(-ctga*QkjPijQkj/sina
+                                            +np.dot(Qkj, Pik)-np.dot(Pkj, Pik)
+                                            *2.0+(Pki+P)))/sina/dkj2 )
     elif np.abs(sina) > 0.001:
         Hr[0:3,0:3] = ( angle.k*(QijPkjQij/sina 
-                       + da*(-ctga*QijPkjQij/sina+np.dot(Qij, Pki)
-                       -np.dot(Pij, Pki)*2.0+(Pik+P)))/sina/dij2 )
+                                 + da*(-ctga*QijPkjQij/sina+np.dot(Qij, Pki)
+                                       -np.dot(Pij, Pki)*2.0+(Pik+P)))/sina/dij2 )
         Hr[0:3,3:6] = ( angle.k*(QijPkiQkj/sina 
-                       + da*(-ctga*QijPkiQkj/sina
-                       -np.dot(Qij, Qkj)))/sina/dijdkj )
+                                 + da*(-ctga*QijPkiQkj/sina
+                                       -np.dot(Qij, Qkj)))/sina/dijdkj )
         Hr[3:6,0:3] = Hr[0:3,3:6].T
         Hr[3:6,3:6] = ( angle.k*(QkjPijQkj/sina 
-                       + da*(-ctga*QkjPijQkj/sina
-                       +np.dot(Qkj, Pik)-np.dot(Pkj, Pik)
-                       *2.0+(Pki+P)))/sina/dkj2 )
+                                 + da*(-ctga*QkjPijQkj/sina
+                                       +np.dot(Qkj, Pik)-np.dot(Pkj, Pik)
+                                       *2.0+(Pki+P)))/sina/dkj2 )
 
     if angle.alpha is not None:
         Hr *= ( np.exp(angle.alpha[0]*(angle.rref[0]**2-dij**2))
-               *np.exp(angle.alpha[1]*(angle.rref[1]**2-dkj**2)) )
+                *np.exp(angle.alpha[1]*(angle.rref[1]**2-dkj**2)) )
 
     if morses is not None:
         for m in range(len(morses)):
@@ -528,7 +528,7 @@ def get_angle_potential_reduced_hessian(atoms, angle, morses=None):
 
     if angle.alpha is not None:
         Hr *= ( np.exp(angle.alpha[0]*(angle.rref[0]**2-dij**2))
-               *np.exp(angle.alpha[1]*(angle.rref[1]**2-dkj**2)) )
+                *np.exp(angle.alpha[1]*(angle.rref[1]**2-dkj**2)) )
 
     if morses is not None:
         for m in range(len(morses)):
@@ -677,8 +677,8 @@ def get_dihedral_potential_hessian(atoms, dihedral, morses=None,
         rkl = rel_pos_pbc(atoms, k, l)
         dkl = linalg.norm(rkl)
         Hx *= ( np.exp(dihedral.alpha[0]*(dihedral.rref[0]**2-dij**2))
-               *np.exp(dihedral.alpha[1]*(dihedral.rref[1]**2-dkj**2))
-               *np.exp(dihedral.alpha[2]*(dihedral.rref[2]**2-dkl**2)) )
+                *np.exp(dihedral.alpha[1]*(dihedral.rref[1]**2-dkj**2))
+                *np.exp(dihedral.alpha[2]*(dihedral.rref[2]**2-dkl**2)) )
 
     if morses is not None:
         for m in range(len(morses)):
@@ -746,7 +746,7 @@ def get_dihedral_potential_reduced_hessian(atoms, dihedral, morses=None):
         Hx = dihedral.k*np.tensordot(gx,gx,axes=0)
     else:
         Hx = ( np.abs(-dihedral.k*dihedral.n**2
-              *np.cos(dihedral.n*d-dihedral.d0))*np.tensordot(gx,gx,axes=0) )
+                      *np.cos(dihedral.n*d-dihedral.d0))*np.tensordot(gx,gx,axes=0) )
 
     if dihedral.alpha is not None:
         rij = rel_pos_pbc(atoms, i, j)
@@ -756,8 +756,8 @@ def get_dihedral_potential_reduced_hessian(atoms, dihedral, morses=None):
         rkl = rel_pos_pbc(atoms, k, l)
         dkl = linalg.norm(rkl)
         Hx *= ( np.exp(dihedral.alpha[0]*(dihedral.rref[0]**2-dij**2))
-               *np.exp(dihedral.alpha[1]*(dihedral.rref[1]**2-dkj**2))
-               *np.exp(dihedral.alpha[2]*(dihedral.rref[2]**2-dkl**2)) )
+                *np.exp(dihedral.alpha[1]*(dihedral.rref[1]**2-dkj**2))
+                *np.exp(dihedral.alpha[2]*(dihedral.rref[2]**2-dkl**2)) )
 
     if morses is not None:
         for m in range(len(morses)):
@@ -785,7 +785,7 @@ def get_dihedral_potential_reduced_hessian_test(atoms, dihedral):
     else:
         arg = dihedral.n*dihedral.d - dihedral.d0
         Hx = ( np.tensordot(gx,gx,axes=0)/dihedral.k/np.sin(arg)/np.sin(arg)
-              *np.cos(arg) )
+               *np.cos(arg) )
 
     return i, j, k, l, Hx
 
@@ -830,7 +830,7 @@ def get_vdw_potential_hessian(atoms, vdw, spectral=False):
     Qij = np.eye(3)-Pij
 
     Hr = ( (156.0*vdw.Aij/dij**14-42.0*vdw.Bij/dij**8)*Pij
-          +(-12.0*vdw.Aij/dij**13+6.0*vdw.Bij/dij**7)/dij*Qij )
+           +(-12.0*vdw.Aij/dij**13+6.0*vdw.Bij/dij**7)/dij*Qij )
 
     Hx = np.dot(Bx.T, np.dot(Hr, Bx))
 
@@ -908,186 +908,3 @@ def rel_pos_pbc(atoms, i, j):
     f = np.floor(np.dot(g, d.T) + 0.5)
     d -= np.dot(atoms.get_cell().T, f).T
     return d
-
-def translational_vectors(atoms, mass_weighted=False):
-    """
-    Return normalised translational vectors
-    """
-
-    Tr = np.zeros((3*len(atoms),3))
-
-    if mass_weighted:
-        masses = atoms.get_masses()
-    else:
-        masses = np.ones(len(atoms))
-    masses_sqrt = np.sqrt(masses)
-
-    k=0
-    for i in range(len(atoms)):
-        for j in range(3):
-           Tr[k,j] = masses_sqrt[i]
-           k+=1
-
-    for i in range(3):
-        norm = np.sqrt(np.dot(Tr[:,i], Tr[:,i]))
-        Tr[:,i] /= norm
-
-    return Tr
-
-def rotational_vectors(atoms, mass_weighted=False):
-    """
-    Return normalised rotational vectors
-    """
-
-    Rot = np.zeros((3*len(atoms),3))
-
-    threshold = np.finfo(float).eps*10000.0
-
-    if mass_weighted:
-        masses = atoms.get_masses()
-    else:
-        masses = np.ones(len(atoms))
-    masses_sqrt = np.sqrt(masses)
-
-    com = np.zeros(3)
-    for i in range(len(atoms)):
-        com += masses[i] * atoms.get_positions()[i,:]
-    com /= np.sum(masses)
-
-    it = np.zeros((3,3))
-    for i in range(len(atoms)):
-        rpos = atoms.get_positions()[i,:] - com
-        it[0,0] += masses[i] * (rpos[1]**2 + rpos[2]**2)
-        it[1,1] += masses[i] * (rpos[0]**2 + rpos[2]**2)
-        it[2,2] += masses[i] * (rpos[0]**2 + rpos[1]**2)
-        it[0,1] -= masses[i] * (rpos[0]*rpos[1])
-        it[0,2] -= masses[i] * (rpos[0]*rpos[2])
-        it[1,2] -= masses[i] * (rpos[1]*rpos[2])
-    it[1,0] = it[0,1]
-    it[2,0] = it[0,2]
-    it[2,1] = it[1,2]
-    d, dit = linalg.eigh(it)
-
-    for i in range(len(atoms)):
-        rpos = atoms.get_positions()[i,:] - com
-        cp = np.dot(np.transpose(dit), rpos)
-        Rot[i*3,0] = masses_sqrt[i] * (cp[1]*dit[0,2]-cp[2]*dit[0,1])
-        Rot[i*3+1,0] = masses_sqrt[i] * (cp[1]*dit[1,2]-cp[2]*dit[1,1])
-        Rot[i*3+2,0] = masses_sqrt[i] * (cp[1]*dit[2,2]-cp[2]*dit[2,1])
-
-        Rot[i*3,1] = masses_sqrt[i] * (cp[2]*dit[0,0]-cp[0]*dit[0,2])
-        Rot[i*3+1,1] = masses_sqrt[i] * (cp[2]*dit[1,0]-cp[0]*dit[1,2])
-        Rot[i*3+2,1] = masses_sqrt[i] * (cp[2]*dit[2,0]-cp[0]*dit[2,2])
-
-        Rot[i*3,2] = masses_sqrt[i] * (cp[0]*dit[0,1]-cp[1]*dit[0,0])
-        Rot[i*3+1,2] = masses_sqrt[i] * (cp[0]*dit[1,1]-cp[1]*dit[1,0])
-        Rot[i*3+2,2] = masses_sqrt[i] * (cp[0]*dit[2,1]-cp[1]*dit[2,0])
-
-    ndof = 3
-    for i in range(3):
-        norm = np.sqrt(np.dot(Rot[:,i], Rot[:,i]))
-        if norm <= threshold:
-            ndof -= 1
-            continue
-        Rot[:,i] /= norm
-        if i < 2:
-            for j in range(i+1):
-                Rot[:,i+1] = Rot[:,i+1] - np.dot(Rot[:,i+1],Rot[:,j]) * Rot[:,j]
-
-    return Rot[:,0:ndof]
-
-def remove_tr_rot_vector(atoms, vecin, mass_weighted=False):
-    Tr = translational_vectors(atoms, mass_weighted)
-    Rot = rotational_vectors(atoms, mass_weighted)
-
-    vecout = vecin
-
-    for i in range(np.shape(Tr)[1]):
-        norm = np.dot(vecout, Tr[:,i])
-        vecout -= norm * Tr[:,i]
-
-    for i in range(np.shape(Rot)[1]):
-        norm = np.dot(vecout, Rot[:,i])
-        vecout -= norm * Rot[:,i]
-
-    return vecout
-
-def model_bond_angle_dihedral(atoms, cutoff=10.0):
-    Bohr2 = units.Bohr * units.Bohr
-
-    alpha = np.array([[1.0000, 0.3949, 0.3949], 
-                      [0.3949, 0.2800, 0.2800], 
-                      [0.3949, 0.2800, 0.2800]]) / Bohr2
-    rref = np.array([[1.35, 2.10, 2.53], 
-                     [2.10, 2.87, 3.40], 
-                     [2.53, 3.40, 3.40]]) * units.Bohr
-
-    kbond = 0.45 * units.Hartree / Bohr2
-    kangle = 0.15 * units.Hartree / Bohr2
-    kdihedral = 0.005 * units.Hartree / Bohr2
-
-    bonds = []
-    angles = []
-    dihedrals = []
-
-    for i in range(len(atoms)):
-        rowi = row(atoms.get_atomic_numbers()[i])-1
-        for j in range(i+1, len(atoms)):
-            rij = rel_pos_pbc(atoms, i, j)
-            dij = linalg.norm(rij)
-            if dij > cutoff:
-                continue 
-            rowj = row(atoms.get_atomic_numbers()[j])-1
-            bonds.append(Bond(i, j, kbond, b0=None, 
-                         alpha=[alpha[rowi, rowj]], 
-                         rref=[rref[rowi, rowj]]))
-            for k in range(j+1, len(atoms)):
-                 rjk = rel_pos_pbc(atoms, j, k)
-                 djk = linalg.norm(rjk)
-                 if djk > cutoff:
-                     continue
-                 rowk = row(atoms.get_atomic_numbers()[k])-1
-                 angles.append(Angle(i, j, k, kangle, a0=None, 
-                               alpha=[alpha[rowi, rowj], alpha[rowj, rowk]], 
-                               rref=[rref[rowi, rowj], rref[rowj, rowk]]))
-                 angles.append(Angle(i, k, j, kangle, a0=None, 
-                               alpha=[alpha[rowi, rowk], alpha[rowk, rowj]], 
-                               rref=[rref[rowi, rowk], rref[rowk, rowj]]))
-                 angles.append(Angle(j, i, k, kangle, a0=None, 
-                               alpha=[alpha[rowj, rowi], alpha[rowi, rowk]], 
-                               rref=[rref[rowj, rowi], rref[rowi, rowk]]))
-                 for l in range(k+1, len(atoms)):
-                      rkl = rel_pos_pbc(atoms, k, l)
-                      dkl = linalg.norm(rkl)
-                      if dkl > cutoff:
-                          continue
-                      rowl = row(atoms.get_atomic_numbers()[l])-1
-                      dihedrals.append(Dihedral(i, j, k, l, kdihedral, d0=None, 
-                                       alpha=[alpha[rowi, rowj], alpha[rowj, rowk], alpha[rowk, rowl]], 
-                                       rref=[rref[rowi, rowj], rref[rowj, rowk], rref[rowk, rowl]]))
-                      dihedrals.append(Dihedral(i, j, l, k, kdihedral, d0=None, 
-                                       alpha=[alpha[rowi, rowj], alpha[rowj, rowl], alpha[rowl, rowk]], 
-                                       rref=[rref[rowi, rowj], rref[rowj, rowl], rref[rowl, rowk]]))
-                      dihedrals.append(Dihedral(i, k, l, j, kdihedral, d0=None, 
-                                       alpha=[alpha[rowi, rowk], alpha[rowk, rowl], alpha[rowl, rowj]], 
-                                       rref=[rref[rowi, rowk], rref[rowk, rowl], rref[rowl, rowj]]))
-                      dihedrals.append(Dihedral(j, i, k, l, kdihedral, d0=None, 
-                                       alpha=[alpha[rowj, rowi], alpha[rowi, rowk], alpha[rowk, rowl]], 
-                                       rref=[rref[rowj, rowi], rref[rowi, rowk], rref[rowk, rowl]]))
-                      dihedrals.append(Dihedral(k, i, j, l, kdihedral, d0=None, 
-                                       alpha=[alpha[rowk, rowi], alpha[rowi, rowj], alpha[rowj, rowl]], 
-                                       rref=[rref[rowk, rowi], rref[rowi, rowj], rref[rowj, rowl]]))
-                      dihedrals.append(Dihedral(j, i, l, k, kdihedral, d0=None, 
-                                       alpha=[alpha[rowj, rowi], alpha[rowi, rowl], alpha[rowl, rowk]], 
-                                       rref=[rref[rowj, rowi], rref[rowi, rowl], rref[rowl, rowk]]))
-    return bonds, angles, dihedrals
-
-def row(Z):
-    if Z <= 2:
-        return 1
-    elif Z <= 10:
-        return 2
-    elif Z <= 18:
-        return 3
-    else:
-        return 3

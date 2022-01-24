@@ -325,11 +325,6 @@ If you want an :class:`~ase.Atoms` object insted of an
 
 >>> h2 = db.get_atoms(H=2)
 
-or if you want the original EMT calculator attached:
-
->>> h2 = db.get_atoms(H=2, attach_calculator=True)
-
-
 Add additional data
 -------------------
 
@@ -484,6 +479,7 @@ You can also write/read to/from JSON using::
 
     $ ase db proj1.db --set-metadata metadata.json
     $ ase db proj1.db --show-metadata > metadata.json
+
 
 External Tables
 ----------------

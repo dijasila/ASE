@@ -2,13 +2,13 @@ import os
 from os.path import join
 import re
 from glob import glob
+from pathlib import Path
 
 import numpy as np
 
 from ase import Atoms
 from ase.data import chemical_symbols
 from ase.units import Hartree, Bohr, fs
-from ase.calculators.calculator import Parameters
 
 
 def read_abinit_in(fd):
@@ -151,25 +151,19 @@ keys_with_units = {
     'latticeconstant': 'Ang'}
 
 
-def write_abinit_in(fd, atoms, param=None, species=None):
-    import copy
+def write_abinit_in(fd, atoms, param=None, species=None, pseudos=None):
     from ase.calculators.calculator import kpts2mp
-    from ase.calculators.abinit import Abinit
 
     if param is None:
         param = {}
 
-    _param = copy.deepcopy(Abinit.default_parameters)
-    _param.update(param)
-    param = _param
-
     if species is None:
-        species = list(set(atoms.numbers))
+        species = sorted(set(atoms.numbers))
 
-    inp = {}
-    inp.update(param)
-    for key in ['xc', 'smearing', 'kpts', 'pps', 'raw']:
-        del inp[key]
+    inp = dict(param)
+    xc = inp.pop('xc', 'LDA')
+    for key in ['smearing', 'kpts', 'pps', 'raw']:
+        inp.pop(key, None)
 
     smearing = param.get('smearing')
     if 'tsmear' in param or 'occopt' in param:
@@ -193,7 +187,7 @@ def write_abinit_in(fd, atoms, param=None, species=None):
                           'PBE': 11,
                           'revPBE': 14,
                           'RPBE': 15,
-                          'WC': 23}[param['xc']]
+                          'WC': 23}[xc]
 
     magmoms = atoms.get_initial_magnetic_moments()
     if magmoms.any():
@@ -204,19 +198,38 @@ def write_abinit_in(fd, atoms, param=None, species=None):
     else:
         inp['nsppol'] = 1
 
+    if param.get('kpts') is not None:
+        mp = kpts2mp(atoms, param['kpts'])
+        fd.write('kptopt 1\n')
+        fd.write('ngkpt %d %d %d\n' % tuple(mp))
+        fd.write('nshiftk 1\n')
+        fd.write('shiftk\n')
+        fd.write('%.1f %.1f %.1f\n' % tuple((np.array(mp) + 1) % 2 * 0.5))
+
+    valid_lists = (list, np.ndarray)
     for key in sorted(inp):
         value = inp[key]
         unit = keys_with_units.get(key)
-        if unit is None:
-            fd.write('%s %s\n' % (key, value))
-        else:
+        if unit is not None:
             if 'fs**2' in unit:
                 value /= fs**2
             elif 'fs' in unit:
                 value /= fs
-            fd.write('%s %e %s\n' % (key, value, unit))
+        if isinstance(value, valid_lists):
+            if isinstance(value[0], valid_lists):
+                fd.write("{}\n".format(key))
+                for dim in value:
+                    write_list(fd, dim, unit)
+            else:
+                fd.write("{}\n".format(key))
+                write_list(fd, value, unit)
+        else:
+            if unit is None:
+                fd.write("{} {}\n".format(key, value))
+            else:
+                fd.write("{} {} {}\n".format(key, value, unit))
 
-    if param['raw'] is not None:
+    if param.get('raw') is not None:
         if isinstance(param['raw'], str):
             raise TypeError('The raw parameter is a single string; expected '
                             'a sequence of lines')
@@ -230,7 +243,7 @@ def write_abinit_in(fd, atoms, param=None, species=None):
     fd.write('acell\n')
     fd.write('%.14f %.14f %.14f Angstrom\n' % (1.0, 1.0, 1.0))
     fd.write('rprim\n')
-    if atoms.number_of_lattice_vectors != 3:
+    if atoms.cell.rank != 3:
         raise RuntimeError('Abinit requires a 3D cell, but cell is {}'
                            .format(atoms.cell))
     for v in atoms.cell:
@@ -244,6 +257,7 @@ def write_abinit_in(fd, atoms, param=None, species=None):
     fd.write('#Enumerate different atomic species\n')
     fd.write('typat')
     fd.write('\n')
+
     types = []
     for Z in atoms.numbers:
         for n, Zs in enumerate(species):
@@ -256,22 +270,26 @@ def write_abinit_in(fd, atoms, param=None, species=None):
             fd.write('\n')
     fd.write('\n')
 
-    fd.write('#Definition of the atoms\n')
-    fd.write('xangst\n')
-    for pos in atoms.positions:
-        fd.write('%.14f %.14f %.14f\n' % tuple(pos))
+    if pseudos is not None:
+        listing = ',\n'.join(pseudos)
+        line = f'pseudos "{listing}"\n'
+        fd.write(line)
 
-    if 'kptopt' not in param:
-        # XXX This processing should probably happen higher up
-        mp = kpts2mp(atoms, param['kpts'])
-        fd.write('kptopt 1\n')
-        fd.write('ngkpt %d %d %d\n' % tuple(mp))
-        fd.write('nshiftk 1\n')
-        fd.write('shiftk\n')
-        fd.write('%.1f %.1f %.1f\n' % tuple((np.array(mp) + 1) % 2 * 0.5))
+    fd.write('#Definition of the atoms\n')
+    fd.write('xcart\n')
+    for pos in atoms.positions / Bohr:
+        fd.write('%.14f %.14f %.14f\n' % tuple(pos))
 
     fd.write('chkexit 1 # abinit.exit file in the running '
              'directory terminates after the current SCF\n')
+
+
+def write_list(fd, value, unit):
+    for element in value:
+        fd.write("{} ".format(element))
+    if unit is not None:
+        fd.write("{}".format(unit))
+    fd.write("\n")
 
 
 def read_stress(fd):
@@ -291,7 +309,7 @@ def read_stress(fd):
         stress[i] = float(m.group(1))
         stress[i + 3] = float(m.group(2))
     unit = Hartree / Bohr**3
-    return stress / unit
+    return stress * unit
 
 
 def consume_multiline(fd, headerline, nvalues, dtype):
@@ -325,7 +343,10 @@ def read_abinit_out(fd):
     line = skipto('Version')
     m = re.match(r'\.*?Version\s+(\S+)\s+of ABINIT', line)
     assert m is not None
-    results['version'] = m.group(1)
+    version = m.group(1)
+    results['version'] = version
+
+    use_v9_format = int(version.split('.', 1)[0]) >= 9
 
     shape_vars = {}
 
@@ -372,6 +393,19 @@ def read_abinit_out(fd):
         arr = np.array(arr).astype(float)
         return arr
 
+    if use_v9_format:
+        energy_header = '--- !EnergyTerms'
+        total_energy_name = 'total_energy_eV'
+
+        def parse_energy(line):
+            return float(line.split(':')[1].strip())
+    else:
+        energy_header = 'Components of total free energy (in Hartree) :'
+        total_energy_name = '>>>>>>>>> Etotal'
+
+        def parse_energy(line):
+            return float(line.rsplit('=', 2)[1]) * Hartree
+
     for line in fd:
         if 'cartesian coordinates (angstrom) at end' in line:
             positions = read_array(fd, natoms)
@@ -380,13 +414,19 @@ def read_abinit_out(fd):
         if 'Cartesian components of stress tensor (hartree/bohr^3)' in line:
             results['stress'] = read_stress(fd)
 
-        if 'Components of total free energy (in Hartree)' in line:
+        if line.strip() == energy_header:
+            # Header not to be confused with EnergyTermsDC,
+            # therefore we don't use .startswith()
+            energy = None
             for line in fd:
-                if 'Etotal' in line:
-                    energy = float(line.rsplit('=', 2)[1]) * Hartree
-                    results['energy'] = results['free_energy'] = energy
+                # Which of the listed energies should we include?
+                if total_energy_name in line:
+                    energy = parse_energy(line)
                     break
-                    # Which of the listed energies do we take ??
+            if energy is None:
+                raise RuntimeError('No energy found in output')
+            results['energy'] = results['free_energy'] = energy
+
         if 'END DATASET(S)' in line:
             break
 
@@ -403,11 +443,20 @@ def read_abinit_out(fd):
     return results
 
 
-def read_eigenvalues_for_one_spin(fd, nkpts):
+def match_kpt_header(line):
     headerpattern = (r'\s*kpt#\s*\S+\s*'
                      r'nband=\s*(\d+),\s*'
-                     r'wtk=([^,]+),\s*'
-                     r'kpt=\s*(\S)+\s*(\S+)\s*(\S+)')
+                     r'wtk=\s*(\S+?),\s*'
+                     r'kpt=\s*(\S+)+\s*(\S+)\s*(\S+)')
+    m = re.match(headerpattern, line)
+    assert m is not None, line
+    nbands = int(m.group(1))
+    weight = float(m.group(2))
+    kvector = np.array(m.group(3, 4, 5)).astype(float)
+    return nbands, weight, kvector
+
+
+def read_eigenvalues_for_one_spin(fd, nkpts):
 
     kpoint_weights = []
     kpoint_coords = []
@@ -415,13 +464,9 @@ def read_eigenvalues_for_one_spin(fd, nkpts):
     eig_kn = []
     for ikpt in range(nkpts):
         header = next(fd)
-        m = re.match(headerpattern, header)
-        assert m is not None, header
-        nbands = int(m.group(1))
-        weight = float(m.group(2))
-        kvector = np.array(m.group(3, 4, 5)).astype(float)
+        nbands, weight, kvector = match_kpt_header(header)
         kpoint_coords.append(kvector)
-        kpoint_weights.append(float(weight))
+        kpoint_weights.append(weight)
 
         eig_n = []
         while len(eig_n) < nbands:
@@ -443,12 +488,12 @@ def read_eig(fd):
     line = next(fd)
     results = {}
     m = re.match(r'\s*Fermi \(or HOMO\) energy \(hartree\)\s*=\s*(\S+)', line)
-    assert m is not None
-    results['fermilevel'] = float(m.group(1)) * Hartree
+    if m is not None:
+        results['fermilevel'] = float(m.group(1)) * Hartree
+        line = next(fd)
 
     nspins = 1
 
-    line = next(fd)
     m = re.match(r'\s*Magnetization \(Bohr magneton\)=\s*(\S+)', line)
     if m is not None:
         nspins = 2
@@ -492,65 +537,50 @@ def read_eig(fd):
     return results
 
 
-def write_files_file(fd, label, ppp_list):
-    """Write files-file, the file which tells abinit about other files."""
-    fd.write('%s\n' % (label + '.in'))  # input
-    fd.write('%s\n' % (label + '.txt'))  # output
-    fd.write('%s\n' % (label + 'i'))  # input
-    fd.write('%s\n' % (label + 'o'))  # output
-    fd.write('%s\n' % (label + '.abinit'))
-    # Provide the psp files
-    for ppp in ppp_list:
-        fd.write('%s\n' % (ppp))  # psp file path
-
-
-def get_abinit_pp_paths():
+def get_default_abinit_pp_paths():
     return os.environ.get('ABINIT_PP_PATH', '.').split(':')
 
 
-def write_all_inputs(atoms, properties, parameters,
-                     raise_exception=True,
-                     label='abinit'):
-    species = list(set(atoms.numbers))
-    search_paths = get_abinit_pp_paths()
+def prepare_abinit_input(directory, atoms, properties, parameters,
+                         pp_paths=None,
+                         raise_exception=True):
+    directory = Path(directory)
+    species = sorted(set(atoms.numbers))
+    if pp_paths is None:
+        pp_paths = get_default_abinit_pp_paths()
     ppp = get_ppp_list(atoms, species,
                        raise_exception=raise_exception,
-                       xc=parameters.xc,
-                       pps=parameters.pps,
-                       search_paths=search_paths)
+                       xc=parameters['xc'],
+                       pps=parameters['pps'],
+                       search_paths=pp_paths)
 
-    with open(label + '.files', 'w') as fd:
-        write_files_file(fd, label, ppp)
+    inputfile = directory / 'abinit.in'
+
+    # XXX inappropriate knowledge about choice of outputfile
+    outputfile = directory / 'abinit.abo'
 
     # Abinit will write to label.txtA if label.txt already exists,
     # so we remove it if it's there:
-    filename = label + '.txt'
-    if os.path.isfile(filename):
-        os.remove(filename)
+    if outputfile.exists():
+        outputfile.unlink()
 
-    parameters.write(label + '.ase')
-
-    with open(label + '.in', 'w') as fd:
-        write_abinit_in(fd, atoms, param=parameters, species=species)
+    with open(inputfile, 'w') as fd:
+        write_abinit_in(fd, atoms, param=parameters, species=species,
+                        pseudos=ppp)
 
 
-def read_ase_and_abinit_inputs(label):
-    with open(label + '.in') as fd:
-        atoms = read_abinit_in(fd)
-    parameters = Parameters.read(label + '.ase')
-    return atoms, parameters
-
-
-def read_results(label):
-    filename = label + '.txt'
+def read_abinit_outputs(directory, label):
+    directory = Path(directory)
+    textfilename = directory / f'{label}.abo'
     results = {}
-    with open(filename) as fd:
+    with open(textfilename) as fd:
         dct = read_abinit_out(fd)
         results.update(dct)
+
     # The eigenvalues section in the main file is shortened to
     # a limited number of kpoints.  We read the complete one from
     # the EIG file then:
-    with open('{}o_EIG'.format(label)) as fd:
+    with open(directory / f'{label}o_EIG') as fd:
         dct = read_eig(fd)
         results.update(dct)
     return results
@@ -612,6 +642,11 @@ def get_ppp_list(atoms, species, raise_exception, xc, pps,
                     # warning: see download.sh in
                     # abinit-pseudopotentials*tar.gz for additional
                     # information!
+                    #
+                    # XXXX This is probably buggy, max(filenames) uses
+                    # an lexicographic order so 14 < 8, and it's
+                    # untested so if I change it I'm sure things will
+                    # just be inconsistent.  --askhl
                     filenames[0] = max(filenames)  # Semicore or hard
                 elif pps == 'hgh':
                     # Lowest valence electron count
@@ -636,8 +671,8 @@ def get_ppp_list(atoms, species, raise_exception, xc, pps,
         if not found:
             ppp_list.append("Provide {}.{}.{}?".format(symbol, '*', pps))
             if raise_exception:
-                msg = ('Could not find {} pseudopotential {} for {}'
-                       .format(xcname.lower(), pps, symbol))
+                msg = ('Could not find {} pseudopotential {} for {} in {}'
+                       .format(xcname.lower(), pps, symbol, search_paths))
                 raise RuntimeError(msg)
 
     return ppp_list

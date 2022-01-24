@@ -1,18 +1,22 @@
 """Structure optimization. """
 
-import sys
-import pickle
+import collections.abc
 import time
 from math import sqrt
 from os.path import isfile
 
 from ase.calculators.calculator import PropertyNotImplementedError
-from ase.parallel import world, barrier
+from ase.io.jsonio import read_json, write_json
 from ase.io.trajectory import Trajectory
-import collections.abc
+from ase.parallel import barrier, world
+from ase.utils import IOContext
 
 
-class Dynamics:
+class RestartError(RuntimeError):
+    pass
+
+
+class Dynamics(IOContext):
     """Base-class for all MD and structure optimization classes."""
 
     def __init__(
@@ -46,17 +50,7 @@ class Dynamics:
         """
 
         self.atoms = atoms
-        if master is None:
-            master = world.rank == 0
-        if not master:
-            logfile = None
-        elif isinstance(logfile, str):
-            if logfile == "-":
-                logfile = sys.stdout
-            else:
-                logfile = open(logfile, "a")
-        self.logfile = logfile
-
+        self.logfile = self.openfile(logfile, mode='a', comm=world)
         self.observers = []
         self.nsteps = 0
         # maximum number of steps placeholder with maxint
@@ -65,10 +59,10 @@ class Dynamics:
         if trajectory is not None:
             if isinstance(trajectory, str):
                 mode = "a" if append_trajectory else "w"
-                trajectory = Trajectory(
-                    trajectory, mode=mode, atoms=atoms, master=master
-                )
-            self.attach(trajectory)
+                trajectory = self.closelater(Trajectory(
+                    trajectory, mode=mode, master=master
+                ))
+            self.attach(trajectory, atoms=atoms)
 
     def get_number_of_steps(self):
         return self.nsteps
@@ -181,6 +175,9 @@ class Dynamics:
 class Optimizer(Dynamics):
     """Base-class for all structure optimization classes."""
 
+    # default maxstep for all optimizers
+    defaults = {'maxstep': 0.2}
+
     def __init__(
         self,
         atoms,
@@ -252,6 +249,10 @@ class Optimizer(Dynamics):
             "type": "optimization",
             "optimizer": self.__class__.__name__,
         }
+        # add custom attributes from subclasses
+        for attr in ('maxstep', 'alpha', 'max_steps', 'restart'):
+            if hasattr(self, attr):
+                description.update({attr: getattr(self, attr)})
         return description
 
     def initialize(self):
@@ -293,26 +294,37 @@ class Optimizer(Dynamics):
             name = self.__class__.__name__
             if self.nsteps == 0:
                 args = (" " * len(name), "Step", "Time", "Energy", "fmax")
-                msg = "%s  %4s %8s %15s %12s\n" % args
+                msg = "%s  %4s %8s %15s  %12s\n" % args
                 self.logfile.write(msg)
 
-                if self.force_consistent:
-                    msg = "*Force-consistent energies used in optimization.\n"
-                    self.logfile.write(msg)
+                # if self.force_consistent:
+                #     msg = "*Force-consistent energies used in optimization.\n"
+                #     self.logfile.write(msg)
 
-            ast = {1: "*", 0: ""}[self.force_consistent]
+            # XXX The "force consistent" handling is really arbitrary.
+            # Let's disable the special printing for now.
+            #
+            # ast = {1: "*", 0: ""}[self.force_consistent]
+            ast = ''
             args = (name, self.nsteps, T[3], T[4], T[5], e, ast, fmax)
-            msg = "%s:  %3d %02d:%02d:%02d %15.6f%1s %12.4f\n" % args
+            msg = "%s:  %3d %02d:%02d:%02d %15.6f%1s %12.5e\n" % args
             self.logfile.write(msg)
 
             self.logfile.flush()
 
     def dump(self, data):
         if world.rank == 0 and self.restart is not None:
-            pickle.dump(data, open(self.restart, "wb"), protocol=2)
+            with open(self.restart, 'w') as fd:
+                write_json(fd, data)
 
     def load(self):
-        return pickle.load(open(self.restart, "rb"))
+        with open(self.restart) as fd:
+            try:
+                return read_json(fd, always_array=False)
+            except Exception as ex:
+                msg = ('Could not decode restart file as JSON.  '
+                       f'You may need to delete the restart file {self.restart}')
+                raise RestartError(msg) from ex
 
     def set_force_consistent(self):
         """Automatically sets force_consistent to True if force_consistent

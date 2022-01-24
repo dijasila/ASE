@@ -1,15 +1,16 @@
-def test_issue276():
-    import warnings
+import warnings
 
-    import numpy as np
+import numpy as np
 
-    from ase.io import read, write
-    from ase.calculators.emt import EMT
-    from ase.build import bulk
+from ase.io import read, write
+from ase.calculators.emt import EMT
+from ase.build import bulk
 
+
+def test_issue276(testdir):
     at = bulk("Cu")
     at.rattle()
-    at.set_calculator(EMT())
+    at.calc = EMT()
     f = at.get_forces()
 
     write("tmp.xyz", at)

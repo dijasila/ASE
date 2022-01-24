@@ -4,6 +4,10 @@
 Q-Chem
 ======
 
+.. image:: ../../static/qchem.png
+   :target: https://www.q-chem.com/
+   :scale: 40
+
 `Q-Chem <https://www.q-chem.com/>`_ is a comprehensive ab initio quantum
 chemistry package for accurate predictions of molecular structures,
 reactivities, and vibrational, electronic and NMR spectra.
@@ -37,6 +41,7 @@ in the python interface::
   calc = QChem(label='calc/ethane',
                method='B3LYP',
                basis='6-31+G*')
+  mol.calc = calc
   opt = LBFGS(mol)
   opt.run()
 

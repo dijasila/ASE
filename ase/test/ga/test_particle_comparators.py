@@ -1,12 +1,24 @@
-def test_particle_comparators():
-    from ase.cluster import Icosahedron
-    from ase.ga.particle_comparator import NNMatComparator
-    from ase.ga.utilities import get_nnmat
-    from ase.ga.particle_mutations import RandomPermutation
+import numpy as np
+from ase.cluster import Icosahedron
+from ase.ga.particle_comparator import NNMatComparator
+from ase.ga.utilities import get_nnmat
+from ase.ga.particle_mutations import RandomPermutation
 
-    ico1 = Icosahedron('Cu', 4)
+
+def make_ico(sym):
+    atoms = Icosahedron(sym, 4)
+    atoms.center(vacuum=4.0)
+    return atoms
+
+
+def test_particle_comparators(seed):
+
+    # set up the random number generator
+    rng = np.random.RandomState(seed)
+
+    ico1 = make_ico('Cu')
     ico1.info['confid'] = 1
-    ico2 = Icosahedron('Ni', 4)
+    ico2 = make_ico('Ni')
     ico1.numbers[:55] = [28] * 55
     ico2.numbers[:92] = [29] * 92
 
@@ -17,7 +29,7 @@ def test_particle_comparators():
     comp = NNMatComparator()
     assert not comp.looks_like(ico1, ico2)
 
-    op = RandomPermutation()
+    op = RandomPermutation(rng=rng)
     a3, desc = op.get_new_individual([ico1])
 
     assert a3.get_chemical_formula() == ico1.get_chemical_formula()

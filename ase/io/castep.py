@@ -15,6 +15,7 @@ from ase.parallel import paropen
 from ase.spacegroup import Spacegroup
 from ase.geometry.cell import cellpar_to_cell
 from ase.constraints import FixAtoms, FixedPlane, FixedLine, FixCartesian
+from ase.utils import atoms_to_spglib_cell
 
 # independent unit management included here:
 # When high accuracy is required, this allows to easily pin down
@@ -162,7 +163,7 @@ def write_castep_cell(fd, atoms, positions_frac=False, force_write=False,
     """
 
     if atoms is None:
-        print('Atoms object not initialized')
+        warnings.warn('Atoms object not initialized')
         return False
     if isinstance(atoms, list):
         if len(atoms) > 1:
@@ -244,15 +245,15 @@ def write_castep_cell(fd, atoms, positions_frac=False, force_write=False,
 
         for constr in constraints:
             if not isinstance(constr, _supported_constraints):
-                print('Warning: you have constraints in your atoms, that are')
-                print('         not supported by the CASTEP ase interface')
+                warnings.warn('Warning: you have constraints in your atoms, that are '
+                              'not supported by the CASTEP ase interface')
                 break
+            species_indices = atoms.symbols.species_indices()
             if isinstance(constr, FixAtoms):
                 for i in constr.index:
-
                     try:
                         symbol = atoms.get_chemical_symbols()[i]
-                        nis = atoms.calc._get_number_in_species(i)
+                        nis = species_indices[i]+1
                     except KeyError:
                         raise UserWarning('Unrecognized index in'
                                           + ' constraint %s' % constr)
@@ -266,7 +267,7 @@ def write_castep_cell(fd, atoms, positions_frac=False, force_write=False,
             elif isinstance(constr, FixCartesian):
                 n = constr.a
                 symbol = atoms.get_chemical_symbols()[n]
-                nis = atoms.calc._get_number_in_species(n)
+                nis = species_indices[n]+1
 
                 for i, m in enumerate(constr.mask):
                     if m == 1:
@@ -278,7 +279,7 @@ def write_castep_cell(fd, atoms, positions_frac=False, force_write=False,
             elif isinstance(constr, FixedPlane):
                 n = constr.a
                 symbol = atoms.get_chemical_symbols()[n]
-                nis = atoms.calc._get_number_in_species(n)
+                nis = species_indices[n]+1
 
                 L = '%6d %3s %3d   ' % (len(constr_block) + 1, symbol, nis)
                 L += ' '.join([str(d) for d in constr.dir])
@@ -287,7 +288,7 @@ def write_castep_cell(fd, atoms, positions_frac=False, force_write=False,
             elif isinstance(constr, FixedLine):
                 n = constr.a
                 symbol = atoms.get_chemical_symbols()[n]
-                nis = atoms.calc._get_number_in_species(n)
+                nis = species_indices[n]+1
 
                 direction = constr.dir
                 ((i1, v1), (i2, v2)) = sorted(enumerate(direction),
@@ -414,13 +415,13 @@ def read_castep_cell(fd, index=None, calculator_args={}, find_spg=False,
 
     if calc.cell.castep_version == 0 and calc._kw_tol < 3:
         # No valid castep_keywords.json was found
-        print('read_cell: Warning - Was not able to validate CASTEP input.')
-        print('           This may be due to a non-existing '
-              '"castep_keywords.json"')
-        print('           file or a non-existing CASTEP installation.')
-        print('           Parsing will go on but keywords will not be '
-              'validated and may cause problems if incorrect during a CASTEP '
-              'run.')
+        warnings.warn('read_cell: Warning - Was not able to validate CASTEP input. '
+                      'This may be due to a non-existing '
+                      '"castep_keywords.json" '
+                      'file or a non-existing CASTEP installation. '
+                      'Parsing will go on but keywords will not be '
+                      'validated and may cause problems if incorrect during a CASTEP '
+                      'run.')
 
     celldict = read_freeform(fd)
 
@@ -430,10 +431,9 @@ def read_castep_cell(fd, index=None, calculator_args={}, find_spg=False,
             usymb = line_tokens[0][0].lower()
             u = cell_units.get(usymb, 1)
             if usymb not in cell_units:
-                warnings.warn(('read_cell: Warning - ignoring invalid '
+                warnings.warn('read_cell: Warning - ignoring invalid '
                                'unit specifier in %BLOCK {0} '
-                               '(assuming Angstrom instead)'
-                               ).format(blockname))
+                               '(assuming Angstrom instead)'.format(blockname))
             line_tokens = line_tokens[1:]
         return u, line_tokens
 
@@ -611,8 +611,8 @@ def read_castep_cell(fd, index=None, calculator_args={}, find_spg=False,
             if otype == 'block':
                 val = val.split('\n')  # Avoids a bug for one-line blocks
             calc.cell.__setattr__(k, val)
-        except Exception:
-            raise RuntimeError('Problem setting calc.cell.%s = %s' % (k, val))
+        except Exception as e:
+            raise RuntimeError('Problem setting calc.cell.%s = %s: %s' % (k, val, e))
 
     # Get the relevant additional info
     aargs['magmoms'] = np.array(add_info_arrays['SPIN'])
@@ -632,16 +632,12 @@ def read_castep_cell(fd, index=None, calculator_args={}, find_spg=False,
         try:
             import spglib
         except ImportError:
-            try:
-                from pyspglib import spglib
-            except ImportError:
-                # spglib is not present
-                warnings.warn('spglib not found installed on this system - '
-                              'automatic spacegroup detection is not possible')
-                spglib = None
+            warnings.warn('spglib not found installed on this system - '
+                          'automatic spacegroup detection is not possible')
+            spglib = None
 
         if spglib is not None:
-            symmd = spglib.get_symmetry_dataset(atoms)
+            symmd = spglib.get_symmetry_dataset(atoms_to_spglib_cell(atoms))
             atoms_spg = Spacegroup(int(symmd['number']))
             atoms.info['spacegroup'] = atoms_spg
 
@@ -651,21 +647,23 @@ def read_castep_cell(fd, index=None, calculator_args={}, find_spg=False,
 
     fixed_atoms = []
     constraints = []
+    index_dict = atoms.symbols.indices()
     for (species, nic), value in raw_constraints.items():
-        absolute_nr = atoms.calc._get_absolute_number(species, nic)
+
+        absolute_nr = index_dict[species][nic-1]
         if len(value) == 3:
             # Check if they are linearly independent
             if np.linalg.det(value) == 0:
-                print('Error: Found linearly dependent constraints attached '
-                      'to atoms %s' % (absolute_nr))
+                warnings.warn('Error: Found linearly dependent constraints attached '
+                              'to atoms %s' % (absolute_nr))
                 continue
             fixed_atoms.append(absolute_nr)
         elif len(value) == 2:
             direction = np.cross(value[0], value[1])
             # Check if they are linearly independent
             if np.linalg.norm(direction) == 0:
-                print('Error: Found linearly dependent constraints attached '
-                      'to atoms %s' % (absolute_nr))
+                warnings.warn('Error: Found linearly dependent constraints attached '
+                              'to atoms %s' % (absolute_nr))
                 continue
             constraint = ase.constraints.FixedLine(
                 a=absolute_nr,
@@ -677,8 +675,8 @@ def read_castep_cell(fd, index=None, calculator_args={}, find_spg=False,
                 direction=np.array(value[0], dtype=np.float32))
             constraints.append(constraint)
         else:
-            print('Error: Found %s statements attached to atoms %s'
-                  % (len(value), absolute_nr))
+            warnings.warn('Error: Found %s statements attached to atoms %s' %
+                          (len(value), absolute_nr))
 
     # we need to sort the fixed atoms list in order not to raise an assertion
     # error in FixAtoms
@@ -729,7 +727,7 @@ def read_castep_castep(fd, index=None):
         calc = Castep()
     except Exception as e:
         # No CASTEP keywords found?
-        print('WARNING:\n{0}\nUsing fallback .castep reader...'.format(e))
+        warnings.warn('WARNING: {0} Using fallback .castep reader...'.format(e))
         # Fall back on the old method
         return read_castep_castep_old(fd, index)
 
@@ -825,7 +823,7 @@ def read_castep_castep_old(fd, index=None):
                                             forces=None,
                                             magmoms=None,
                                             stress=None)
-            atoms.set_calculator(sp_calc)
+            atoms.calc = sp_calc
             traj.append(atoms)
     if index is None:
         return traj
@@ -897,9 +895,8 @@ def read_castep_geom(fd, index=None, units=units_CODATA2002):
                                txt[geom_stop:geom_stop
                                    + (geom_stop - geom_start)]])
             image = ase.Atoms(species, geom, cell=cell, pbc=True)
-            image.set_calculator(
-                SinglePointCalculator(atoms=image, energy=energy,
-                                      forces=forces))
+            image.calc = SinglePointCalculator(
+                atoms=image, energy=energy, forces=forces)
             traj.append(image)
 
     if index is None:
@@ -960,7 +957,7 @@ def read_castep_phonon(fd, index=None, read_vib_data=False,
             N = int(line.split()[3])
         elif 'Number of branches' in line:
             Nb = int(line.split()[3])
-        elif 'Number of wavevectors'in line:
+        elif 'Number of wavevectors' in line:
             Nq = int(line.split()[3])
         elif 'Unit cell vectors (A)' in line:
             for ll in range(3):
@@ -1122,13 +1119,12 @@ def read_castep_md(fd, index=None, return_scalars=False,
                                   cell=cell)
                 atoms.set_velocities(velocities)
                 if len(stress) == 0:
-                    atoms.set_calculator(
-                        SinglePointCalculator(atoms=atoms, energy=Epot,
-                                              forces=forces))
+                    atoms.calc = SinglePointCalculator(
+                        atoms=atoms, energy=Epot, forces=forces)
                 else:
-                    atoms.set_calculator(
-                        SinglePointCalculator(atoms=atoms, energy=Epot,
-                                              forces=forces, stress=stress))
+                    atoms.calc = SinglePointCalculator(
+                        atoms=atoms, energy=Epot,
+                        forces=forces, stress=stress)
                 traj.append(atoms)
             symbols = []
             positions = []
@@ -1255,8 +1251,8 @@ def write_param(filename, param, check_checkfile=False,
         if a restart file exists in the same directory
     """
     if os.path.isfile(filename) and not force_write:
-        print('ase.io.castep.write_param: Set optional argument')
-        print('force_write=True to overwrite %s.' % filename)
+        warnings.warn('ase.io.castep.write_param: Set optional argument ' 
+                      'force_write=True to overwrite %s.' % filename)
         return False
 
     out = paropen(filename, 'w')
@@ -1345,8 +1341,8 @@ def read_seed(seed, new_seed=None, ignore_internal_keys=False):
         # setting without a castep file...
         pass
         # No print statement required in these cases
-        print('Corresponding *.castep file not found.')
-        print('Atoms object will be restored from *.cell and *.param only.')
+        warnings.warn('Corresponding *.castep file not found. '
+                      'Atoms object will be restored from *.cell and *.param only.')
     atoms.calc.push_oldstate()
 
     return atoms

@@ -268,9 +268,9 @@ END
 
 def test_res():
     filepath = 'test.res'
-    f = open(filepath, 'w')
-    f.write(testdata)
-    f.close()
+
+    with open(filepath, 'w') as fd:
+        fd.write(testdata)
 
     res = Res.from_file(filepath)
     assert res.atoms.get_chemical_formula() == 'C194H60'
@@ -280,7 +280,7 @@ def test_res():
     assert res.energy == atoms.get_potential_energy()
 
     spc = SinglePointCalculator(atoms, energy=res.energy)
-    atoms.set_calculator(spc)
+    atoms.calc = spc
 
     write_res('test2.res', atoms)
     atoms2 = read_res(filepath)

@@ -6,7 +6,7 @@ import os
 import re
 import warnings
 from time import time
-from typing import List, Any
+from typing import List, Dict, Any
 
 import numpy as np
 
@@ -243,7 +243,7 @@ def parse_selection(selection, **kwargs):
         for op in ['!=', '<=', '>=', '<', '>', '=']:
             if op in expression:
                 break
-        else:
+        else:  # no break
             if expression in atomic_numbers:
                 comparisons.append((expression, '>', 0))
             else:
@@ -309,7 +309,13 @@ class Database:
         else:
             self.lock = None
         self.serial = serial
-        self._metadata = None  # decription of columns and other stuff
+
+        # Decription of columns and other stuff:
+        self._metadata: Dict[str, Any] = None
+
+    @property
+    def metadata(self) -> Dict[str, Any]:
+        raise NotImplementedError
 
     @parallel_function
     @lock
@@ -393,15 +399,12 @@ class Database:
     def __delitem__(self, id):
         self.delete([id])
 
-    def get_atoms(self, selection=None, attach_calculator=False,
+    def get_atoms(self, selection=None,
                   add_additional_information=False, **kwargs):
         """Get Atoms object.
 
         selection: int, str or list
             See the select() method.
-        attach_calculator: bool
-            Attach calculator object to Atoms object (default value is
-            False).
         add_additional_information: bool
             Put key-value pairs and data into Atoms.info dictionary.
 
@@ -410,7 +413,7 @@ class Database:
         """
 
         row = self.get(selection, **kwargs)
-        return row.toatoms(attach_calculator, add_additional_information)
+        return row.toatoms(add_additional_information)
 
     def __getitem__(self, selection):
         return self.get(selection)

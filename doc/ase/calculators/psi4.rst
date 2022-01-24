@@ -42,7 +42,7 @@ You can import psi4 and run it like any other calculator in ase::
             memory = '500MB' # this is the default, be aware!
             basis = '6-311g_d_p_')
     
-    atoms.set_calculator(calc)
+    atoms.calc = calc
     print(atoms.get_potential_energy())
     print(atoms.get_forces())
 
@@ -75,7 +75,7 @@ keyword           type     default value            description
 ``basis``         ``str``  ``'aug-cc-pvtz'``        Basis set.
 ``memory``        ``str``  ``500MB``                The amount of memory allocated
                                                     to psi4
-``num_thread``             ``1``                    The number of threads to run
+``num_threads``             ``1``                   The number of threads to run
                                                     psi4 on
 ``symmetry``      ``str``  ``'c1'``                 The symmetry of your system
 ``PSI_SCRATCH``   ``str``  ``/tmp``                 The scratch directory for

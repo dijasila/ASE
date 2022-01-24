@@ -2,7 +2,7 @@
    :synopsis: Energy, force and stress calculators.
 
 .. _calculators:
-	      
+
 ===========
 Calculators
 ===========
@@ -14,8 +14,8 @@ energy and forces and sometimes also stresses.
 In order to calculate forces and energies, you need to attach a
 calculator object to your atoms object:
 
->>> a = read('molecule.xyz')
->>> e = a.get_potential_energy()  # doctest: IGNORE_EXCEPTION_DETAIL
+>>> atoms = read('molecule.xyz')
+>>> e = atoms.get_potential_energy()  # doctest: IGNORE_EXCEPTION_DETAIL
 Traceback (most recent call last):
   File "<stdin>", line 1, in <module>
   File "/home/jjmo/ase/atoms/ase.py", line 399, in get_potential_energy
@@ -23,22 +23,14 @@ Traceback (most recent call last):
 RuntimeError: Atoms object has no calculator.
 >>> from ase.calculators.abinit import Abinit
 >>> calc = Abinit(...)
->>> a.set_calculator(calc)
->>> e = a.get_potential_energy()
+>>> atoms.calc = calc
+>>> e = atoms.get_potential_energy()
 >>> print(e)
 -42.0
 
-Here, we used the :meth:`~ase.Atoms.set_calculator` method to attach
+Here we attached
 an instance of the :mod:`ase.calculators.abinit` class and then
 we asked for the energy.
-
-Alternatively, a calculator can be attached like this::
-
-  atoms = Atoms(..., calculator=Abinit(...))
-
-or this::
-
-  atoms.calc = Abinit(...)
 
 
 .. _supported calculators:
@@ -48,19 +40,24 @@ Supported calculators
 
 The calculators can be divided in four groups:
 
-1) Asap_, GPAW_, and Hotbit_ have their own native ASE interfaces.
+1) Asap_, BigDFT_, DFTK_, GPAW_, and Hotbit_ have their own native ASE
+interfaces.
 
 2) ABINIT, AMBER, CP2K, CASTEP, deMon2k, DFTB+, ELK, EXCITING, FHI-aims, FLEUR, GAUSSIAN,
-   Gromacs, LAMMPS, MOPAC, NWChem, Octopus, ONETEP, psi4, Q-Chem, Quantum ESPRESSO, SIESTA,
+   Gromacs, LAMMPS, MOPAC, NWChem, Octopus, ONETEP, PLUMED, psi4, Q-Chem, Quantum ESPRESSO, SIESTA,
    TURBOMOLE and VASP, have Python wrappers in the ASE package, but the actual
    FORTRAN/C/C++ codes are not part of ASE.
 
 3) Pure python implementations included in the ASE package: EMT, EAM,
-   Lennard-Jones and Morse.
+   Lennard-Jones, Morse and HarmonicCalculator.
 
 4) Calculators that wrap others, included in the ASE package:
    :class:`ase.calculators.checkpoint.CheckpointCalculator`,
    the :class:`ase.calculators.loggingcalc.LoggingCalculator`,
+   the :class:`ase.calculators.mixing.LinearCombinationCalculator`,
+   the :class:`ase.calculators.mixing.MixedCalculator`,
+   the :class:`ase.calculators.mixing.SumCalculator`,
+   the :class:`ase.calculators.mixing.AverageCalculator`,
    the :class:`ase.calculators.socketio.SocketIOCalculator`,
    the :ref:`Grimme-D3 <grimme>` potential, and the qmmm calculators
    :class:`~ase.calculators.qmmm.EIQMMM`,  and :class:`~ase.calculators.qmmm.SimpleQMMM`.
@@ -69,6 +66,8 @@ The calculators can be divided in four groups:
 name                                      description
 ========================================= ===========================================
 Asap_                                     Highly efficient EMT code
+BigDFT_                                   Wavelet based code for DFT
+DFTK_                                     Plane-wave code for DFT and related models
 GPAW_                                     Real-space/plane-wave/LCAO PAW code
 Hotbit_                                   DFT based tight binding
 :mod:`~ase.calculators.abinit`            Plane-wave pseudopotential code
@@ -89,6 +88,7 @@ elk                                       Full Potential LAPW code
 :mod:`~ase.calculators.gaussian`          Gaussian based electronic structure code
 :mod:`~ase.calculators.gromacs`           Classical molecular dynamics code
 :mod:`~ase.calculators.gulp`              Interatomic potential code
+:mod:`~ase.calculators.harmonic`          Hessian based harmonic force-field code
 :mod:`~ase.calculators.kim`               Classical MD with standardized models
 :mod:`~ase.calculators.lammps`            Classical molecular dynamics code
 :mod:`~ase.calculators.mixing`            Combination of multiple calculators
@@ -98,6 +98,7 @@ elk                                       Full Potential LAPW code
 :mod:`~ase.calculators.onetep`            Linear-scaling pseudopotential code
 :mod:`~ase.calculators.openmx`            LCAO pseudopotential code
 :mod:`~ase.calculators.orca`              Gaussian based electronic structure code
+:mod:`~ase.calculators.plumed`            Enhanced sampling method library
 :mod:`~ase.calculators.psi4`              Gaussian based electronic structure code
 :mod:`~ase.calculators.qchem`             Gaussian based electronic structure code
 :mod:`~ase.calculators.siesta`            LCAO pseudopotential code
@@ -132,8 +133,10 @@ where ``abc`` is the module name and ``ABC`` is the class name.
 
 
 .. _Asap: https://wiki.fysik.dtu.dk/asap
+.. _BigDFT: https://l_sim.gitlab.io/bigdft-suite/tutorials/Interoperability-Simulation.html#ASE-Interoperability
 .. _GPAW: https://wiki.fysik.dtu.dk/gpaw
 .. _Hotbit: https://github.com/pekkosk/hotbit
+.. _DFTK: https://dftk.org
 
 Calculator keywords
 ===================
@@ -226,6 +229,7 @@ the :meth:`set` method:
    gaussian
    gromacs
    gulp
+   harmonic
    socketio/socketio
    jacapo
    kim
@@ -237,6 +241,7 @@ the :meth:`set` method:
    onetep
    openmx
    orca
+   plumed
    psi4
    qchem
    siesta
@@ -249,26 +254,4 @@ the :meth:`set` method:
    dftd3
    others
    test
-   ase_qmmm_manyqm
    ace
-
-.. _calculator interface:
-
-Calculator interface
-====================
-
-All calculators must have the following interface:
-
-.. autoclass:: ase.calculators.interface.Calculator
-   :members:
-
-
-Electronic structure calculators
-================================
-
-These calculators have wave functions, electron densities, eigenvalues
-and many other quantities.  Therefore, it makes sense to have a set of
-standard methods for accessing those quantities:
-
-.. autoclass:: ase.calculators.interface.DFTCalculator
-   :members:

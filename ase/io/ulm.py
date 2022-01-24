@@ -123,6 +123,7 @@ Versions
 import os
 import numbers
 from pathlib import Path
+from typing import Union, Set
 
 import numpy as np
 
@@ -250,8 +251,8 @@ class Writer:
                 if not np.little_endian:
                     a.byteswap(True)
                 self.header = ('- of Ulm{0:16}'.format(tag).encode('ascii') +
-                               a.tostring() +
-                               self.offsets.tostring())
+                               a.tobytes() +
+                               self.offsets.tobytes())
             else:
                 if isinstance(fd, Path):
                     fd = fd.open('r+b')
@@ -423,6 +424,12 @@ class Writer:
 
 
 class DummyWriter:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, tb):
+        self.close()
+
     def add_array(self, name, shape, dtype=float):
         pass
 
@@ -466,10 +473,8 @@ class Reader:
 
         self._little_endian = _little_endian
 
-        if isinstance(fd, str):
-            fd = Path(fd)
-        if isinstance(fd, Path):
-            fd = fd.open('rb')
+        if not hasattr(fd, 'read'):
+            fd = Path(fd).open('rb')
 
         self._fd = fd
         self._index = index
@@ -570,7 +575,7 @@ class Reader:
     def _read_data(self, index):
         self._fd.seek(self._offsets[index])
         size = int(readints(self._fd, 1)[0])
-        data = decode(self._fd.read(size).decode())
+        data = decode(self._fd.read(size).decode(), False)
         self._little_endian = data.pop('_little_endian', True)
         return data
 
@@ -680,15 +685,18 @@ def print_ulm_info(filename, index=None, verbose=False):
         print(b[i].tostr(verbose))
 
 
-def copy(reader, writer, exclude=set(), name=''):
+def copy(reader: Union[str, Path, Reader],
+         writer: Union[str, Path, Writer],
+         exclude: Set[str] = set(),
+         name: str = '') -> None:
     """Copy from reader to writer except for keys in exclude."""
     close_reader = False
     close_writer = False
-    if isinstance(reader, str):
-        reader = open(reader)
+    if not isinstance(reader, Reader):
+        reader = Reader(reader)
         close_reader = True
-    if isinstance(writer, str):
-        writer = open(writer, 'w')
+    if not isinstance(writer, Writer):
+        writer = Writer(writer)
         close_writer = True
     for key, value in reader._data.items():
         if name + '.' + key in exclude:

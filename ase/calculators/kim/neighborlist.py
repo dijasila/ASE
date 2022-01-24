@@ -6,19 +6,19 @@ from kimpy import neighlist
 from ase.neighborlist import neighbor_list
 from ase import Atom
 
-from .kimpy_wrappers import check_call_wrapper
+from .kimpy_wrappers import check_call_wrapper, c_int, c_double
 
 
-class NeighborList(object):
+class NeighborList:
 
     kimpy_arrays = {
-        "num_particles": np.intc,
-        "coords": np.double,
-        "particle_contributing": np.intc,
-        "species_code": np.intc,
-        "cutoffs": np.double,
-        "padding_image_of": np.intc,
-        "need_neigh": np.intc,
+        "num_particles": c_int,
+        "coords": c_double,
+        "particle_contributing": c_int,
+        "species_code": c_int,
+        "cutoffs": c_double,
+        "padding_image_of": c_int,
+        "need_neigh": c_int,
     }
 
     def __setattr__(self, name, value):
@@ -46,16 +46,19 @@ class NeighborList(object):
         debug,
     ):
 
-        self.skin = neigh_skin_ratio * model_influence_dist
-        self.influence_dist = model_influence_dist + self.skin
-        self.cutoffs = model_cutoffs + self.skin
-        self.padding_need_neigh = not padding_not_require_neigh.all()
+        self.set_neigh_parameters(
+            neigh_skin_ratio,
+            model_influence_dist,
+            model_cutoffs,
+            padding_not_require_neigh,
+        )
+
         self.debug = debug
 
         if self.debug:
             print()
             print("Calculator skin: {}".format(self.skin))
-            print("Model influence distance:".format(model_influence_dist))
+            print(f"Model influence distance: {model_influence_dist}")
             print(
                 "Calculator influence distance (including skin distance): {}"
                 "".format(self.influence_dist)
@@ -82,6 +85,18 @@ class NeighborList(object):
         self.species_code = None
         self.need_neigh = None
         self.last_update_positions = None
+
+    def set_neigh_parameters(
+        self,
+        neigh_skin_ratio,
+        model_influence_dist,
+        model_cutoffs,
+        padding_not_require_neigh,
+    ):
+        self.skin = neigh_skin_ratio * model_influence_dist
+        self.influence_dist = model_influence_dist + self.skin
+        self.cutoffs = model_cutoffs + self.skin
+        self.padding_need_neigh = not padding_not_require_neigh.all()
 
     def update_kim_coords(self, atoms):
         """Update atomic positions in self.coords, which is where the KIM
@@ -113,9 +128,6 @@ class NeighborList(object):
                         need_neigh_update = False
 
         return need_neigh_update
-
-    def clean(self):
-        pass
 
 
 class ASENeighborList(NeighborList):
@@ -166,8 +178,8 @@ class ASENeighborList(NeighborList):
         orig_num_atoms = len(orig_atoms)
         orig_pos = orig_atoms.get_positions()
 
-        # New atoms object that will contain the contributing atoms plus the padding
-        # atoms
+        # New atoms object that will contain the contributing atoms plus
+        # the padding atoms
         new_atoms = orig_atoms.copy()
 
         neigh_list = defaultdict(list)
@@ -177,22 +189,27 @@ class ASENeighborList(NeighborList):
         padding_image_of = []
         padding_shifts = []
 
-        # Ask ASE to build the neighbor list using the influence distance. This is not a
-        # neighbor list for each atom, but rather a listing of all neighbor pairs that
-        # exist.  Atoms with no neighbors will not show up.
-        neigh_indices_i, neigh_indices_j, relative_pos, neigh_cell_offsets, dists = neighbor_list(
-            "ijDSd", orig_atoms, self.influence_dist
-        )
+        # Ask ASE to build the neighbor list using the influence distance.
+        # This is not a neighbor list for each atom, but rather a listing
+        # of all neighbor pairs that exist.  Atoms with no neighbors will
+        # not show up.
+        (
+            neigh_indices_i,
+            neigh_indices_j,
+            relative_pos,
+            neigh_cell_offsets,
+            dists,
+        ) = neighbor_list("ijDSd", orig_atoms, self.influence_dist)
 
-        # Loop over all neighbor pairs. Because this loop will generally include image
-        # atoms (for periodic systems), we keep track of which atoms/images we've
-        # accounted for in the `used` dictionary.
+        # Loop over all neighbor pairs. Because this loop will generally
+        # include image atoms (for periodic systems), we keep track of
+        # which atoms/images we've accounted for in the `used` dictionary.
         used = dict()
         for neigh_i, neigh_j, rel_pos, offset, dist in zip(
             neigh_indices_i, neigh_indices_j, relative_pos, neigh_cell_offsets, dists
         ):
-            # Get neighbor position of neighbor (mapped back into unit cell, so this may
-            # overlap with other atoms)
+            # Get neighbor position of neighbor
+            # (mapped back into unit cell, so this may overlap with other atoms)
             wrapped_pos = orig_pos[neigh_i] + rel_pos
 
             shift = tuple(offset)
@@ -219,8 +236,8 @@ class ASENeighborList(NeighborList):
         if self.padding_need_neigh:
             neighbor_list_size = len(new_atoms)
             inv_used = dict((v, k) for k, v in used.items())
-            # Loop over all the neighbors (k) and the image of that neighbor in the cell
-            # (neigh)
+            # Loop over all the neighbors (k) and the image of that neighbor
+            # in the cell (neigh)
             for k, neigh in enumerate(padding_image_of):
                 # Shift from original atom in cell to neighbor
                 shift = padding_shifts[k]
@@ -228,8 +245,8 @@ class ASENeighborList(NeighborList):
                     # Get the shift of the neighbor of the original atom
                     orig_shift = inv_used[orig_neigh][1:]
 
-                    # Apply sum of original shift and current shift to neighbors of
-                    # original atom
+                    # Apply sum of original shift and current shift to
+                    # neighbors of original atom
                     total_shift = orig_shift + shift
 
                     # Get the image in the cell of the original neighbor
@@ -238,8 +255,8 @@ class ASENeighborList(NeighborList):
                     else:
                         orig_neigh_image = padding_image_of[orig_neigh - orig_num_atoms]
 
-                    # If the original image with the total shift has been used before
-                    # then it is also a neighbor of this atom
+                    # If the original image with the total shift has been
+                    # used before then it is also a neighbor of this atom
                     uniq_index = (orig_neigh_image,) + tuple(total_shift)
                     if uniq_index in used:
                         neigh_list[k + orig_num_atoms].append(used[uniq_index])
@@ -250,7 +267,7 @@ class ASENeighborList(NeighborList):
         neigh_lists = []
         for cut in self.cutoffs:
             neigh_list = [
-                np.array(neigh_list[k], dtype=np.intc)[neigh_dists[k] <= cut]
+                np.array(neigh_list[k], dtype=c_int)[neigh_dists[k] <= cut]
                 for k in range(neighbor_list_size)
             ]
             neigh_lists.append(neigh_list)
@@ -325,7 +342,8 @@ class KimpyNeighborList(NeighborList):
             debug,
         )
 
-        self.neigh = neighlist.initialize()
+        self.neigh = neighlist.NeighList()
+
         compute_args.set_callback_pointer(
             kimpy.compute_callback_name.GetNeighborList,
             neighlist.get_neigh_kim(),
@@ -334,8 +352,8 @@ class KimpyNeighborList(NeighborList):
 
     @check_call_wrapper
     def build(self):
-        return neighlist.build(
-            self.neigh, self.coords, self.influence_dist, self.cutoffs, self.need_neigh
+        return self.neigh.build(
+            self.coords, self.influence_dist, self.cutoffs, self.need_neigh
         )
 
     @check_call_wrapper
@@ -343,9 +361,9 @@ class KimpyNeighborList(NeighborList):
         self, cell, pbc, contributing_coords, contributing_species_code
     ):
         # Cast things passed through kimpy to numpy arrays
-        cell = np.asarray(cell, dtype=np.double)
-        pbc = np.asarray(pbc, dtype=np.intc)
-        contributing_coords = np.asarray(contributing_coords, dtype=np.double)
+        cell = np.asarray(cell, dtype=c_double)
+        pbc = np.asarray(pbc, dtype=c_int)
+        contributing_coords = np.asarray(contributing_coords, dtype=c_double)
 
         return neighlist.create_paddings(
             self.influence_dist,
@@ -370,16 +388,16 @@ class KimpyNeighborList(NeighborList):
         """
 
         # Get info from Atoms object
-        cell = np.asarray(atoms.get_cell(), dtype=np.double)
-        pbc = np.asarray(atoms.get_pbc(), dtype=np.intc)
-        contributing_coords = np.asarray(atoms.get_positions(), dtype=np.double)
+        cell = np.asarray(atoms.get_cell(), dtype=c_double)
+        pbc = np.asarray(atoms.get_pbc(), dtype=c_int)
+        contributing_coords = np.asarray(atoms.get_positions(), dtype=c_double)
         self.num_contributing_particles = atoms.get_global_number_of_atoms()
         num_contributing = self.num_contributing_particles
 
         # Species support and code
         try:
             contributing_species_code = np.array(
-                [species_map[s] for s in atoms.get_chemical_symbols()], dtype=np.intc
+                [species_map[s] for s in atoms.get_chemical_symbols()], dtype=c_int
             )
         except KeyError as e:
             raise RuntimeError("Species not supported by KIM model; {}".format(str(e)))
@@ -387,7 +405,11 @@ class KimpyNeighborList(NeighborList):
         if pbc.any():  # Need padding atoms
             # Create padding atoms
 
-            padding_coords, padding_species_code, self.padding_image_of = self.create_paddings(
+            (
+                padding_coords,
+                padding_species_code,
+                self.padding_image_of,
+            ) = self.create_paddings(
                 cell, pbc, contributing_coords, contributing_species_code
             )
             num_padding = padding_species_code.size
@@ -418,6 +440,3 @@ class KimpyNeighborList(NeighborList):
         if self.debug:
             print("Debug: called update_kimpy_neigh")
             print()
-
-    def clean(self):
-        neighlist.clean(self.neigh)

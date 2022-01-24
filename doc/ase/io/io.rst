@@ -93,13 +93,14 @@ Write animation with 500 ms duration per frame
 >>> write('movie.gif', [bulk(s) for s in ['Cu', 'Ag', 'Au']], interval=500)
 
 
-Write POVRAY file
+Write POVRAY file (the projection settings and povray specific settings are separated)
 
->>> write('slab.pov', slab * (3, 3, 1), rotation='10z,-80x')
+>>> write('slab.pov', slab * (3, 3, 1),
+...       generic_projection_settings = dict(rotation='10z,-80x'))
 
 This will write both a ``slab.pov`` and a ``slab.ini`` file.  Convert
 to PNG with the command ``povray slab.ini`` or use the
-``run_povray=True`` option:
+``.render`` method on the returned object:
 
 .. image:: io2.png
 
@@ -107,11 +108,12 @@ Here is an example using ``bbox``
 
 >>> d = a / 2**0.5
 >>> write('slab.pov', slab * (2, 2, 1),
-...       bbox=(d, 0, 3 * d, d * 3**0.5))
+...       generic_projection_settings = dict(
+...       bbox=(d, 0, 3 * d, d * 3**0.5))).render()
 
 .. image:: io3.png
 
-This is an axample of display bond order for molecule
+This is an example of displaying bond order for a molecule
 
 .. literalinclude:: save_C2H4.py
 
@@ -159,3 +161,19 @@ Adding a new file-format to ASE
 Try to model the read/write functions after the *xyz* format as implemented
 in :git:`ase/io/xyz.py` and also read, understand and update
 :git:`ase/io/formats.py`.
+
+Adding a new file-format in a plugin package
+============================================
+
+IO formats can also be implemented in external packages. For this the read
+write functions of the IO format are implemented as normal. To define the
+format the parameters are entered into a :class:`ase.utils.plugins.ExternalIOFormat`
+object.
+
+.. note::
+    The module name of the external IO format has to be absolute and cannot
+    be omitted.
+
+In the configuration of the package an entry point is added under the group
+``ase.ioformats`` which points to the defined :class:`ase.utils.plugins.ExternalIOFormat`
+object. The format of this entry point looks like ``format-name=ase_plugin.io::ioformat``.
