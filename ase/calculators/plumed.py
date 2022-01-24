@@ -194,6 +194,11 @@ class Plumed(Calculator):
 
             self.plumed.cmd("setCharges", charges)
 
+        # Box for functions with PBC in plumed
+        if self.atoms.cell:
+            cell = np.asarray(self.atoms.get_cell())
+            self.plumed.cmd("setBox", cell)
+
         self.plumed.cmd("setPositions", pos)
         self.plumed.cmd("setEnergy", unbiased_energy)
         self.plumed.cmd("setMasses", self.atoms.get_masses())

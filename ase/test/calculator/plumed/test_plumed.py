@@ -208,6 +208,29 @@ def test_postpro(factory):
     assert postpr == approx(direct['HILLS_direct'])
 
 
+@pytest.mark.calculator_lite
+@pytest.mark.calculator('plumed')
+def test_pbc(factory):
+    atoms = Atoms('H2')
+    atoms.set_positions([[1, 0, 0], [11, 2, 0]])
+
+    atoms.set_cell([[10, 0, 0], [10, 10, 0], [0, 0, 10]])
+    traj = [atoms]
+
+    ps = 1000 * units.fs
+    setup = [f"UNITS LENGTH=A TIME={1/ps} ENERGY={units.mol/units.kJ}",
+             "d: DISTANCE ATOMS=1,2",
+             "PRINT ARG=d STRIDE=100 FILE=COLVAR_pbc"]
+
+    with factory.calc(calc=IdealGas(),
+                      input=setup,
+                      atoms=atoms,
+                      timestep=1) as calc:
+        dist = calc.write_plumed_files(traj)['COLVAR_pbc']
+
+    assert dist[1] == 2.
+
+
 def run(factory, inputs, name='',
         calc=LennardJones(epsilon=10, sigma=6),
         traj=None, steps=29):

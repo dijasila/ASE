@@ -64,10 +64,17 @@ You can ignore this line, but be aware of the units changes.
 
 .. seealso::
 
-    Visit the :doc:`Metadynamics tutorial <../../tutorials/metadynamics/metadynamics>`, 
+    Visit
+    :doc:`Metadynamics tutorial <../../tutorials/metadynamics/metadynamics>` 
     for further explanation of the Plumed calculator.
 
 Plumed Calculator Class
 =======================
 
 .. autoclass:: ase.calculators.plumed.Plumed
+
+.. note::
+   Periodic Boundary Conditions (PBC) fixed in ASE has nothing to do with PBC 
+   of PLUMED. If you set a cell in ASE, PLUMED will assume PBC in all 
+   directions for most of cases -at least you specify other thing- 
+   independently of your :mod:`~ase.Atoms.set_pbc` election.
