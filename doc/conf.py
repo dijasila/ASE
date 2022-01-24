@@ -65,4 +65,3 @@ autodoc_mock_imports = ["kimpy"]
 
 # Enable numref
 numfig = True
-

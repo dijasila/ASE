@@ -119,7 +119,6 @@ class Plumed(Calculator):
         self.calc = calc
         self.use_charge = use_charge
         self.update_charge = update_charge
-        self.name = '{}+Plumed'.format(self.calc.name)
 
         if world.rank == 0:
             natoms = len(atoms.get_positions())
