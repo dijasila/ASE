@@ -227,10 +227,10 @@ Likewise, you could use your preferred calculator.
    third (TCM) central moments of coordinations. Red stars represent the values
    of these collective variables for the stable isomers shown in :numref:`fig1`.
    
-In contrast to the MD case, Metadynamics achieves moving the system towards other states 
-in this short simulation. In a longer simulation, it is possible to obtain a 
-complete exploration of the different states and to use the accumulated bias 
-to reconstruct the free energy. 
+In contrast to the MD case, Metadynamics achieves moving the system towards 
+different states in this short simulation. In a longer simulation, it is 
+possible to obtain a complete exploration of the different states and to use the 
+accumulated bias to reconstruct the free energy. 
 
 When one runs a metadynamics simulation, Plumed generates a file 
 called HILLS that contains the information of the deposited Gaussians. You can 
