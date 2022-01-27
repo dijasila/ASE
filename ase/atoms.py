@@ -913,18 +913,24 @@ class Atoms:
         atoms.constraints = copy.deepcopy(self.constraints)
         return atoms
 
-    def todict(self):
+    def todict(self, warn=True):
         """For basic JSON (non-database) support."""
-        d = dict(self.arrays)
-        d['cell'] = np.asarray(self.cell)
-        d['pbc'] = self.pbc
+        d = {k: v.tolist() for (k, v) in self.arrays.items()}
+        d['cell'] = np.asarray(self.cell).tolist()
+        d['pbc'] = np.asarray(self.pbc).tolist()
         if self._celldisp.any():
-            d['celldisp'] = self._celldisp
+            d['celldisp'] = self._celldisp.tolist()
         if self.constraints:
-            d['constraints'] = self.constraints
+            d['constraints'] = [c.todict() for c in self.constraints]
         if self.info:
+            if warn:
+                warnings.warn('`info` might not be JSON serializable, SKIP.')
             d['info'] = self.info
+
         # Calculator...  trouble.
+        if self.calc is not None:
+            warnings.warn('`calculator` might not be JSON serializable, SKIP.')
+
         return d
 
     @classmethod
