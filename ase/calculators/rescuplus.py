@@ -1,43 +1,42 @@
-"""RESCU+ Calculator
-
-export ASE_RESCUPLUS_COMMAND="/path/to/rescuplus_scf -i filename.json"
-
-Calculate energy and forces using ``rescuplus_scf``.
-"""
+"""This module defines an ASE interface to RESCU+."""
 
 from ase import io
 from ase.calculators.calculator import FileIOCalculator
 
 
 class Rescuplus(FileIOCalculator):
+    """ASE interface for RESCU+.
+    
+    You may specify the RESCU+ command with the ``command`` keyword of ``__init__`` or
+    set the following environment variable as follows::
+
+        export ASE_RESCUPLUS_COMMAND="mpiexec -n 1 rescuplus_scf -i PREFIX.rsi > resculog.out && cp rescuplus_scf_out.json PREFIX.rso"
+    
+    All options for ``rescuplus_scf`` may be passed via the dict input_data, as
+    in the ``RESCUPy`` module.
+
+    Accepts all the options for ``rescuplus_scf`` as given in the RESCU+ docs,
+    plus some additional options:
+
+    pseudopotentials: list
+        A list of dictionaries, one for each atomic species, e.g.
+        [{'label':'Ga', 'path':'Ga_AtomicData.mat'},
+        {'label':'As', 'path':'As_AtomicData.mat'}].
+    kpts: array
+        List of 3 integers giving the dimensions of a Monkhorst-Pack grid.
+        If ``kpts`` is set to ``None``, only the Γ-point will be included.
+
+    .. note::
+        Set ``forces_return=True`` and ``stress_return=True`` to calculate forces
+        and stresses.
     """
-    """
+
     implemented_properties = ['energy', 'forces', 'stress']
     command = 'rescuplus_scf -i PREFIX.rsi > PREFIX.rso'
     _deprecated = object()
 
     def __init__(self, restart=None, ignore_bad_restart_file=_deprecated,
                  label='rescu', atoms=None, **kwargs):
-        """
-        All options for ``rescuplus_scf`` may be passed via the dict input_data, as
-        in the ``RESCUPy`` module.
-
-        Accepts all the options for ``rescuplus_scf`` as given in the RESCU+ docs,
-        plus some additional options:
-
-        pseudopotentials: list
-            A list of dictionaries, one for each atomic species, e.g.
-            [{'label':'Ga', 'path':'Ga_AtomicData.mat'},
-            {'label':'As', 'path':'As_AtomicData.mat'}].
-        kpts: array
-            List of 3 integers giving the dimensions of a Monkhorst-Pack grid.
-            If ``kpts`` is set to ``None``, only the Γ-point will be included.
-
-        .. note::
-            Set ``forces_return=True`` and ``stress_return=True`` to calculate forces
-            and stresses.
-
-        """
         FileIOCalculator.__init__(self, restart, ignore_bad_restart_file,
                                   label, atoms, **kwargs)
         self.calc = None
