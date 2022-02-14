@@ -434,7 +434,7 @@ def generate_input(atoms, kwargs):
     # Find out octopus version, changes output format, i.e. + separated or block
     command: list = ['octopus', '--version']
     check_version: str = subprocess.run(command, capture_output=True)
-    stdout_list: list = check_v.output.split()
+    stdout_list: list = check_version.stdout.decode().split()
     octopus_version: int = int(stdout_list[1].split('.')[0])    # major vers. only
 
     def append(line):
@@ -484,7 +484,7 @@ def generate_input(atoms, kwargs):
             output_tokens.append('forces')
         setvar('output', ' + '.join(output_tokens))
     elif octopus_version >= 11:
-        # output is a block
+        # output is a block in octopus version 11+
         if 'output' in kwargs:
             output_list = kwargs.pop('output')
             assert type(output_list) is list
