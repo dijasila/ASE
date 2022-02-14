@@ -50,3 +50,25 @@ def test_make_supercells_arrays(prim, rng):
     assert all(sc.get_tags() == np.tile(tags, reps))
     assert np.allclose(sc[:len(prim)].get_momenta(), prim.get_momenta())
     assert np.allclose(sc.get_momenta(), np.tile(momenta, (reps, 1)))
+
+
+@pytest.mark.parametrize('rep', [
+    (1, 1, 1),
+    (1, 2, 1),
+    (4, 5, 6),
+    (40, 19, 42),
+])
+def test_make_supercell_vs_repeat(prim, rep):
+    P = np.diag(rep)
+
+    at1 = prim * rep
+    at1.wrap()
+    at2 = make_supercell(prim, P, wrap=True)
+
+    assert np.allclose(at1.positions, at2.positions)
+    assert all(at1.symbols == at2.symbols)
+
+    at1 = prim * rep
+    at2 = make_supercell(prim, P, wrap=False)
+    assert np.allclose(at1.positions, at2.positions)
+    assert all(at1.symbols == at2.symbols)
