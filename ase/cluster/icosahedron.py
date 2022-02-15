@@ -10,13 +10,13 @@ def Icosahedron(symbol, noshells, latticeconstant=None):
 
     Parameters
     ----------
-    symbol: str or int
+    symbol : str or int
         The chemical symbol (or atomic number) of the element.
 
-    noshells: int
+    noshells : int
         The number of shells (>= 1).
 
-    latticeconstant: float, optional
+    latticeconstant : float, optional
         The lattice constant. If not given, then it is extracted from
         `ase.data`.
     """
