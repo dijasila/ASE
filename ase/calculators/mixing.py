@@ -28,11 +28,13 @@ class Mixer:
 
     def get_properties(self, properties, atoms):
         results = {}
+
         def get_property(prop):
             contributs = [calc.get_property(prop, atoms) for calc in self.calcs]
             results[f'{prop}_contributions'] = contributs
             results[prop] = sum(weight * value for weight, value
                                 in zip(self.weights, contributs))
+
         for prop in properties:  # get requested properties
             get_property(prop)
         for prop in self.implemented_properties:  # cache all available props
