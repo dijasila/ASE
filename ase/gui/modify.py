@@ -9,8 +9,7 @@ from ase.gui.utils import get_magmoms
 
 class ModifyAtoms:
     """Presents a dialog box where the user is able to change the
-    atomic type, the magnetic moment and tags of the selected atoms,
-    and switch atomic indices in preparation of input for NEB calculations.
+    atomic type, the magnetic moment and tags of the selected atoms.
     """
     def __init__(self, gui):
         self.gui = gui
