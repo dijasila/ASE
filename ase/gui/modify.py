@@ -64,6 +64,7 @@ class ModifyAtoms:
         ordered = []
         symbols = self.gui.atoms.get_chemical_symbols()
         symbols_set = sorted(list(set(symbols)))
+        print(symbols_set)
         for i in symbols_set:
             ordered += [x.index for x in self.gui.atoms if x.symbol == i]
         self.gui.new_atoms(self.gui.atoms[ordered])
