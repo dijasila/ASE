@@ -140,6 +140,9 @@ class SAFIRES(MolecularDynamics):
         if atoms.constraints:
             self.check_constraints(atoms)
 
+        # Final sanity check, make sure all inner are closer to origin than outer.
+        # assert self.check_distances(atoms)
+
         MolecularDynamics.__init__(self, atoms, timestep, trajectory,
                                    logfile, loginterval,
                                    append_trajectory=append_trajectory)
@@ -154,11 +157,13 @@ class SAFIRES(MolecularDynamics):
     def check_constraints(self, atoms):
         """ Check that solute has either FixAtoms or FixCom """
         sol_idx = np.array([atom.index for atom in atoms if atom.tag == 1])
-        correct = False
+        correct = np.array([False])
+        print(correct.all())
  
         for i, c in enumerate(atoms.constraints):
             if c.todict()['name'] in _allowed_constraints:
                 correct = c.index == sol_idx
+                print(correct)
  
             if correct.all():
                 break
@@ -389,18 +394,18 @@ class SAFIRES(MolecularDynamics):
             outer_real = self.idx_real[outer_idx]
             inner_real = self.idx_real[inner_idx]
 
-            print("r_outer = ", r_outer)
-            print("r_inner = ", r_inner)
-            print("m_outer = ", m_outer)
-            print("m_inner = ", m_inner)
-            print("v_inner = ", v_inner)
-            print("v_outer = ", v_outer)
-            print("f_outer = ", f_outer)
-            print("f_inner = ", f_inner)
-            print("outer_idx = ", outer_idx)
-            print("inner_id = ", inner_idx)
-            print("outer_real = ", outer_real)
-            print("inner_real = ", inner_real)
+            #print("r_outer = ", r_outer)
+            #print("r_inner = ", r_inner)
+            #print("m_outer = ", m_outer)
+            #print("m_inner = ", m_inner)
+            #print("v_inner = ", v_inner)
+            #print("v_outer = ", v_outer)
+            #print("f_outer = ", f_outer)
+            #print("f_inner = ", f_inner)
+            #print("outer_idx = ", outer_idx)
+            #print("inner_id = ", inner_idx)
+            #print("outer_real = ", outer_real)
+            #print("inner_real = ", inner_real)
 
             # if inner/outer particles are molecules
             if self.nout > 1 or self.nin > 1:
@@ -427,12 +432,12 @@ class SAFIRES(MolecularDynamics):
                 sig_outer = math.sqrt(2 * T * fr)
                 sig_inner = math.sqrt(2 * T * fr)
                 
-                print("xi_outer = ", xi_outer)
-                print("xi_inner = ", xi_inner)
-                print("eta_outer = ", eta_outer)
-                print("eta_inner = ", eta_inner)
-                print("sig_outer = ", sig_outer)
-                print("sig_inner = ", sig_inner)
+                #print("xi_outer = ", xi_outer)
+                #print("xi_inner = ", xi_inner)
+                #print("eta_outer = ", eta_outer)
+                #print("eta_inner = ", eta_inner)
+                #print("sig_outer = ", sig_outer)
+                #print("sig_inner = ", sig_inner)
 
             # if inner/outer particles are monoatomic
             else:
@@ -488,10 +493,10 @@ class SAFIRES(MolecularDynamics):
                            + eta_inner / sqrt_3) / 4)
                 b_inner = sqrt_idt * sig_inner * eta_inner / (2 * sqrt_3)
             
-                print("a_outer = ", a_outer)
-                print("a_inner = ", a_inner)
-                print("b_outer = ", b_outer)
-                print("b_inner = ", b_inner)
+                #print("a_outer = ", a_outer)
+                #print("a_inner = ", a_inner)
+                #print("b_outer = ", b_outer)
+                #print("b_inner = ", b_inner)
 
             else:
                 a_outer = 0
@@ -509,9 +514,9 @@ class SAFIRES(MolecularDynamics):
             c1 = 2 * np.dot(r_inner, v_inner) - 2 * np.dot(r_outer, v_outer)
             c2 = np.dot(v_inner, v_inner) - np.dot(v_outer, v_outer)
 
-            print("c0 = ", c0)
-            print("c1 = ", c1)
-            print("c2 = ", c2)
+            #print("c0 = ", c0)
+            #print("c1 = ", c1)
+            #print("c2 = ", c2)
 
             # find roots
             roots = np.roots([c2, c1, c0])
@@ -747,6 +752,10 @@ class SAFIRES(MolecularDynamics):
         if forces is None:
             forces = atoms.get_forces(md=True)
 
+        # Must propagate future atoms object with non-modified force array 
+        # to predict the correct motion of the COM
+        NCforces = atoms.get_forces(md=False)
+
         # This velocity as well as xi, eta and a few other variables are stored
         # as attributes, so Asap can do its magic when atoms migrate between
         # processors.
@@ -772,9 +781,11 @@ class SAFIRES(MolecularDynamics):
         self.communicator.broadcast(self.xi, 0)
         self.communicator.broadcast(self.eta, 0)
 
+        FTatoms = atoms.copy()
+
         # Propagate a copy of the atoms object by self.dt.
-        future_atoms = self.propagate(atoms.copy(), forces, self.dt, checkup=False,
-                halfstep=1, constraints=True)
+        future_atoms = self.propagate(FTatoms, NCforces, self.dt, checkup=False,
+                halfstep=1, constraints=False)
         
         # Convert future_atoms to COM atoms objects.
         (ftr_com_atoms, ftr_com_forces, ftr_r, ftr_d, 
@@ -784,13 +795,14 @@ class SAFIRES(MolecularDynamics):
         conflicts = [(ftr_boundary_idx, atom.index) for atom in ftr_com_atoms
                      if atom.tag == 3 and ftr_d[atom.index] < ftr_boundary]
 
+        # print(conflicts)
         # If there are boundary conflicts, execute problem solving.
         if conflicts:
             print("CONFLICTS = ", conflicts)
             print("regular dt = ", self.dt)
             
             # Find the conflict that occurs earliest in time
-            dt_list = [self.extrapolate_dt(atoms, forces, c[0], c[1], 
+            dt_list = [self.extrapolate_dt(atoms, NCforces, c[0], c[1], 
                        checkup=False) for c in conflicts]
             conflict = sorted(dt_list, key=itemgetter(2))[0]
             print("First conflict = ", conflict)
