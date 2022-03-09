@@ -18,7 +18,7 @@ class ModifyAtoms:
             ui.error(_('No atoms selected!'))
             return
 
-        win = ui.Window(_('Modify'))
+        win = ui.Window(_('Modify'), wmtype='utility')
         element = Element(callback=self.set_element)
         win.add(element)
         win.add(ui.Button(_('Change element'),
@@ -40,33 +40,6 @@ class ModifyAtoms:
         magmoms = get_magmoms(atoms)[selected]
         if magmoms.round(2).ptp() == 0.0:
             self.magmom.value = round(magmoms[0], 2)
-
-        win.add(ui.Button(_('Switch indices'), self.switch_indices))
-        win.add(ui.Button(_('Sort indices by element'), self.sort_indices_by_element))
-
-    def switch_indices(self):
-        import numpy as np
-        selected = self.selection()
-        indices = np.where(selected == True)[0]
-        selection_len = len([i for i in selected if i == True])
-        if not selection_len == 2:
-            ui.error(_('Only two atoms must be selected!'))
-            return
-
-        # Defining list of manipulated atoms
-        i = [atom.index for atom in self.gui.atoms]
-        i[indices[0]], i[indices[1]] = i[indices[1]], i[indices[0]]
-        self.gui.new_atoms(self.gui.atoms[i])
-
-    def sort_indices_by_element(self):
-        import numpy as np
-        ordered = []
-        symbols = self.gui.atoms.get_chemical_symbols()
-        symbols_set = sorted(list(set(symbols)))
-        print(symbols_set)
-        for i in symbols_set:
-            ordered += [x.index for x in self.gui.atoms if x.symbol == i]
-        self.gui.new_atoms(self.gui.atoms[ordered])
 
     def selection(self):
         return self.gui.images.selected[:len(self.gui.atoms)]
