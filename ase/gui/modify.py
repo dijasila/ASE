@@ -5,7 +5,7 @@ from ase.gui.i18n import _
 import ase.gui.ui as ui
 from ase.gui.widgets import Element
 from ase.gui.utils import get_magmoms
-import numpy as np
+
 
 class ModifyAtoms:
     """Presents a dialog box where the user is able to change the
@@ -46,6 +46,7 @@ class ModifyAtoms:
         win.add(ui.Button(_('Sort indices by element'), self.sort_indices_by_element))
 
     def switch_indices(self):
+        import numpy as np
         selected = self.selection()
         indices = np.where(selected == True)[0]
         selection_len = len([i for i in selected if i])
@@ -59,6 +60,7 @@ class ModifyAtoms:
         self.gui.new_atoms(self.gui.atoms[i])
 
     def sort_indices_by_element(self):
+        import numpy as np
         ordered = []
         symbols = self.gui.atoms.get_chemical_symbols()
         symbols_set = sorted(list(set(symbols)))
