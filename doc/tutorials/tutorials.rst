@@ -95,7 +95,6 @@ Uncategorized
 
    defects/defects
    qmmm/qmmm
-   metadynamics/metadynamics
    dimensionality/dimensionality
    deltacodesdft/deltacodesdft
    wannier/wannier
