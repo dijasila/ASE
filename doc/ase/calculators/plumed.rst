@@ -65,8 +65,8 @@ You can ignore this line, but be aware of the units changes.
 
 .. seealso::
 
-    Visit
-    `Metadynamics tutorial <https://gitlab.com/Sucerquia/ase-plumed_tutorial>`_
+    Visit 
+    `this Metadynamics tutorial <https://gitlab.com/Sucerquia/ase-plumed_tutorial>`_
     for further explanation of the Plumed calculator.
 
 Plumed Calculator Class
