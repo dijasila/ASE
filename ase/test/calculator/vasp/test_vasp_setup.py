@@ -1,4 +1,5 @@
 import pytest
+import os
 from ase.atoms import Atoms
 
 calc = pytest.mark.calculator
@@ -46,11 +47,16 @@ def do_check():
     return _do_check
 
 
+os.environ['ASE_VASP_SETUPS'] = os.getcwd()
+
+
 @calc('vasp')
 @pytest.mark.parametrize('settings, expected', [
     (dict(xc='pbe'), ('Ca_pv', 'Gd', 'Cs_sv')),
     (dict(xc='pbe', setups='recommended'), ('Ca_sv', 'Gd_3', 'Cs_sv')),
     (dict(xc='pbe', setups='materialsproject'), ('Ca_sv', 'Gd', 'Cs_sv')),
+    (dict(xc='pbe', setups='$test_local_setups'), ('Ca_sv', 'Gd_3', 'Cs')),
+    (dict(xc='pbe', setups='test_local_setups.json'), ('Ca_sv', 'Gd_3', 'Cs')),
 ])
 def test_vasp_setup_atoms_1(factory, do_check, atoms_1, settings, expected):
     """
@@ -72,6 +78,14 @@ def test_vasp_setup_atoms_1(factory, do_check, atoms_1, settings, expected):
         'Ca': '_sv',
         2: 'I'
     }), ('Ca_sv', 'In_d_GW', 'I')),
+    (dict(xc='pbe', setups={
+        'base': 'recommended',
+        'In': ''
+    }), ('Ca_sv', 'In', 'I')),
+    (dict(xc='pbe', setups={
+        'base': '$test_local_setups2',
+        'Ca': '_pv'
+    }), ('Ca_pv', 'In_d', 'I')),
 ])
 def test_vasp_setup_atoms_2(factory, do_check, atoms_2, settings, expected):
     do_check(factory, atoms_2, expected, settings)
@@ -82,6 +96,7 @@ def test_vasp_setup_atoms_2(factory, do_check, atoms_2, settings, expected):
     (dict(xc='pbe'), ('Ca_sv', 'Gd', 'Cs_sv')),
     (dict(xc='pbe', setups='recommended'), ('Ca_sv', 'Gd_31', 'Cs_sv')),
     (dict(xc='pbe', setups='materialsproject'), ('Ca_sv', 'Gd', 'Cs')),
+    (dict(xc='pbe', setups='test_local_setups.json'), ('Ca', 'Gd', 'Cs')),
 ])
 def test_setup_error(factory, do_check, atoms_1, settings, expected):
     """Do a test, where we purposely make mistakes"""

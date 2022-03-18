@@ -225,7 +225,7 @@ Setups
 For many elements, VASP is distributed with a choice of
 pseudopotential setups. These may be hard/soft variants of the
 pseudopotential or include additional valence electrons.
-Three base setups are provided:
+Four base setups are provided:
 
     minimal (default):
         If a PAW folder exists with the same name as the element,
@@ -237,6 +237,11 @@ Three base setups are provided:
         corresponds to the `Materials Project recommended PAW setups <https://wiki.materialsproject.org/Pseudopotentials_Choice>`_.
     gw:
         corresponds to the `table of recommended setups for GW <https://www.vasp.at/wiki/index.php/Available_PAW_potentials#Recommended_potentials_for_GW.2FRPA_calculations>`_ supplied by the VASP developers.
+
+Additionally, it is possible to read in a custom dictionary of VASP setups by providing the full path to a `.json` file with the desired pseudopotentials.
+For convenience, if the environment variable `ASE_VASP_SETUPS` is set and points to a directory where `.json` files of desired VASP setups are stored,
+then you can call Vasp(setups = '$mysetups') to read in a custom dictionary of setups called `mysetups.json` located in the `ASE_VASP_SETUPS` directory.
+The '$' sign informs ASE that a local setup is requested, rather than an internally defined pre-set. The remainder of the string is the name of the `.json` file.
 
 Where elements are missing from the default sets, the Vasp Calculator
 will attempt to use a setup folder with the same name as the element.
