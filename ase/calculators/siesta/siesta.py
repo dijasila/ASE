@@ -748,7 +748,7 @@ class Siesta(FileIOCalculator):
           1 -- means that the coordinate will be updated during relaxation
           0 -- mains that the coordinate will be fixed during relaxation
         """
-        from ase.constraints import FixAtoms, FixedLine, FixedPlane
+        from ase.constraints import FixAtoms, FixedLine, FixedPlane, FixCartesian
         import sys
         import warnings
 
@@ -771,6 +771,8 @@ class Siesta(FileIOCalculator):
                         'norm_dir: {} -- must be one of the Cartesian axes...'
                         .format(norm_dir))
                 a2c[c.a] = abs(1 - norm_dir.round().astype(int))
+            elif isinstance(c, FixCartesian):
+                a2c[c.get_indices()] = c.mask.astype(int)
             else:
                 warnings.warn('Constraint {} is ignored at {}'
                               .format(str(c), sys._getframe().f_code))
