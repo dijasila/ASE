@@ -61,4 +61,7 @@ visualize.view = lambda atoms: None
 Atoms.edit = lambda self: None
 """
 
-autodoc_mock_imports = ['kimpy']
+autodoc_mock_imports = ["kimpy"]
+
+# Enable numref
+numfig = True
