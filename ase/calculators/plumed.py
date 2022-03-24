@@ -153,6 +153,9 @@ class Plumed(Calculator):
                 self.plumed.cmd("readInputLine", line)
         self.atoms = atoms
 
+    def _get_name(self):
+        return f'{self.calc.name}+Plumed'
+
     def calculate(self, atoms=None, properties=['energy', 'forces'],
                   system_changes=all_changes):
         Calculator.calculate(self, atoms, properties, system_changes)
