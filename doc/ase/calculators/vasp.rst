@@ -6,7 +6,7 @@
 VASP
 ====
 
-.. contents:: Table of Conents
+.. contents:: Table of Contents
 
 
 Introduction

@@ -41,12 +41,12 @@ Supported calculators
 The calculators can be divided in four groups:
 
 1) Asap_, BigDFT_, DFTK_, GPAW_, and Hotbit_ have their own native ASE
-interfaces.
+   interfaces.
 
 2) ABINIT, AMBER, CP2K, CASTEP, deMon2k, DFTB+, ELK, EXCITING, FHI-aims, FLEUR, GAUSSIAN,
-   Gromacs, LAMMPS, MOPAC, NWChem, Octopus, ONETEP, PLUMED, psi4, Q-Chem, Quantum ESPRESSO, SIESTA,
-   TURBOMOLE and VASP, have Python wrappers in the ASE package, but the actual
-   FORTRAN/C/C++ codes are not part of ASE.
+   Gromacs, LAMMPS, MOPAC, NWChem, Octopus, ONETEP, PLUMED, psi4, Q-Chem, Quantum ESPRESSO, 
+   RESCU+, SIESTA, TURBOMOLE and VASP, have Python wrappers in the ASE package, 
+   but the actual FORTRAN/C/C++ codes are not part of ASE.
 
 3) Pure python implementations included in the ASE package: EMT, EAM,
    Lennard-Jones, Morse and HarmonicCalculator.
@@ -101,6 +101,7 @@ elk                                       Full Potential LAPW code
 :mod:`~ase.calculators.plumed`            Enhanced sampling method library
 :mod:`~ase.calculators.psi4`              Gaussian based electronic structure code
 :mod:`~ase.calculators.qchem`             Gaussian based electronic structure code
+:mod:`~ase.calculators.rescuplus`         LCAO pseudopotential code
 :mod:`~ase.calculators.siesta`            LCAO pseudopotential code
 :mod:`~ase.calculators.turbomole`         Fast atom orbital code
 :mod:`~ase.calculators.vasp`              Plane-wave PAW code
@@ -244,6 +245,7 @@ the :meth:`set` method:
    plumed
    psi4
    qchem
+   rescuplus
    siesta
    turbomole
    vasp

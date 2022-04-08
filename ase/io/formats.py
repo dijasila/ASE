@@ -464,6 +464,10 @@ F('sys', 'qball sys file', '1F')
 F('qbox', 'QBOX output file', '+F',
   magic=b'*:simulation xmlns:')
 F('res', 'SHELX format', '1S', ext='shelx')
+F('rescu-in', 'rescuplus input file', '1F',
+  module='rescuplus', ext='rsi'),
+F('rescu-out', 'rescuplus output file', '1F',
+  module='rescuplus', ext='rso'),
 F('rmc6f', 'RMCProfile', '1S', ext='rmc6f')
 F('sdf', 'SDF format', '1F')
 F('siesta-xv', 'Siesta .XV file', '1F',
