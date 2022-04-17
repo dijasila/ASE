@@ -294,11 +294,12 @@ class Dftb(FileIOCalculator):
         """ all results are read from results.tag file
             It will be destroyed after it is read to avoid
             reading it once again after some runtime error """
+        from ase.io import read
 
         with open(os.path.join(self.directory, 'results.tag'), 'r') as fd:
             self.lines = fd.readlines()
 
-        self.atoms = self.atoms_input
+        self.atoms = read(os.path.join(self.directory, 'geo_end.gen'))
         charges, energy, dipole = self.read_charges_energy_dipole()
         if charges is not None:
             self.results['charges'] = charges
