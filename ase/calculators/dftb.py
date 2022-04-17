@@ -10,6 +10,7 @@ import os
 import numpy as np
 from ase.calculators.calculator import (FileIOCalculator, kpts2ndarray,
                                         kpts2sizeandoffsets)
+from ase.io import read
 from ase.units import Hartree, Bohr
 
 
