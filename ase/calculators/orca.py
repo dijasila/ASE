@@ -19,7 +19,7 @@ class ORCA(FileIOCalculator):
     default_parameters = dict(
         charge=0, mult=1,
         task='gradient',
-        orcasimpleinput='tightscf PBE def2-SVP',
+        orcasimpleinput='tightscf PBE def2-SVP XYZFILE',
         orcablocks='%scf maxiter 200 end')
 
     def __init__(self, restart=None,
