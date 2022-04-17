@@ -298,7 +298,7 @@ class Dftb(FileIOCalculator):
         with open(os.path.join(self.directory, 'results.tag'), 'r') as fd:
             self.lines = fd.readlines()
 
-        self.atoms = self.atoms_input
+        self.atoms = read(os.path.join(self.directory, 'geo_end.gen'))
         charges, energy, dipole = self.read_charges_energy_dipole()
         if charges is not None:
             self.results['charges'] = charges
