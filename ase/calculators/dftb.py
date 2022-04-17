@@ -10,7 +10,6 @@ import os
 import numpy as np
 from ase.calculators.calculator import (FileIOCalculator, kpts2ndarray,
                                         kpts2sizeandoffsets)
-from ase.io import read
 from ase.units import Hartree, Bohr
 
 
@@ -295,6 +294,7 @@ class Dftb(FileIOCalculator):
         """ all results are read from results.tag file
             It will be destroyed after it is read to avoid
             reading it once again after some runtime error """
+        from ase.io import read
 
         with open(os.path.join(self.directory, 'results.tag'), 'r') as fd:
             self.lines = fd.readlines()
