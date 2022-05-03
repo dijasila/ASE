@@ -633,8 +633,12 @@ class SAFIRES(MolecularDynamics):
             # after force update.
             if constraints == True:
                 atoms.set_positions(x + dt * v)
+                v = (self.atoms.get_positions() - x - dt * d) / dt
+                atoms.set_momenta(v * m)
             else:
                 atoms.set_positions(x + dt * v, apply_constraint=False)
+                v = (self.atoms.get_positions() - x - dt * d) / dt
+                atoms.set_momenta(v * m, apply_constraint=False)
 
         return atoms
 
@@ -738,8 +742,6 @@ class SAFIRES(MolecularDynamics):
                 (self.nin, 1)) * m[inner_actual:inner_actual+self.nin]
         
         atoms.set_momenta(mom, apply_constraint=False)
-
-        print(atoms.get_momenta())
 
         # keep track of which pair of conflicting particles
         # was just resolved for future reference
