@@ -739,6 +739,8 @@ class SAFIRES(MolecularDynamics):
         
         atoms.set_momenta(mom)
 
+        print(atoms.get_momenta())
+
         # keep track of which pair of conflicting particles
         # was just resolved for future reference
         self.recent = [inner_reflect, outer_reflect]
