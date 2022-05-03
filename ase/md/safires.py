@@ -799,6 +799,7 @@ class SAFIRES(MolecularDynamics):
         # If there are boundary conflicts, execute problem solving.
         if conflicts:
             print("CONFLICTS = ", conflicts)
+            print("Current iteration = ", self.get_number_of_steps())
             print("regular dt = ", self.dt)
             
             # Find the conflict that occurs earliest in time
