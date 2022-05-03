@@ -1075,7 +1075,7 @@ class SAFIRES:
             dt_list = sorted(dt_list, key=itemgetter(1))
             new_dt = dt_list[0][1]
             self.debuglog("   Using new time step for next iteration: "
-                          "dt = {:.5f}\n".format(float(new_dt)))
+                          "dt = {:f}\n".format(float(new_dt)))
 
             # choose affected particle pair corresponding to smallest dt
             outer_reflect, inner_reflect = dt_list[0][0], dt_list[0][2]
@@ -1087,7 +1087,7 @@ class SAFIRES:
                 # within the current MD iteration
                 self.remaining_dt = self.mdobject.dt - new_dt
                 self.debuglog("   Accounting for remaining time step: "
-                              "dt_rem = {:.5f}\n"
+                              "dt_rem = {:f}\n"
                               .format(self.remaining_dt))
             elif self.remaining_dt > 0:
                 # if the current boundary event is not the first
@@ -1095,7 +1095,7 @@ class SAFIRES:
                 if self.remaining_dt - new_dt > 0:
                     self.remaining_dt -= new_dt
                     self.debuglog("   Accounting for remaining time step: "
-                                  "dt_rem = {:.5f}\n"
+                                  "dt_rem = {:f}\n"
                                   .format(self.remaining_dt))
                 else:
                     # catching an exception that would indicate that
@@ -1168,7 +1168,7 @@ class SAFIRES:
                            "Treating atoms {:d} and {:d} at d = {:.5f}"
                            .format(outer_reflect, inner_reflect,
                                    d[outer_reflect]),
-                           ". Using dt = {:.12f}"
+                           ". Using dt = {:f}"
                            .format(float(new_dt))]))
             self.debuglog("".join(["   Treating atoms "
                                    "{:d} (OUTER) and {:d}"
@@ -1352,7 +1352,7 @@ class SAFIRES:
                       "larger than initial dt. Resetting to intial dt.")
                 self.debuglog("".join([
                               "   WARNING: Remaining dt after collision"
-                              "({:.5f}) ".format(self.remaining_dt),
+                              "({:5f}) ".format(self.remaining_dt),
                               "is larger than initial dt. "
                               "Resetting to intial dt.\n"
                               ]))
