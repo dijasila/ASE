@@ -737,7 +737,7 @@ class SAFIRES(MolecularDynamics):
         mom[inner_actual:inner_actual+self.nin] += np.tile(dV_inner, 
                 (self.nin, 1)) * m[inner_actual:inner_actual+self.nin]
         
-        atoms.set_momenta(mom)
+        atoms.set_momenta(mom, apply_constraint=False)
 
         print(atoms.get_momenta())
 
