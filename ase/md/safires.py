@@ -1311,6 +1311,8 @@ class SAFIRES:
 
             self.atoms.set_momenta(mom, apply_constraint=False)
 
+            print(self.atoms.get_momenta())
+
             # reset list that tracks conflicting particle pairs
             # since conflict is resolved now
             self.tocollide = list()
