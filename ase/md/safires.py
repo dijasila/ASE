@@ -137,11 +137,12 @@ class SAFIRES(MolecularDynamics):
         assert atoms.constraints, \
                'Constraints are not set (solute can not move)'
 
-        if atoms.constraints:
-            self.check_constraints(atoms)
+        assert self.check_constraints(atoms), \
+               'Solute constraint not correctly set'
 
         # Final sanity check, make sure all inner are closer to origin than outer.
-        # assert self.check_distances(atoms)
+        assert self.check_distances(atoms), \
+               'Outer molecule closer to origin than inner'
 
         MolecularDynamics.__init__(self, atoms, timestep, trajectory,
                                    logfile, loginterval,
@@ -158,17 +159,39 @@ class SAFIRES(MolecularDynamics):
         """ Check that solute has either FixAtoms or FixCom """
         sol_idx = np.array([atom.index for atom in atoms if atom.tag == 1])
         correct = np.array([False])
-        print(correct.all())
  
         for i, c in enumerate(atoms.constraints):
             if c.todict()['name'] in _allowed_constraints:
                 correct = c.index == sol_idx
-                print(correct)
  
             if correct.all():
                 break
  
-        assert correct.all(), 'Solute constraint not correctly set'
+        return correct.all()
+
+    def check_distances(self, atoms):
+        cm_origin = atoms[[atom.index for atom 
+                           in atoms if atom.tag == 1]].get_center_of_mass()
+        # collect in/out
+        cm_inner = []
+        cm_outer = []
+
+        i = 0
+        while i < len(atoms):
+            tag = atoms[i].tag
+            idx = atoms[i].index
+            nat = self.nall[tag]
+            if tag == 2:
+                cm_inner.append(atoms[idx:idx + nat].get_center_of_mass())
+            if tag == 3:
+                cm_outer.append(atoms[idx:idx + nat].get_center_of_mass())
+            i += nat
+
+        d_inner = np.linalg.norm(cm_inner - cm_origin, axis=1)
+        d_outer = np.linalg.norm(cm_outer - cm_origin, axis=1)
+
+        return max(d_inner) < min(d_outer)
+
 
     def set_temperature(self, temperature=None, temperature_K=None):
         self.temp = units.kB * self._process_temperature(temperature,
