@@ -642,6 +642,24 @@ class SAFIRES(MolecularDynamics):
 
         return atoms
 
+    def predictConflicts(self, atoms, forces, dt, halfstep, 
+                         constraints, checkup):
+        FTatoms = atoms.copy()
+
+        # Propagate a copy of the atoms object by self.dt.
+        future_atoms = self.propagate(FTatoms, forces, dt, 
+                checkup=checkup, halfstep=halfstep, constraints=constraints)
+
+        # Convert future_atoms to COM atoms objects.
+        (ftr_com_atoms, ftr_com_forces, ftr_r, ftr_d,
+        ftr_boundary_idx, ftr_boundary) = self.update(future_atoms, forces)
+
+        # Check if future_atoms contains boundary conflict.
+        conflicts = [(ftr_boundary_idx, atom.index) for atom in ftr_com_atoms
+                     if atom.tag == 3 and ftr_d[atom.index] < ftr_boundary]
+
+        return conflicts
+
     def collide(self, atoms, forces, inner_reflect, outer_reflect):
         """Perform elastic collision between two paticles."""
         
@@ -789,75 +807,89 @@ class SAFIRES(MolecularDynamics):
         self.communicator.broadcast(self.xi, 0)
         self.communicator.broadcast(self.eta, 0)
 
-        FTatoms = atoms.copy()
+        # The checkup bool is used to differentiate between the first
+        # and any potential subsequent collision resolutions as they
+        # have to be treated differently.
+        checkup = False
 
-        # Propagate a copy of the atoms object by self.dt.
-        future_atoms = self.propagate(FTatoms, NCforces, self.dt, checkup=False,
-                halfstep=1, constraints=False)
-        
-        # Convert future_atoms to COM atoms objects.
-        (ftr_com_atoms, ftr_com_forces, ftr_r, ftr_d, 
-        ftr_boundary_idx, ftr_boundary) = self.update(future_atoms, forces)
+        # Predict boundary conflicts after propagating by self.dt.
+        conflicts = self.predictConflicts(atoms=atoms, 
+                                          forces=NCforces, 
+                                          dt=self.dt,
+                                          halfstep=1,
+                                          constraints=False,
+                                          checkup=checkup)
 
-        # Check if future_atoms contains boundary conflict.
-        conflicts = [(ftr_boundary_idx, atom.index) for atom in ftr_com_atoms
-                     if atom.tag == 3 and ftr_d[atom.index] < ftr_boundary]
-
-        # print(conflicts)
         # If there are boundary conflicts, execute problem solving.
         if conflicts:
-            print("CONFLICTS = ", conflicts)
-            print("Current iteration = ", self.get_number_of_steps())
-            print("regular dt = ", self.dt)
+            while conflicts:
+                print("CONFLICTS = ", conflicts)
+                print("Current iteration = ", self.get_number_of_steps())
+                print("regular dt = ", self.dt)
+                
+                # Find the conflict that occurs earliest in time
+                dt_list = [self.extrapolate_dt(atoms, NCforces, c[0], c[1], 
+                           checkup=False) for c in conflicts]
+                conflict = sorted(dt_list, key=itemgetter(2))[0]
+                print("First conflict = ", conflict)
+
+                # When holonomic constraints for rigid linear triatomic molecules are
+                # present, ask the constraints to redistribute xi and eta within each
+                # triple defined in the constraints. This is needed to achieve the
+                # correct target temperature.
+                for constraint in atoms.constraints:
+                    if hasattr(constraint, 'redistribute_forces_md'):
+                        constraint.redistribute_forces_md(atoms, self.xi, rand=True)
+                        constraint.redistribute_forces_md(atoms, self.eta, rand=True)
+
+                print("d before boundary propagation")
+                xx, xx, xx, d, xx, xx = (
+                    self.update(atoms, forces))
+                print("d_inner = ", d[conflict[0]])
+                print("d_outer = ", d[conflict[1]])
+
+                # Propagate to boundary.
+                atoms = self.propagate(atoms, forces, conflict[2], checkup=checkup,
+                            halfstep=1, constraints=True)
+                
+                print("d after boundary propagation")
+                xx, xx, xx, d, xx, xx = (
+                    self.update(atoms, forces))
+                print("d_inner = ", d[conflict[0]])
+                print("d_outer = ", d[conflict[1]])
+
+                # Resolve elastic collision.
+                atoms = self.collide(atoms, forces, conflict[0], conflict[1])
+                
+                print("d after collision")
+                xx, xx, xx, d, xx, xx = (
+                    self.update(atoms, forces))
+                print("d_inner = ", d[conflict[0]])
+                print("d_outer = ", d[conflict[1]])
+
+                # Propagate remaining time step.
+                if self.remaining_dt == 0:
+                    self.remaining_dt = self.dt - conflict[2]
+                else:
+                    self.remaining_dt -= conflict[2]
+
+                # Update checkup. 
+                checkup = True
             
-            # Find the conflict that occurs earliest in time
-            dt_list = [self.extrapolate_dt(atoms, NCforces, c[0], c[1], 
-                       checkup=False) for c in conflicts]
-            conflict = sorted(dt_list, key=itemgetter(2))[0]
-            print("First conflict = ", conflict)
-
-            # When holonomic constraints for rigid linear triatomic molecules are
-            # present, ask the constraints to redistribute xi and eta within each
-            # triple defined in the constraints. This is needed to achieve the
-            # correct target temperature.
-            for constraint in atoms.constraints:
-                if hasattr(constraint, 'redistribute_forces_md'):
-                    constraint.redistribute_forces_md(atoms, self.xi, rand=True)
-                    constraint.redistribute_forces_md(atoms, self.eta, rand=True)
-
-            print("d before boundary propagation")
-            xx, xx, xx, d, xx, xx = (
-                self.update(atoms, forces))
-            print("d_inner = ", d[conflict[0]])
-            print("d_outer = ", d[conflict[1]])
-
-            # Propagate to boundary.
-            atoms = self.propagate(atoms, forces, conflict[2], checkup=False,
-                        halfstep=1, constraints=True)
-            
-            print("d after boundary propagation")
-            xx, xx, xx, d, xx, xx = (
-                self.update(atoms, forces))
-            print("d_inner = ", d[conflict[0]])
-            print("d_outer = ", d[conflict[1]])
-
-            # Resolve elastic collision.
-            atoms = self.collide(atoms, forces, conflict[0], conflict[1])
-            
-            print("d after collision")
-            xx, xx, xx, d, xx, xx = (
-                self.update(atoms, forces))
-            print("d_inner = ", d[conflict[0]])
-            print("d_outer = ", d[conflict[1]])
-
-            # Propagate remaining time step.
-            if self.remaining_dt == 0:
-                self.remaining_dt = self.dt - conflict[2]
-            else:
-                self.remaining_dt -= conflict[2]
+                # Predict boundary conflicts after propagating by 
+                # self.remaining_dt.
+                conflicts = self.predictConflicts(atoms=atoms, 
+                                                  forces=NCforces, 
+                                                  dt=self.remaining_dt,
+                                                  halfstep=1,
+                                                  constraints=False,
+                                                  checkup=checkup)
+        
+            # After all conflicts are resolved, the second propagation
+            # halfstep is executed.
             print("Remaining_dt after collision = ", self.remaining_dt)
             atoms = self.propagate(atoms, forces, self.remaining_dt,
-                        checkup=False, halfstep=2, constraints=True)
+                        checkup=checkup, halfstep=2, constraints=True)
             
             print("d after makeup propagation")
             xx, xx, xx, d, xx, xx = (
@@ -872,7 +904,7 @@ class SAFIRES(MolecularDynamics):
                     constraint.redistribute_forces_md(atoms, self.xi, rand=True)
                     constraint.redistribute_forces_md(atoms, self.eta, rand=True)
 
-            atoms = self.propagate(atoms, forces, self.dt, checkup=False,
+            atoms = self.propagate(atoms, forces, self.dt, checkup=checkup,
                 halfstep=1, constraints=True)
 
         # Finish propagation as usual.
