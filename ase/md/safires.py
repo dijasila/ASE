@@ -1,29 +1,36 @@
-"""Langevin dynamics class."""
+"""SAFIRES dynamics class.
+
+This Langevin-derived dynamics class is intended for hybrid
+calculations where an inner and an outer region need to be
+kept separated. SAFIRES avoids boundary crossing of molecules
+by performing elastic collisions between their centers of mass
+at the boundary in an energy-conserving fashion.
+
+When using SAFIRES, cite:
+J. Chem. Theory Comput. 2021, 17, 9, 5863–5875
+"""
 
 import numpy as np
-from operator import itemgetter
 import math
+import warnings
+from operator import itemgetter
 
 from ase import Atoms
 from ase.md.md import MolecularDynamics
 from ase.parallel import world, DummyMPI
 from ase import units
 from ase.geometry import find_mic
-import warnings
 
 _allowed_constraints = {'FixAtoms', 'FixCom'}
 
 class SAFIRES(MolecularDynamics):
-    """Langevin (constant N, V, T) molecular dynamics."""
-
-    # Helps Asap doing the right thing.  Increment when changing stuff:
-    _lgv_version = 4
+    """SAFIRES (constant N, V, T, variable dt) molecular dynamics."""
 
     def __init__(self, atoms, timestep, temperature=None, friction=None,
-                 fixcm=True, *, temperature_K=None, trajectory=None,
-                 logfile=None, loginterval=1, communicator=world,
-                 rng=None, append_trajectory=False, surface=False,
-                 reflective=False, natoms=None, natoms_in=None):
+                 natoms=None, natoms_in=None, fixcm=True, *, 
+                 temperature_K=None, trajectory=None, logfile=None, 
+                 loginterval=1, communicator=world, rng=None, 
+                 append_trajectory=False, surface=False, reflective=False):
         """
         Parameters:
 
@@ -41,6 +48,15 @@ class SAFIRES(MolecularDynamics):
 
         friction: float
             A friction coefficient, typically 1e-4 to 1e-2.
+
+        natoms: int
+            SAFIRES parameter that determines the number of atoms of
+            each solvent molecule (tag in [2, 3]).
+
+        natoms_in: int (optional)
+            SAFIRES parameter that determines the number of atoms of
+            each solvent molecule in the inner region (if different
+            from the outer region; tag == 2).
 
         fixcm: bool (optional)
             If True, the position and momentum of the center of mass is
@@ -70,8 +86,19 @@ class SAFIRES(MolecularDynamics):
             If True, the new structures are appended to the trajectory
             file instead.
 
-        The temperature and friction are normally scalars, but in principle one
-        quantity per atom could be specified by giving an array.
+        surface: bool (optional)
+            Defaults to False, changes SAFIRES behavior to expect either a
+            molecular model system (False) or a periodic surface model
+            system (True).
+
+        reflective: bool (optional)
+            Defaults to False, changes SAFIRES behavior to resolve boundary
+            conflicts by elastic collisions involving momentum exchange
+            between collision partners (False) or have the boundary act as
+            a hard reflective surface (True).
+
+        The temperature and friction are normally scalars, but in principle
+        one quantity per atom could be specified by giving an array.
 
         RATTLE constraints can be used with these propagators, see:
         E. V.-Eijnden, and G. Ciccotti, Chem. Phys. Lett. 429, 310 (2006)
@@ -140,7 +167,8 @@ class SAFIRES(MolecularDynamics):
         assert self.check_constraints(atoms), \
                'Solute constraint not correctly set'
 
-        # Final sanity check, make sure all inner are closer to origin than outer.
+        # Final sanity check, make sure all inner are closer to 
+        # origin than outer.
         assert self.check_distances(atoms), \
                'Outer molecule closer to origin than inner'
 
@@ -170,6 +198,11 @@ class SAFIRES(MolecularDynamics):
         return correct.all()
 
     def check_distances(self, atoms):
+        """
+            Check that all outer atoms (tag == 3) are further away than
+            all inner atoms (tag == 2).
+        """
+
         cm_origin = atoms[[atom.index for atom 
                            in atoms if atom.tag == 1]].get_center_of_mass()
         # collect in/out
@@ -207,14 +240,10 @@ class SAFIRES(MolecularDynamics):
         print(content)
 
     def normalize(self, x):
-        """Return normalized 3D vector x."""
         return x / np.linalg.norm(x)
 
     def calc_angle(self, n1, n2):
-        """Return angle between 3D vectors n1 and n2.
-
-        Reference: Vincenty, T. Survey Review 23, 88–93 (1975).
-        """
+        """Vincenty, T. Survey Review 23, 88–93 (1975)."""
         return(np.arctan2(np.linalg.norm(np.cross(n1, n2)), np.dot(n1, n2)))
 
     def rotation_matrix(self, axis, theta):
@@ -236,37 +265,50 @@ class SAFIRES(MolecularDynamics):
     def update(self, atoms, forces):
         """Return reduced pseudoparticle atoms object.
 
-        Keyword arguments:
-        atoms -- ASE atoms object with attached calculator containing
-                 atomic positions, cell information, and results from
-                 an MD iteration
+        Parameters:
+        
+        atoms: object
+            ASE atoms object holding current atomic configuration.
+        
+        forces: array
+            Numpy array containing the vectorfield of forces on
+            all atoms.
 
         Return values:
-        com_atoms -- if used with molecules: com_atoms contains new
-                     pseudoparticles centered on the COM of the
-                     original molecule with effective
-                     velocities for the whole molecule. if monoatomic
-                     species are used, this will be identical to the
-                     original atoms object.
-        forces -- effective force on each pseudoparticle. forces need
-                  to be stored separate from the atoms object. if
-                  monoatomic species are used, this array is identical
-                  to that returned from the calculator.
-        r -- array of vectors between the COM of the solute and all
-             inner and outer region (pseudo-) particles in the system
-        d -- array of absolute distances between the COM of the solute
-             and all inner and outer region (pseudo-) particles
-             in the system
-        boundary_idx -- atom object index of the inner region (pseudo-)
-                        particle that is furthest away from the COM of
-                        the solute, defining the flexible boundary
-        boundary -- absolute distance between the inner region (pseudo-)
-                    particle and the COM of the solute, defining the
-                    radius of the boundary sphere for molecular solutes
-                    or the distance of the boundary plane from the
-                    solute for surfaces.
+        
+        com_atoms: object
+            If used with molecules: com_atoms contains new 
+            pseudoparticles centered on the COM of the original
+            molecule with effective velocities for the whole molecule.
+            If monoatomic species are used, this will be identical to 
+            the original atoms object.
 
-        Arrays r and d have the same ordering as atoms object.
+        forces: array
+            Numpy array containing the vectorfield of forces on
+            all reduced COM pseudoparticles held by com_atoms.
+        
+        r: array
+            Numpy array containing the field of distance vectors 
+            between the COM of the solute and all inner and outer 
+            region (pseudo-) particles in the system.
+        
+        d: array
+            Numpy array containing the absolute distances between
+            the COM of the solute and all inner and outer region
+            (pseudo-) particles in the system.
+
+        boundary_idx: int
+            ASE Atoms object index of the inner region (pseudo-)
+            particle that is furthest away from the COM of the solute,
+            defining the flexible boundary.
+
+        boundary: float
+            Absolute distance between boundary_idx and the COM of the 
+            solute, defining the radius of the boundary sphere for
+            molecular solutes or the distance of the boundary plane
+            from the solute for surfaces.
+
+        Arrays forces, r, and d have the same ordering as atoms object.
         """
 
         # calculate distance of the resulting COM
@@ -347,21 +389,27 @@ class SAFIRES(MolecularDynamics):
                        outer_idx, checkup):
         """Return the time step required to resolve boundary event.
 
-        Keyword arguments:
-        previous_boundary_idx -- atom index of the inner region
-                                 particle that defined the boundary
-                                 during the previous iteration
-        boundary_idx -- atom index of the inner region particle that
-                        defines the boundary on the current iteration
-        outer_idx -- atom index of the outer region particle that
-                     triggered the boundary event
-        checkup -- True/False, is used internally to indicate if
-                   this is a checkup run which occurs after a
-                   successful boundary event resolution. this is done
-                   to catch rare cases where a secon outer region
-                   particle has entered the inner region during the
-                   resolution of a first boundary event. in this case,
-                   slightly different rules apply.
+        Parameters:
+
+        atoms: object
+            ASE atoms object holding the current configuration.
+
+        forces: array
+            Numpy array containing the vectorfield of forces on
+            all atoms.
+
+        ftr_boundary_idx: int 
+            Atoms object index of the inner region particle that 
+            defines the boundary during the conflict iteration.
+
+        outer_idx int
+            Atoms object index of the outer region particle that
+            triggered the boundary event.
+        
+        checkup: bool
+            False for first conflict resolution within a given time
+            step, True for any subsequent conflict resolitions within
+            the same time step.
         """
 
         # results dict
@@ -589,22 +637,34 @@ class SAFIRES(MolecularDynamics):
                   constraints=True):
         """Propagate the simulation.
 
-        Keyword arguments:
-        dt -- the time step used to propagate.
-        checkup -- True/False, is used internally to indicate if
-                   this is a checkup run which occurs after a
-                   successful boundary event resolution. this is done
-                   to catch rare cases where a second outer region
-                   particle has entered the inner region during the
-                   resolution of a first boundary event.
-        halfstep -- 1/2, indicates if we're propagating so that the
-                    conflicting inner and outer particle are at the
-                    same distance from the center using the
-                    extrapolated time step from extrapolate_dt()
-                    to perform a collision (halfstep = 1) or if the
-                    collision is already performed and we're
-                    propagating to make up the remaining time to
-                    complete a full default time step (halfstep = 2).
+        Parameters:
+
+        atoms: object
+            ASE atoms object holding the current configuration.
+
+        forces: array
+            Numpy array containing the vectorfield of forces on
+            all atoms.
+
+        dt: float
+            The time step used to propagate.
+
+        checkup: bool
+            False for first conflict resolution within a given time
+            step, True for any subsequent conflict resolitions within
+            the same time step.
+
+        halfstep: int (1 or 2)
+            Boundary conflict resolution is performed in two halfsteps.
+            1: propagate by fraction of dt so that outermost inner 
+               particle and innermost outer particle have the same 
+               distance from the solute, redirect particles.
+            2: after conflict resolution, propagate remaining
+               fraction of dt to complete a full default time step.
+
+        constraints: bool
+            Defaults to True, turn constraints on or off during the
+            propagation.
         """
 
         # retreive parameters
@@ -667,9 +727,40 @@ class SAFIRES(MolecularDynamics):
 
     def predictConflicts(self, atoms, forces, dt, halfstep, 
                          constraints, checkup):
-        FTatoms = atoms.copy()
+        """Test-propagate atoms and check if boundary conflict occurs.
+
+        Parameters:
+
+        atoms: object
+            ASE atoms object holding the current configuration.
+
+        forces: array
+            Numpy array containing the vectorfield of forces on
+            all atoms.
+
+        dt: float
+            The time step used to propagate.
+
+        halfstep: int (1 or 2)
+            Boundary conflict resolution is performed in two halfsteps.
+            1: propagate by fraction of dt so that outermost inner
+               particle and innermost outer particle have the same
+               distance from the solute, redirect particles.
+            2: after conflict resolution, propagate remaining
+               fraction of dt to complete a full default time step.
+
+        constraints: bool
+            Defaults to True, turn constraints on or off during the
+            propagation.
+
+        checkup: bool
+            False for first conflict resolution within a given time
+            step, True for any subsequent conflict resolitions within
+            the same time step.
+        """
 
         # Propagate a copy of the atoms object by self.dt.
+        FTatoms = atoms.copy()
         future_atoms = self.propagate(FTatoms, forces, dt, 
                 checkup=checkup, halfstep=halfstep, constraints=constraints)
 
@@ -684,11 +775,25 @@ class SAFIRES(MolecularDynamics):
         return conflicts
 
     def collide(self, atoms, forces, inner_reflect, outer_reflect):
-        """Perform elastic collision between two paticles."""
+        """Perform elastic collision between two paticles.
+
+        Parameters:
+
+        atoms: object
+            ASE atoms object holding the current configuration.
+
+        forces: array
+            Numpy array containing the vectorfield of forces on
+            all atoms.
+
+        inner_reflect, outer_reflect: int
+            Atoms object indices of the COM-reduced pseudoparticles
+            that the collision is supposed to be performed with.
+        """
         
+        # Update parameters.
         com_atoms, com_forces, r, d, boundary_idx, boundary = (
                 self.update(atoms, forces))
-
         r_inner = r[inner_reflect]
         r_outer = r[outer_reflect]
         m_outer = com_atoms[outer_reflect].mass
@@ -696,12 +801,12 @@ class SAFIRES(MolecularDynamics):
         v_outer = com_atoms[outer_reflect].momentum / m_outer
         v_inner = com_atoms[inner_reflect].momentum / m_inner
 
-        # find angle between r_outer and r_inner
+        # Find angle between r_outer and r_inner.
         theta = self.calc_angle(r_inner, r_outer)
         self.debuglog("   angle (r_outer, r_inner) is: {:.16f}\n"
                       .format(np.degrees(theta)))
 
-        # rotate OUTER to be exactly on top of the INNER for
+        # Rotate OUTER to be exactly on top of the INNER for
         # collision. this simulates the boundary mediating
         # a collision between the particles.
 
@@ -791,6 +896,8 @@ class SAFIRES(MolecularDynamics):
         return atoms
 
     def step(self, forces=None):
+        """Perform a SAFIRES MD step."""
+
         atoms = self.atoms
         lenatoms = len(atoms)
 
