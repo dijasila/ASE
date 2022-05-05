@@ -122,26 +122,28 @@ class SAFIRES(MolecularDynamics):
         else:
             self.rng = rng
         
-        # SAFIRES specific stuff
+        # SAFIRES specific setups.
+        self.reflective = reflective
+        self.surface = surface
+        self.constraints = atoms.constraints.copy()
+        self.recent = []
+        self.remaining_dt = 0
+        
+        # SAFIRES: determine number of atoms of inner and
+        # outer region solvent molecules.
         self.nout = natoms
         if natoms_in is not None:
             self.nin = natoms_in
         else:
             self.nin = natoms
-        self.reflective = reflective
-        self.surface = surface
-        self.constraints = atoms.constraints.copy()
-        # Relative index of pseudoparticle in total atoms object
+        # Relative index of pseudoparticle in total atoms object.
         self.idx_real = None
         self.nsol = len([atom.index for atom in atoms
                        if atom.tag == 1])
-        # Set up natoms array according to tag : 0, 1, 2, 3
+        # SAFIRES: Set up natoms array according to tag : 0, 1, 2, 3.
         self.nall = np.array([1, self.nsol, self.nin, self.nout])
-        # Keeping track of collisions.
-        self.recent = []
-        self.remaining_dt = 0
 
-        # Assertions / Warnings
+        # SAFIRES: assertions / warnings to ensure functionality.
         assert any(4 > atom.tag for atom in atoms), \
                    'Atom tag 4 and above not supported'
         assert any(1 == atom.tag for atom in atoms), \
@@ -151,19 +153,18 @@ class SAFIRES(MolecularDynamics):
         assert any(3 == atom.tag for atom in atoms), \
                    'Outer region is not tagged (tag=3) correctly'
 
+        # SAFIRES: warn if masses of inner and outer solvent are different.
         m_out = np.array([atom.mass for atom in atoms if atom.tag == 3])
         nm_out = int(len(m_out) / self.nout)
-
         m_in = np.array([atom.mass for atom in atoms if atom.tag == 2])
         nm_in = int(len(m_in) / self.nin)
-        # Raise warning if masses of inner and outer solvent are different
         if not m_out.sum() / nm_out == m_in.sum() / nm_in:
             warnings.warn('The mass of inner and outer solvent molecules is \
                            not exactly the same')
 
+        # SAFIRES: solute must be constrained in a specific way.
         assert atoms.constraints, \
                'Constraints are not set (solute can not move)'
-
         assert self.check_constraints(atoms), \
                'Solute constraint not correctly set'
 
@@ -202,13 +203,11 @@ class SAFIRES(MolecularDynamics):
             Check that all outer atoms (tag == 3) are further away than
             all inner atoms (tag == 2).
         """
-
         cm_origin = atoms[[atom.index for atom 
                            in atoms if atom.tag == 1]].get_center_of_mass()
-        # collect in/out
         cm_inner = []
         cm_outer = []
-
+        
         i = 0
         while i < len(atoms):
             tag = atoms[i].tag
@@ -219,7 +218,6 @@ class SAFIRES(MolecularDynamics):
             if tag == 3:
                 cm_outer.append(atoms[idx:idx + nat].get_center_of_mass())
             i += nat
-
         d_inner = np.linalg.norm(cm_inner - cm_origin, axis=1)
         d_outer = np.linalg.norm(cm_outer - cm_origin, axis=1)
 
@@ -310,26 +308,22 @@ class SAFIRES(MolecularDynamics):
 
         Arrays forces, r, and d have the same ordering as atoms object.
         """
-
-        # calculate distance of the resulting COM
-        i = 0
         com_atoms = Atoms()
         com_atoms.pbc = atoms.pbc
         com_atoms.cell = atoms.cell
 
-        # get_center_of_mass() breaks with certain constraints.
+        # Get_center_of_mass() breaks with certain constraints.
         self.constraints = atoms.constraints.copy()
         atoms.constraints = []
 
-        # calculate cumulative properties for all inner/outer
-        # region particles. for monoatomic inner/outer particles,
+        # Calculate cumulative properties for all inner/outer
+        # region particles. For monoatomic inner/outer particles,
         # a 1:1 copy is created.
         com_forces = []
-        # This should be done elsewhere since it does not change
-        # during the simulation
         idx_real = []
-
+        i = 0
         while i < len(atoms):
+            # Calculate cumulative properties.
             idx = atoms[i].index
             tag = atoms[i].tag
             nat = self.nall[tag]
@@ -342,7 +336,7 @@ class SAFIRES(MolecularDynamics):
             if tag == 1:
                 sol_com = com
 
-            # Create new atoms
+            # Create new atoms.
             tmp = Atoms(sym)
             tmp.set_positions([com])
             tmp.set_momenta([mom])
@@ -350,36 +344,35 @@ class SAFIRES(MolecularDynamics):
             tmp.set_tags([tag])
             com_forces.append(frc)
 
-            # Append and iterate
+            # Append and iterate.
             com_atoms += tmp
             idx_real.append(i)
             i += nat
 
         if self.surface:
-            # we only need z coordinates for surface calculations
+            # Only need z coordinates for surface calculations.
             for atom in com_atoms:
                 atom.position[0] = 0.
                 atom.position[1] = 0.
-
+        
+        # idx_real is used to re-expand the reduced pseuodparticle
+        # atoms object into the original atoms object.
         self.idx_real = idx_real
-        # we can now reapply the constraints to the original
-        # atoms object. all further processing will be done
-        # on the pseudoparticle com_atoms object, which does
-        # not have constraints
+        
+        # Reapply constraints to original atoms object.
         atoms.constraints = self.constraints.copy()
 
-        # calculate absolute distances and distance vectors between
-        # COM of solute and all inner and outer region particles
-        # (respect PBCs in distance calculations)
+        # Calculate distances between COM of solute and all inner and
+        # outer region particles.
         r, d = find_mic([atom.position for atom in com_atoms] - sol_com,
                        com_atoms.cell, com_atoms.pbc)
 
-        # list all particles in the inner region
+        # List all particles in the inner region.
         inner_mols = [(atom.index, d[atom.index])
                       for atom in com_atoms if atom.tag == 2]
 
-        # boundary is defined by the inner region particle that has
-        # the largest absolute distance from the COM of the solute
+        # Boundary is defined by the inner region particle that has
+        # the largest absolute distance from the COM of the solute.
         boundary_idx, boundary = sorted(inner_mols, key=itemgetter(1),
                                         reverse=True)[0]
 
@@ -411,38 +404,24 @@ class SAFIRES(MolecularDynamics):
             step, True for any subsequent conflict resolitions within
             the same time step.
         """
-
-        # results dict
-        res = []  # structure: (inner particle index, extrapolated factor)
+        # Results dictionary. 
+        # Structure: (inner particle index, extrapolated factor)
+        res = []
             
-        # Extrapolation uses the center of mass atoms object instead
-        # of the "real" one.
+        # Extrapolation uses reduced COM atoms object.
         com_atoms, com_forces, r, d, boundary_idx, boundary = (
                 self.update(atoms, forces))
 
-        # convert list to set (no duplicate values)
+        # Eliminate duplicate entries, then extraplate time step
+        # required to propagate inner and outer particle to the
+        # same distance from the solute.
         for inner_idx in set([boundary_idx, ftr_boundary_idx]):
-            # find point where outer and inner region particles
-            # have the same distance from COM, i.e. both are on
-            # the boundary. we need to propagate both particles
-            # to this point to perform an exact elastic collision.
-
+            # If multiple conflict resolutions take place in one time
+            # step, ignore already solved conflicts.
             if inner_idx in self.recent and outer_idx in self.recent:
-                # First, check if inner and outer performed a collision
-                # in the very last iteration. This can occur if
-                # a collision is performed and in the subsequent
-                # iteration (within remaining_dt) the same outer
-                # collides with another inner. If we do the
-                # extrapolation based on both these inner, the inner
-                # from the previous iteration will always give
-                # the smaller dt because this inner and the outer are
-                # both on the boundary at the state of checking.
-                # We need to ignore this pair since it's already
-                # been resolved.
                 continue
 
-            # retreive forces, velocities, distances, masses
-            # for image before the event
+            # Retreive necessary ingredients for extrapolation.
             T = self.temp
             fr = self.fr
             r_outer = r[outer_idx]
@@ -454,33 +433,13 @@ class SAFIRES(MolecularDynamics):
             v_inner = com_atoms[inner_idx].momentum / m_inner
             f_inner = com_forces[inner_idx] / m_inner
 
-            # if molecules are used, which are reduced to
-            # pseudoparticles with properties centered on their COM,
-            # we need to re-expand the pseudoparticle indices into the
-            # "real" indices by multiplying the pseudoparticle index by
-            # the number of atoms in each molecule.
-            # furthermore, shift in the indexing due to the solute or
-            # periodic surface model (which can have arbitrary number
-            # of atoms) needs to be accounted for.
+            # Re-expand original atom object indices of involved molecules.
             outer_real = self.idx_real[outer_idx]
             inner_real = self.idx_real[inner_idx]
 
-            #print("r_outer = ", r_outer)
-            #print("r_inner = ", r_inner)
-            #print("m_outer = ", m_outer)
-            #print("m_inner = ", m_inner)
-            #print("v_inner = ", v_inner)
-            #print("v_outer = ", v_outer)
-            #print("f_outer = ", f_outer)
-            #print("f_inner = ", f_inner)
-            #print("outer_idx = ", outer_idx)
-            #print("inner_id = ", inner_idx)
-            #print("outer_real = ", outer_real)
-            #print("inner_real = ", inner_real)
-
-            # if inner/outer particles are molecules
+            # If inner/outer particles are molecules:
             if self.nout > 1 or self.nin > 1:
-                
+                # Calculate cumulative properties on each molecule.
                 m_outer_list = [math.sqrt(xm) for xm in
                                 self.masses[outer_real:outer_real + self.nout]]
                 m_inner_list = [math.sqrt(xm) for xm in
@@ -498,19 +457,11 @@ class SAFIRES(MolecularDynamics):
                              self.eta[inner_real:inner_real + self.nin])
                              / m_inner)
 
-                # Need to expand this since it can be an array of fr values
-                # CHECK HERE IF FR is ARRAY
+                # TODO: check here if fr is array, expand accordingly.
                 sig_outer = math.sqrt(2 * T * fr)
                 sig_inner = math.sqrt(2 * T * fr)
                 
-                #print("xi_outer = ", xi_outer)
-                #print("xi_inner = ", xi_inner)
-                #print("eta_outer = ", eta_outer)
-                #print("eta_inner = ", eta_inner)
-                #print("sig_outer = ", sig_outer)
-                #print("sig_inner = ", sig_inner)
-
-            # if inner/outer particles are monoatomic
+            # If inner/outer particles are monoatomic:
             else:
                 xi_outer = self.xi[outer_real]
                 xi_inner = self.xi[inner_real]
@@ -519,7 +470,7 @@ class SAFIRES(MolecularDynamics):
                 sig_outer = math.sqrt(2 * T * fr / m_outer)
                 sig_inner = math.sqrt(2 * T * fr / m_inner)
 
-            # surface calculations: we only need z components
+            # Surface calculations: only z components required.
             if self.surface:
                 v_outer[0] = 0.
                 v_outer[1] = 0.
@@ -538,12 +489,10 @@ class SAFIRES(MolecularDynamics):
                 eta_inner[0] = 0.
                 eta_inner[1] = 0.
 
-            # the time step extrapolation is based on solving a
-            # 2nd degree polynomial of the form:
+            # Solve 2nd degree polynomial of the form:
             # y = c0*x^2 + c1*x + c2.
             # a and b are velocity modifiers derived from the first
-            # velocity half step in the Langevin algorithm. see
-            # publication for more details.
+            # velocity half step in the Langevin algorithm.
             if not checkup:
                 idt = self.dt
                 sqrt_3 = math.sqrt(3)
@@ -564,32 +513,24 @@ class SAFIRES(MolecularDynamics):
                            + eta_inner / sqrt_3) / 4)
                 b_inner = sqrt_idt * sig_inner * eta_inner / (2 * sqrt_3)
             
-                #print("a_outer = ", a_outer)
-                #print("a_inner = ", a_inner)
-                #print("b_outer = ", b_outer)
-                #print("b_inner = ", b_inner)
-
             else:
                 a_outer = 0
                 a_inner = 0
                 b_outer = 0
                 b_inner = 0
 
+            # Update velocities.
             v_outer += a_outer
             v_outer += b_outer
             v_inner += a_inner
             v_inner += b_inner
 
-            # set up polynomial coefficients
+            # Set up polynomial coefficients.
             c0 = np.dot(r_inner, r_inner) - np.dot(r_outer, r_outer)
             c1 = 2 * np.dot(r_inner, v_inner) - 2 * np.dot(r_outer, v_outer)
             c2 = np.dot(v_inner, v_inner) - np.dot(v_outer, v_outer)
 
-            #print("c0 = ", c0)
-            #print("c1 = ", c1)
-            #print("c2 = ", c2)
-
-            # find roots
+            # Solve polynomial for roots.
             roots = np.roots([c2, c1, c0])
             #self.debuglog("   < TIME STEP EXTRAPOLATION >\n"
             #              "   all extrapolated roots: {:s}\n"
@@ -597,9 +538,9 @@ class SAFIRES(MolecularDynamics):
 
             for val in roots:
                 if np.isreal(val) and val <= self.dt and val > 0:
-                    # the quadratic polynomial yields four roots.
-                    # we're only interested in the SMALLEST positive real
-                    # value, which is the required time step.
+                    # The quadratic polynomial yields four roots.
+                    # The smallest positive real value is the 
+                    # desired time step.
                     res.append((inner_idx, outer_idx, np.real(val)))
 
                     #if self.debug:
@@ -618,20 +559,17 @@ class SAFIRES(MolecularDynamics):
                     #                          np.real(val)))
 
         if not res:
-            # if none of the obtained roots fit the criteria (real,
-            # positive, <= initial time step), then we have a problem.
-            # this is indicative of a major issue.
+            # Break if none of the obtained roots fit the criteria.
+            # -> No way for SAFIRES to continue.
             error = ("\nERROR:\n"
                      "Unable to extrapolate time step.\n"
                      "All real roots <= 0 or > default time step).\n"
                      "Roots: {:s}\n".format(np.array2string(roots)))
-            #self.debuglog(error)
-            #self.debugtraj()
+            self.debuglog(error)
             raise SystemExit(error)
         else:
-            # return smallest timestep
+            # Return desired timestep.
             return sorted(res, key=itemgetter(2))[0]
-
 
     def propagate(self, atoms, forces, dt, checkup, halfstep, 
                   constraints=True):
@@ -666,8 +604,7 @@ class SAFIRES(MolecularDynamics):
             Defaults to True, turn constraints on or off during the
             propagation.
         """
-
-        # retreive parameters
+        # Retreive parameters.
         x = atoms.get_positions()
         m = self.masses
         v = atoms.get_velocities()
@@ -681,8 +618,8 @@ class SAFIRES(MolecularDynamics):
         idt = self.dt
         sqrt_idt = math.sqrt(idt)
 
-        # pre-calculate (random) force constant
-        # based on default time step
+        # Pre-calculate (random) force constant
+        # based on default time step.
         if not checkup:
             c = (idt * (f - fr * v) / 2
                  + sqrt_idt * sig * xi / 2
@@ -690,17 +627,14 @@ class SAFIRES(MolecularDynamics):
                  - idt**1.5 * fr * sig * (xi / 2 + eta / sqrt_3) / 4)
             d = sqrt_idt * sig * eta / (2 * sqrt_3)
         else:
-            # if checkup is True, this means we already performed an entire
-            # propagation cycle and have already updated the velocities
-            # based on values for the full default time step. thus we
-            # need to make sure not to update velocities a second time
-            # because that would destroy energy conservation.
+            # Don't update velocities again on additional conflict
+            # resolution cycles after the first one in this time step.
             c = np.asarray([np.asarray([0., 0., 0.]) for atom in atoms])
             d = np.asarray([np.asarray([0., 0., 0.]) for atom in atoms])
 
         if halfstep == 1:
-            # friction and (random) forces should only be
-            # applied during the first halfstep.
+            # Friction and (random) forces should only be applied 
+            # during the first halfstep.
             v += c + d
             if constraints == True:
                 atoms.set_positions(x + dt * v)
@@ -758,7 +692,6 @@ class SAFIRES(MolecularDynamics):
             step, True for any subsequent conflict resolitions within
             the same time step.
         """
-
         # Propagate a copy of the atoms object by self.dt.
         FTatoms = atoms.copy()
         future_atoms = self.propagate(FTatoms, forces, dt, 
@@ -790,8 +723,7 @@ class SAFIRES(MolecularDynamics):
             Atoms object indices of the COM-reduced pseudoparticles
             that the collision is supposed to be performed with.
         """
-        
-        # Update parameters.
+        # Fetch required ingrendients.
         com_atoms, com_forces, r, d, boundary_idx, boundary = (
                 self.update(atoms, forces))
         r_inner = r[inner_reflect]
@@ -806,21 +738,16 @@ class SAFIRES(MolecularDynamics):
         self.debuglog("   angle (r_outer, r_inner) is: {:.16f}\n"
                       .format(np.degrees(theta)))
 
-        # Rotate OUTER to be exactly on top of the INNER for
-        # collision. this simulates the boundary mediating
-        # a collision between the particles.
-
-        # calculate rotational axis
+        # Rotate r_outer to be exactly on top of the r_inner.
+        # This simulates the boundary mediating a collision between
+        # the particles.
         axis = self.normalize(np.cross(r[outer_reflect],
                               r[inner_reflect]))
-
-        # rotate velocity of outer region particle
         v_outer = np.dot(self.rotation_matrix(axis, theta),
                          v_outer)
 
         # Perform mass-weighted exchange of normal components of
-        # velocitiy, force (, and random forces if Langevin).
-        # i.e. elastic collision
+        # velocities, or hard wall collision (reflective = True).
         if self.reflective:
             self.debuglog("   -> hard wall reflection\n")
             n = self.normalize(r_inner)
@@ -848,7 +775,8 @@ class SAFIRES(MolecularDynamics):
             self.debuglog("   dot(v12, r12) = {:.16f}\n"
                           .format(np.dot(v12, r12)))
             v_norm = np.dot(v12, r12) * r12 / (np.linalg.norm(r12)**2)
-            # dV_inner and dV_outer should be mass weighted differently
+            
+            # dV_inner and dV_outer are mass weighted differently
             # to allow for momentum exchange between solvent with diff
             # total masses.
             dV_inner = 2 * m_inner / M * v_norm
@@ -859,66 +787,64 @@ class SAFIRES(MolecularDynamics):
                           .format(np.array2string(dV_outer)))
 
         if not self.surface and theta != 0 and theta != np.pi:
-            # rotate outer particle velocity change component
-            # back to inital direction after collision
+            # Rotate outer particle velocity change component
+            # back to inital direction.
             dV_outer = np.dot(self.rotation_matrix(
                               axis, -1 * theta), dV_outer)
 
         if theta == np.pi:
-            # flip velocity change component of outer particle
-            # to the other side of the slab (if applicable)
+            # Flip velocity change component of outer particle
+            # to the other side of a symmetric slab model.
             dV_outer = -1 * dV_outer
 
-        # commit new momenta to pseudoparticle atoms object
+        # Commit new momenta to pseudoparticle atoms object.
         com_atoms[outer_reflect].momentum += (dV_outer * m_outer)
         com_atoms[inner_reflect].momentum += (dV_inner * m_inner)
 
-        # expand the pseudoparticle atoms object back into the
-        # real atoms object (inverse action to self.update())
+        # Expand the pseudoparticle atoms object back into the
+        # original atoms object (inverse action to self.update()).
         outer_actual = self.idx_real[outer_reflect]
         inner_actual = self.idx_real[inner_reflect]
-
         mom = atoms.get_momenta()
         m = self.masses
-
         mom[outer_actual:outer_actual+self.nout] += np.tile(dV_outer, 
                 (self.nout, 1)) * m[outer_actual:outer_actual+self.nout]
 
         mom[inner_actual:inner_actual+self.nin] += np.tile(dV_inner, 
                 (self.nin, 1)) * m[inner_actual:inner_actual+self.nin]
-        
         atoms.set_momenta(mom, apply_constraint=False)
 
-        # keep track of which pair of conflicting particles
-        # was just resolved for future reference
-        self.recent = [inner_reflect, outer_reflect]
+        # Keep track of which pair of conflicting particles
+        # was just resolved for future reference.
+        self.recent.extend([inner_reflect, outer_reflect])
 
         return atoms
 
     def step(self, forces=None):
         """Perform a SAFIRES MD step."""
-
         atoms = self.atoms
         lenatoms = len(atoms)
 
         if forces is None:
             forces = atoms.get_forces(md=True)
 
-        # Must propagate future atoms object with non-modified force array 
-        # to predict the correct motion of the COM
+        # Must propagate future atoms object with non-modified force
+        # array to predict the correct motion of the COM.
         NCforces = atoms.get_forces(md=False)
 
-        # This velocity as well as xi, eta and a few other variables are stored
-        # as attributes, so Asap can do its magic when atoms migrate between
-        # processors.
+        # This velocity as well as xi, eta and a few other variables
+        # are stored as attributes, so Asap can do its magic when
+        # atoms migrate between processors.
         self.v = atoms.get_velocities()
 
         self.xi = self.rng.standard_normal(size=(lenatoms, 3))
         self.eta = self.rng.standard_normal(size=(lenatoms, 3))
 
-        # To keep the center of mass stationary, the random arrays should add to (0,0,0)
+        # To keep the center of mass stationary, the random arrays
+        # should add to (0,0,0).
         if self.fix_com:
-            # Hack to make this BS work with FixAtoms (for now)
+            # Hack to make this SAFIRES work with FixAtoms.
+            # TODO: find a more holistic solution.
             for i, c in enumerate(atoms.constraints):
                 if c.todict()['name'] in _allowed_constraints:
                     self.xi[c.index]  = 0.0
@@ -927,8 +853,9 @@ class SAFIRES(MolecularDynamics):
             self.xi -= self.xi.sum(axis=0) / lenatoms
             self.eta -= self.eta.sum(axis=0) / lenatoms
  
-            # We run this again because of obvious reasons
-            # Hack to make this BS work with FixAtoms (for now)                     
+            # Run again to remove any random forces potentially
+            # redistributed to solute.
+            # TODO: find a more holistic solution.
             for i, c in enumerate(atoms.constraints):
                 if c.todict()['name'] in _allowed_constraints:
                     self.xi[c.index]  = 0.0
@@ -957,20 +884,23 @@ class SAFIRES(MolecularDynamics):
                 print("Current iteration = ", self.get_number_of_steps())
                 print("regular dt = ", self.dt)
                 
-                # Find the conflict that occurs earliest in time
+                # Find the conflict that occurs earliest in time.
                 dt_list = [self.extrapolate_dt(atoms, NCforces, c[0], c[1], 
                            checkup=False) for c in conflicts]
                 conflict = sorted(dt_list, key=itemgetter(2))[0]
                 print("First conflict = ", conflict)
 
-                # When holonomic constraints for rigid linear triatomic molecules are
-                # present, ask the constraints to redistribute xi and eta within each
-                # triple defined in the constraints. This is needed to achieve the
+                # When holonomic constraints for rigid linear triatomic
+                # molecules are present, ask the constraints to 
+                # redistribute xi and eta within each triple defined in
+                # the constraints. This is needed to achieve the 
                 # correct target temperature.
                 for constraint in atoms.constraints:
                     if hasattr(constraint, 'redistribute_forces_md'):
-                        constraint.redistribute_forces_md(atoms, self.xi, rand=True)
-                        constraint.redistribute_forces_md(atoms, self.eta, rand=True)
+                        constraint.redistribute_forces_md(atoms, self.xi,
+                                                          rand=True)
+                        constraint.redistribute_forces_md(atoms, self.eta,
+                                                          rand=True)
 
                 print("d before boundary propagation")
                 xx, xx, xx, d, xx, xx = (
@@ -979,8 +909,9 @@ class SAFIRES(MolecularDynamics):
                 print("d_outer = ", d[conflict[1]])
 
                 # Propagate to boundary.
-                atoms = self.propagate(atoms, forces, conflict[2], checkup=checkup,
-                            halfstep=1, constraints=True)
+                atoms = self.propagate(atoms, forces, conflict[2], 
+                                       checkup=checkup, halfstep=1, 
+                                       constraints=True)
                 
                 print("d after boundary propagation")
                 xx, xx, xx, d, xx, xx = (
@@ -1027,7 +958,7 @@ class SAFIRES(MolecularDynamics):
             print("d_inner = ", d[conflict[0]])
             print("d_outer = ", d[conflict[1]])
 
-        # No conflict: regular propagation
+        # No conflict: regular propagation.
         else:
             for constraint in atoms.constraints:
                 if hasattr(constraint, 'redistribute_forces_md'):
@@ -1037,7 +968,8 @@ class SAFIRES(MolecularDynamics):
             atoms = self.propagate(atoms, forces, self.dt, checkup=checkup,
                 halfstep=1, constraints=True)
 
-        # Finish propagation as usual.
+        # Finish propagation as usual (second velocity halfstep, 
+        # update forces).
         m = self.masses
         v = atoms.get_velocities()
         T = self.temp
@@ -1055,7 +987,7 @@ class SAFIRES(MolecularDynamics):
         v += c
         atoms.set_momenta(v * m)
 
-        # Unset tracking variables.
+        # Reset tracking variables.
         self.remaining_dt = 0
         self.recent = []
 
