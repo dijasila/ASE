@@ -95,6 +95,7 @@ Uncategorized
 
    defects/defects
    qmmm/qmmm
+   safires/safires
    dimensionality/dimensionality
    deltacodesdft/deltacodesdft
    wannier/wannier
