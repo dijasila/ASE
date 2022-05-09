@@ -31,7 +31,8 @@ class SAFIRES(MolecularDynamics):
                  natoms=None, natoms_in=None, fixcm=True, *, 
                  temperature_K=None, trajectory=None, logfile=None, 
                  loginterval=1, communicator=world, rng=None, 
-                 append_trajectory=False, surface=False, reflective=False):
+                 append_trajectory=False, surface=False, reflective=False,
+                 debug=False):
         """
         Parameters:
 
@@ -98,6 +99,11 @@ class SAFIRES(MolecularDynamics):
             between collision partners (False) or have the boundary act as
             a hard reflective surface (True).
 
+        debug: bool (optional)
+            Defaults to False, will prompt SAFIRES to create an additional
+            debug output file named "safires_debug.log" with verbose debug
+            output. Please activate and attach this file when reporting bugs.
+
         The temperature and friction are normally scalars, but in principle
         one quantity per atom could be specified by giving an array.
 
@@ -129,6 +135,9 @@ class SAFIRES(MolecularDynamics):
         self.constraints = atoms.constraints.copy()
         self.recent = []
         self.remaining_dt = 0
+        self.current_boundary = 0.
+        self.nconflicts = 0
+        self.debug = debug
         
         # SAFIRES: determine number of atoms of inner and
         # outer region solvent molecules.
@@ -174,9 +183,57 @@ class SAFIRES(MolecularDynamics):
         assert self.check_distances(atoms), \
                'Outer molecule closer to origin than inner'
 
+        # Open file for the SAFIRES-specific debug logger function.
+        if self.debug:
+            self.debuglog = open("debug_safires.log", "w+")
+            self.writeDebug("SAFIRES DEBUG OUTPUT\n")
+            self.writeDebug("====================\n\n")
+            self.writeDebug("Regular timestep: {:f}\n".format(timestep))
+            self.writeDebug("Temperature: {:f}\n".format(self.temp))
+            self.writeDebug("Friction: {:f}\n\n".format(self.fr))
+            tag0 = np.array([atom.index for atom in atoms if atom.tag == 0])
+            tag1 = np.array([atom.index for atom in atoms if atom.tag == 1])
+            tag2 = np.array([atom.index for atom in atoms if atom.tag == 2])
+            tag3 = np.array([atom.index for atom in atoms if atom.tag == 3])
+            self.writeDebug("Atoms tag == 0 (ignore): {:s} (len: {:d})\n"
+                                .format(np.array2string(tag0), len(tag0)))
+            self.writeDebug("Atoms tag == 1 (solute): {:s} (len: {:d})\n"
+                                .format(np.array2string(tag1), len(tag1)))
+            self.writeDebug("Atoms tag == 2 (inner): {:s} (len: {:d})\n"
+                                .format(np.array2string(tag2), len(tag2)))
+            self.writeDebug("Atoms tag == 3 (outer): {:s} (len: {:d})\n"
+                                .format(np.array2string(tag3), len(tag3)))
+            self.writeDebug("Assuming that inner molecules have"
+                            " {:d} atoms each\n".format(self.nin))
+            self.writeDebug("Assuming that outer molecules have"
+                            " {:d} atoms each\n".format(self.nout))
+            self.writeDebug("\nSpecified SAFIRES behaviors:\n")
+            if natoms > 1:
+                self.writeDebug("- natoms is > 1; note that all output in"
+                                " this output file refers to COM-reduced"
+                                " pseudoparticles\n")
+            if self.reflective:
+                self.writeDebug("- SAFIRES in reflective mode\n")
+            else:
+                self.writeDebug("- SAFIRES in elastic collision mode\n")
+            if self.surface:
+                self.writeDebug("- SAFIRES assumes a periodic surface"
+                                " as the solute\n")
+            else:
+                self.writeDebug("- SAFIRES assumes a molecular solute\n")
+            self.writeDebug("\n=> STARTING SAFIRES MOLECULAR DYNAMICS\n")
+
         MolecularDynamics.__init__(self, atoms, timestep, trajectory,
                                    logfile, loginterval,
                                    append_trajectory=append_trajectory)
+
+    def __del__(self):
+        if self.debug:
+            self.debuglog.close()
+    
+    def writeDebug(self, content):
+        self.debuglog.write(content)
+        self.debuglog.flush()
 
     def todict(self):
         d = MolecularDynamics.todict(self)
@@ -234,8 +291,11 @@ class SAFIRES(MolecularDynamics):
     def set_timestep(self, timestep):
         self.dt = timestep
 
-    def debuglog(self, content):
-        print(content)
+    def get_boundary(self):
+        return self.current_boundary
+
+    def get_number_of_collisions(self):
+        return self.nconflicts
 
     def normalize(self, x):
         return x / np.linalg.norm(x)
@@ -375,6 +435,8 @@ class SAFIRES(MolecularDynamics):
         # the largest absolute distance from the COM of the solute.
         boundary_idx, boundary = sorted(inner_mols, key=itemgetter(1),
                                         reverse=True)[0]
+
+        self.current_boundary = boundary
 
         return com_atoms, com_forces, r, d, boundary_idx, boundary
     
@@ -532,9 +594,10 @@ class SAFIRES(MolecularDynamics):
 
             # Solve polynomial for roots.
             roots = np.roots([c2, c1, c0])
-            #self.debuglog("   < TIME STEP EXTRAPOLATION >\n"
-            #              "   all extrapolated roots: {:s}\n"
-            #              .format(np.array2string(roots)))
+            if self.debug:
+                self.writeDebug("   1) TIME STEP EXTRAPOLATION\n"
+                          "      all extrapolated roots: {:s}\n"
+                          .format(np.array2string(roots)))
 
             for val in roots:
                 if np.isreal(val) and val <= self.dt and val > 0:
@@ -543,21 +606,6 @@ class SAFIRES(MolecularDynamics):
                     # desired time step.
                     res.append((inner_idx, outer_idx, np.real(val)))
 
-                    #if self.debug:
-                    #    # debug logging
-                    #    r_outer_new = r_outer + val * v_outer
-                    #    d_outer_new = np.linalg.norm(r_outer_new)
-                    #    r_inner_new = r_inner + val * v_inner
-                    #    d_inner_new = np.linalg.norm(r_inner_new)
-                    #    self.debuglog("   d_inner extrapolated = {:.12f}\n"
-                    #                  .format(d_inner_new))
-                    #    self.debuglog("   d_outer extrapolated = {:.12f}\n"
-                    #                  .format(d_outer_new))
-                    #    self.debuglog("   Extapolated dt for atom pair {:d}"
-                    #                  " (INNER) - {:d} (OUTER): {:.5f}\n"
-                    #                  .format(inner_idx, outer_idx,
-                    #                          np.real(val)))
-
         if not res:
             # Break if none of the obtained roots fit the criteria.
             # -> No way for SAFIRES to continue.
@@ -565,7 +613,8 @@ class SAFIRES(MolecularDynamics):
                      "Unable to extrapolate time step.\n"
                      "All real roots <= 0 or > default time step).\n"
                      "Roots: {:s}\n".format(np.array2string(roots)))
-            self.debuglog(error)
+            if self.debug:
+                self.writeDebug(error)
             raise SystemExit(error)
         else:
             # Return desired timestep.
@@ -735,8 +784,10 @@ class SAFIRES(MolecularDynamics):
 
         # Find angle between r_outer and r_inner.
         theta = self.calc_angle(r_inner, r_outer)
-        self.debuglog("   angle (r_outer, r_inner) is: {:.16f}\n"
-                      .format(np.degrees(theta)))
+        if self.debug:
+            self.writeDebug("   2) COLLISION\n"
+                            "      angle (r_outer, r_inner) is: {:.16f}\n"
+                             .format(np.degrees(theta)))
 
         # Rotate r_outer to be exactly on top of the r_inner.
         # This simulates the boundary mediating a collision between
@@ -749,7 +800,6 @@ class SAFIRES(MolecularDynamics):
         # Perform mass-weighted exchange of normal components of
         # velocities, or hard wall collision (reflective = True).
         if self.reflective:
-            self.debuglog("   -> hard wall reflection\n")
             n = self.normalize(r_inner)
             if np.dot(v_inner, n) > 0:
                 dV_inner = -2 * np.dot(np.dot(v_inner, n), n)
@@ -759,31 +809,29 @@ class SAFIRES(MolecularDynamics):
                 dV_outer = -2 * np.dot(np.dot(v_outer, n), n)
             else:
                 dV_outer = np.array([0., 0., 0.])
-            self.debuglog("   dV_inner = {:s}\n"
-                          .format(np.array2string(dV_inner)))
-            self.debuglog("   dV_outer = {:s}\n"
-                          .format(np.array2string(dV_outer)))
         else:
-            self.debuglog("   -> momentum exchange collision\n")
             M = m_outer + m_inner
             r12 = r_inner
             v12 = v_outer - v_inner
-            self.debuglog("   r12 = {:s}\n"
-                          .format(np.array2string(r12)))
-            self.debuglog("   v12 = {:s}\n"
-                          .format(np.array2string(v12)))
-            self.debuglog("   dot(v12, r12) = {:.16f}\n"
-                          .format(np.dot(v12, r12)))
+            if self.debug:
+                self.writeDebug("      r12 = {:s}\n"
+                              .format(np.array2string(r12)))
+                self.writeDebug("      v12 = {:s}\n"
+                              .format(np.array2string(v12)))
+                self.writeDebug("      dot(v12, r12) = {:.16f}\n"
+                              .format(np.dot(v12, r12)))
             v_norm = np.dot(v12, r12) * r12 / (np.linalg.norm(r12)**2)
             
             # dV_inner and dV_outer are mass weighted differently
             # to allow for momentum exchange between solvent with diff
             # total masses.
             dV_inner = 2 * m_inner / M * v_norm
-            self.debuglog("   dV_inner = {:s}\n"
-                          .format(np.array2string(dV_inner)))
             dV_outer = -2 * m_outer / M * v_norm
-            self.debuglog("   dV_outer = {:s}\n"
+
+        if self.debug:
+            self.writeDebug("      dV_inner = {:s}\n"
+                          .format(np.array2string(dV_inner)))
+            self.writeDebug("      dV_outer = {:s}\n"
                           .format(np.array2string(dV_outer)))
 
         if not self.surface and theta != 0 and theta != np.pi:
@@ -827,6 +875,10 @@ class SAFIRES(MolecularDynamics):
 
         if forces is None:
             forces = atoms.get_forces(md=True)
+
+        if self.debug:
+            self.writeDebug("\nIteration: {:d}\n".format(
+                            self.get_number_of_steps()))
 
         # Must propagate future atoms object with non-modified force
         # array to predict the correct motion of the COM.
@@ -880,15 +932,19 @@ class SAFIRES(MolecularDynamics):
         # If there are boundary conflicts, execute problem solving.
         if conflicts:
             while conflicts:
-                print("CONFLICTS = ", conflicts)
-                print("Current iteration = ", self.get_number_of_steps())
-                print("regular dt = ", self.dt)
+                self.nconflicts += 1
+                if self.debug:
+                    self.writeDebug("   CONFLICT DETECTED (total: {:d})\n"
+                                    .format(self.nconflicts))
                 
                 # Find the conflict that occurs earliest in time.
                 dt_list = [self.extrapolate_dt(atoms, NCforces, c[0], c[1], 
                            checkup=False) for c in conflicts]
                 conflict = sorted(dt_list, key=itemgetter(2))[0]
-                print("First conflict = ", conflict)
+                if self.debug:
+                    tmp = np.array2string(np.array(conflict))
+                    self.writeDebug("      Treating conflict [a1, a2, dt]:"
+                            "{:s}\n".format(tmp))
 
                 # When holonomic constraints for rigid linear triatomic
                 # molecules are present, ask the constraints to 
@@ -901,32 +957,40 @@ class SAFIRES(MolecularDynamics):
                                                           rand=True)
                         constraint.redistribute_forces_md(atoms, self.eta,
                                                           rand=True)
-
-                print("d before boundary propagation")
-                xx, xx, xx, d, xx, xx = (
-                    self.update(atoms, forces))
-                print("d_inner = ", d[conflict[0]])
-                print("d_outer = ", d[conflict[1]])
+                if self.debug:
+                    self.writeDebug("      d before boundary propagation:\n")
+                    xx, xx, xx, d, xx, xx = (
+                        self.update(atoms, forces))
+                    self.writeDebug("         d_inner = {:s}\n".format(
+                        np.array2string(d[conflict[0]])))
+                    self.writeDebug("         d_outer = {:s}\n".format(
+                        np.array2string(d[conflict[1]])))
 
                 # Propagate to boundary.
                 atoms = self.propagate(atoms, forces, conflict[2], 
                                        checkup=checkup, halfstep=1, 
                                        constraints=True)
                 
-                print("d after boundary propagation")
-                xx, xx, xx, d, xx, xx = (
-                    self.update(atoms, forces))
-                print("d_inner = ", d[conflict[0]])
-                print("d_outer = ", d[conflict[1]])
+                if self.debug:
+                    self.writeDebug("      d after boundary propagation:\n")
+                    xx, xx, xx, d, xx, xx = (
+                        self.update(atoms, forces))
+                    self.writeDebug("         d_inner = {:s}\n".format(
+                        np.array2string(d[conflict[0]])))
+                    self.writeDebug("         d_outer = {:s}\n".format(
+                        np.array2string(d[conflict[1]])))
 
                 # Resolve elastic collision.
                 atoms = self.collide(atoms, forces, conflict[0], conflict[1])
                 
-                print("d after collision")
-                xx, xx, xx, d, xx, xx = (
-                    self.update(atoms, forces))
-                print("d_inner = ", d[conflict[0]])
-                print("d_outer = ", d[conflict[1]])
+                if self.debug:
+                    self.writeDebug("      d after collision:\n")
+                    xx, xx, xx, d, xx, xx = (
+                        self.update(atoms, forces))
+                    self.writeDebug("         d_inner = {:s}\n".format(
+                        np.array2string(d[conflict[0]])))
+                    self.writeDebug("         d_outer = {:s}\n".format(
+                        np.array2string(d[conflict[1]])))
 
                 # Propagate remaining time step.
                 if self.remaining_dt == 0:
@@ -948,18 +1012,24 @@ class SAFIRES(MolecularDynamics):
         
             # After all conflicts are resolved, the second propagation
             # halfstep is executed.
-            print("Remaining_dt after collision = ", self.remaining_dt)
             atoms = self.propagate(atoms, forces, self.remaining_dt,
                         checkup=checkup, halfstep=2, constraints=True)
             
-            print("d after makeup propagation")
-            xx, xx, xx, d, xx, xx = (
-                self.update(atoms, forces))
-            print("d_inner = ", d[conflict[0]])
-            print("d_outer = ", d[conflict[1]])
+            if self.debug:
+                self.writeDebug("      Remaining_dt after collision = {:f}\n".format(
+                                self.remaining_dt))
+                self.writeDebug("      d after makeup propagation:\n")
+                xx, xx, xx, d, xx, xx = (
+                    self.update(atoms, forces))
+                self.writeDebug("         d_inner = {:s}\n".format(
+                    np.array2string(d[conflict[0]])))
+                self.writeDebug("         d_outer = {:s}\n".format(
+                    np.array2string(d[conflict[1]])))
 
         # No conflict: regular propagation.
         else:
+            if self.debug:
+                self.writeDebug("   No conflict detected.\n")
             for constraint in atoms.constraints:
                 if hasattr(constraint, 'redistribute_forces_md'):
                     constraint.redistribute_forces_md(atoms, self.xi, rand=True)
@@ -990,5 +1060,8 @@ class SAFIRES(MolecularDynamics):
         # Reset tracking variables.
         self.remaining_dt = 0
         self.recent = []
+        
+        if self.debug:
+            self.writeDebug("   Iteration concluded.\n")
 
         return forces
