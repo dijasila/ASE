@@ -285,6 +285,37 @@ the gromacs manual at www.gromacs.org.
   dyn = NVTBerendsen(atoms, 0.1 * units.fs, 300, taut=0.5*1000*units.fs)
 
 
+SAFIRES dynamics
+----------------
+
+.. module:: ase.md.safires
+
+.. autoclass:: SAFIRES
+
+SAFIRES (scattering-assisted flexible inner region ensemble separator) is
+a propagation algorithm for hybrid simulations (e.g. QM/MM) of molecules or
+surfaces in contact with solvent. SAFIRES separates a system into an inner
+and an outer region and restricts particle exchange between them. SAFIRES
+resolves boundary events through elastic collisions mediated by the boundary.
+In order to match the exact moment that a collision occurs, SAFIRES adapts the
+time step dynamically. The propagator handles such multiple-time-step
+propagations while conserving energy and forces. The propagator reduces to the
+:class:`Langevin` propagator for constant time steps and to the
+:class:`VelocityVerlet` propagator for constant time steps and zero friction.
+Detailed information can be found in the corresponding method paper.[1]
+
+Simulations using SAFIRES require users to specify three regions by assigning
+``tags`` to the atoms object; ``atom.tag = 1`` for the solute, which can be a
+molecule or periodic surface model, ``atom.tag = 2`` for the solvent in the
+inner region, and ``atom.tag = 3`` for solvent in the outer region.
+
+Example: See the tutorial :ref:`safires`.
+
+References:
+
+[1] B. Kirchhoff, E. Ö. Jónsson, A. O. Dohn, T. Jacob, H. Jónsson, 
+    J. Chem. Theory Comput. 2021, 17, 5863–5875.
+
 
 Constant NPT simulations (the isothermal-isobaric ensemble)
 ===========================================================
@@ -389,5 +420,3 @@ Functionality is provided to perform analysis of atomic/molecular behaviour as c
 .. module:: ase.md.analysis
 
 .. autoclass:: DiffusionCoefficient
-
-
