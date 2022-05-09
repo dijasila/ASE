@@ -23,6 +23,7 @@ from ase.geometry import find_mic
 
 _allowed_constraints = {'FixAtoms', 'FixCom'}
 
+
 class SAFIRES(MolecularDynamics):
     """SAFIRES (constant N, V, T, variable dt) molecular dynamics."""
 
@@ -222,7 +223,6 @@ class SAFIRES(MolecularDynamics):
         d_outer = np.linalg.norm(cm_outer - cm_origin, axis=1)
 
         return max(d_inner) < min(d_outer)
-
 
     def set_temperature(self, temperature=None, temperature_K=None):
         self.temp = units.kB * self._process_temperature(temperature,
@@ -636,7 +636,7 @@ class SAFIRES(MolecularDynamics):
             # Friction and (random) forces should only be applied 
             # during the first halfstep.
             v += c + d
-            if constraints == True:
+            if constraints:
                 atoms.set_positions(x + dt * v)
                 v = (atoms.get_positions() - x) / dt
                 atoms.set_momenta(v * m)
@@ -648,7 +648,7 @@ class SAFIRES(MolecularDynamics):
         if halfstep == 2:
             # Velocity update occurs at the end of step(),
             # after force update.
-            if constraints == True:
+            if constraints:
                 atoms.set_positions(x + dt * v)
                 v = (self.atoms.get_positions() - x - dt * d) / dt
                 atoms.set_momenta(v * m)
@@ -847,7 +847,7 @@ class SAFIRES(MolecularDynamics):
             # TODO: find a more holistic solution.
             for i, c in enumerate(atoms.constraints):
                 if c.todict()['name'] in _allowed_constraints:
-                    self.xi[c.index]  = 0.0
+                    self.xi[c.index] = 0.0
                     self.eta[c.index] = 0.0
  
             self.xi -= self.xi.sum(axis=0) / lenatoms
@@ -858,7 +858,7 @@ class SAFIRES(MolecularDynamics):
             # TODO: find a more holistic solution.
             for i, c in enumerate(atoms.constraints):
                 if c.todict()['name'] in _allowed_constraints:
-                    self.xi[c.index]  = 0.0
+                    self.xi[c.index] = 0.0
                     self.eta[c.index] = 0.0
 
         self.communicator.broadcast(self.xi, 0)

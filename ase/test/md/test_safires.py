@@ -60,7 +60,7 @@ def test_safires():
                               sigma=3.4)
     dt = 2.0 * units.fs
     md = SAFIRES(atoms, timestep=dt, natoms=1, friction=0,
-                 temperature_K=0, logfile="1atoms.log",
+                 temperature_K=0, logfile=None,
                  fixcm=True)
 
     # Run MD.
@@ -127,7 +127,7 @@ def test_safires():
     atoms.calc = TIP4P(rc=14.9)
     dt = 1.0 * units.fs
     md = SAFIRES(atoms, timestep=dt, natoms=3, temperature_K=0,
-                 friction=0, logfile="3atoms.log", fixcm=True)
+                 friction=0, logfile=None, fixcm=True)
 
     # Run MD.
     md.run(4)
