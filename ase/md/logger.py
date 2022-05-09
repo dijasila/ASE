@@ -26,13 +26,16 @@ class MDLogger(IOContext):
 
     def __init__(self, dyn, atoms, logfile, header=True, stress=False,
                  peratom=False, mode="a"):
+        self.safires = False
+        if hasattr(dyn, "get_boundary"):
+            self.safires = True
         if hasattr(dyn, "get_time"):
             self.dyn = weakref.proxy(dyn)
         else:
             self.dyn = None
         self.atoms = atoms
         global_natoms = atoms.get_global_number_of_atoms()
-        self.logfile = self.openfile(logfile, comm=world, mode='a')
+        self.logfile = self.openfile(logfile, comm=world, mode=mode)
         self.stress = stress
         self.peratom = peratom
         if self.dyn is not None:
@@ -62,6 +65,9 @@ class MDLogger(IOContext):
             self.hdr += ('      ---------------------- stress [GPa] '
                          '-----------------------')
             self.fmt += 6 * " %10.3f"
+        if self.safires:
+            self.hdr += "%8s %6s" % ("d[A]", "nconfl")
+            self.fmt += "%8.4f %6d"
         self.fmt += "\n"
         if header:
             self.logfile.write(self.hdr + "\n")
@@ -86,5 +92,9 @@ class MDLogger(IOContext):
         if self.stress:
             dat += tuple(self.atoms.get_stress(
                 include_ideal_gas=True) / units.GPa)
+        if self.safires:
+            boundary = self.dyn.get_boundary()
+            conflicts = self.dyn.get_number_of_conflicts()
+            dat += (boundary, conflicts)
         self.logfile.write(self.fmt % dat)
         self.logfile.flush()

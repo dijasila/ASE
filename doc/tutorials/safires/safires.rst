@@ -24,6 +24,7 @@ need to be fulfilled.
    SAFIRES boundary will expand spherically around the solute
    particle, or it can be a periodic surface model.
 3. The solute needs to be fixed and cannot move during the simulation.
+   Fixing only the solute center of mass is possible as well.
 4. If the solute is a periodic surface model, the surface needs to
    be in the *xy* plane. Other configurations are currently not
    supported.
@@ -32,7 +33,7 @@ need to be fulfilled.
    produce statistically correct results.
 
 To learn about the mathematical justification and inner workings
-of the SAFIRES method, refer to the
+of the SAFIRES method, refer to
 :doi:`the method paper for more info <10.1021/acs.jctc.1c00522>`.
 
 Preparation of the Lennard-Jones model system
@@ -94,30 +95,26 @@ the equilibrated model system in other simulations::
 
     md.run(2000)
 
-At the time of writing and using these settings, temperature
-equilibration of this system is is achieved within 1-2 ps.
-This simulation should take less than a minute on a modern CPU. It is
-advisable, however, to run the equilibration for longer in order to
+Temperature equilibration of this system should be achieved within 1-2 
+ps. This simulation should take less than a minute on a modern CPU. It
+is advisable, however, to run the equilibration for longer in order to
 generate a set of uncorrelated, equilibrated starting configurations
-that can be used for parallel production runs. This approach is a great
-workaround to parallelize simulations that don't natively support
-parallel computing, such as the LennardJones class in this particular
-case.
+that can be used for parallel production runs.
 
 Having obtained an equilibrated starting configuration, it is time to
-prepare the actual SAFIRES run. Here, we assume that this follow up
+prepare the actual SAFIRES run. Here, we assume that this follow-up
 run is part of the same input script and we can thus get to work on
 the existing atoms object, which now contains the results of the
 previous thermalization.
 
 SAFIRES uses the tag system to differentiate between the solute and
 the inner and outer region. To start preparations on the atoms object,
-we first wrap the object and then assign ``atom.tag = 2`` to all
+we first wrap the object and then assign ``atom.tag = 3`` to all
 particles, which corresponds to the outer region. The solute and inner
 region will be expanded from this in a subsequent step::
 
     atoms.wrap()
-    atoms.set_tags(2)
+    atoms.set_tags(3)
 
 For this example, we will set one Lennard Jones particle as the solute
 and then expand the inner region around this atom, up to 5 % of the
@@ -125,7 +122,7 @@ total number of particles. Note that while SAFIRES is set up to handle
 periodic boundary conditions, it is safest to make sure that the
 flexible boundary is far away from the periodic boundary. Thus, we
 calculate which particle is closest to the center of the simulation
-box, set this as the solute (``atom.tag = 0``) and fix constrain it::
+box, set this as the solute (``atom.tag = 1``) and fix constrain it::
 
     import numpy as np
     from operator import itemgetter
@@ -134,95 +131,51 @@ box, set this as the solute (``atom.tag = 0``) and fix constrain it::
     distances = [[np.linalg.norm(atom.position - center), atom.index]
                  for atom in atoms]
     index_c = sorted(distances, key=itemgetter(0))[0][1]
-    atoms[index_c].tag = 0
+    atoms[index_c].tag = 1
 
 Note that ``np.linalg.norm()`` does not respect the periodic boundary
 conditions but this is irrelevant in this case. Unlike in the next
 part, where we expand the inner region around the central particle::
 
-    ninner = int(len(atoms) * 0.05) + 1 # +1 for the solute
+    ninner = int(len(atoms) * 0.05) + 1 # + 1 for the solute
     distances = [[atoms.get_distance(index_c, atom.index, mic=True), atom.index]
                  for atom in atoms]
     distances = sorted(distances, key=itemgetter(0))
     for i in range(ninner + 1):
-        # Start counting from i+1 to ignore the solute, which
+        # Start counting from i + 1 to ignore the solute, which
         # is on top of this list with a distance of zero.
-        atoms[distances[i+1][1]].tag = 1
+        atoms[distances[i+1][1]].tag = 2
     
-We now need to rearrange the atoms object in a certain way. SAFIRES
-requires that the solute (tag = 0) must always come first in the
-atoms object. The inner and outer region particles / molecules can
-be added afterwards in arbitrary order::
-
-    newatoms = Atoms()
-    newatoms.extend(atoms[[atom.index for atom in atoms
-                           if atom.tag == 0]])
-    newatoms.extend(atoms[[atom.index for atom in atoms
-                           if atom.tag in [1,2]]])
-    newatoms.cell = atoms.cell
-    newatoms.pbc = atoms.pbc
-    newatoms.calc = atoms.calc
-    atoms = newatoms
-
-Finally, the central particle is constrained. At the time of
-writing this tutorial, SAFIRES requires that a particle or
-molecule is designated as the origin (tag = 0) and that the
-center of mass of the origin is frozen. It is possible in 
-principle to define a ghost atom, which does not take part in
-the chemistry of the simulation, as the origin instead. However,
-for the sake of simplicity, we will simply constrain the central
-LJ particle and use it as the origin. After the earlier
-rearrangement, this particle has index 0::
+Finally, the central particle, which has the index ``index_c``, will
+be constrained::
 
     from ase.constraints import FixAtoms
         
-    atoms.constraints = [FixAtoms(indices=[0])]
+    atoms.constraints = [FixAtoms(indices=[index_c])]
 
 Now that SAFIRES will know which particle belongs to which region,
 we can prepare the dynamics object for the SAFIRES calculation.
 SAFIRES is fully energy conserving, and to demonstrate this fact
-we will perform a *NVE* simulation using the Velocity Verlet
-dynamics class (:class:`~ase/md/verlet/VelocityVerlet`)::
-
-    from ase.md.verlet import VelocityVerlet
-
-    md = VelocityVerlet(atoms, timestep=1 * units.fs)
-
-After initializing the dynamics object, SAFIRES can be initialized
-and appended to it. Here, ``natoms`` communicates to SAFIRES how
-many atoms are in each solvent molecule (here: only 1)::
+we will perform a *NVE* simulation. The SAFIRES class is derived
+from :class:`~ase.md.Langevin` and accepts the same parameters.
+To execute a *NVE* run, the ``friction`` parameter must be set to zero.
+The ``temperature_K`` parameter must be set as well as per requirement
+but will not affect the simulation with zero ``friction``::
 
     from ase.md.safires import SAFIRES
 
-    boundary = SAFIRES(atoms, mdobject=md, natoms=1)
-    md.attach(boundary.safires, interval=1)
+    md = SAFIRES(atoms, timestep=1 * units.fs, friction=0,
+             temperature_K=0, natoms=1, logfile="md.log")
 
-The interval must be set to 1 (every iteration), otherwise SAFIRES
-will not properly fulfill its intended purpose.
+``natoms`` communicates to SAFIRES how many atoms are in each solvent
+molecule (here: only 1) and ``logfile`` names the output file of the
+built-in :class:`~ase/md/MDLogger` class that SAFIRES uses.
 
-.. note::
-    SAFIRES will change the atomic configuration and re-calculate
-    energy results in order to enforce the boundary.
-    Thus, the logger and trajectory objects need to be
-    appended to the dynamics object *after* SAFIRES in order for
-    them to save the correct information.
+Finally, we append a trajectory object to the dynamics and start
+running the simulation::
 
-Finally, we would like to save the trajectory and MD results into
-files again. The :class:`VelocityVerlet` class supports trajectory writing
-and logging. However, since SAFIRES will perform its work after a
-successful dynamics iteration and will potentially undo and change
-the trajectory and energy calculations in order to enforce the
-flexible boundary, we cannot use the built in functionality. Instead,
-we use the :class:`~ase/md/MDLogger` class to log the dynamics results
-and append a new trajectory object::
-
-    from ase.md import MDLogger
-
-    traj_safires = Trajectory('safires.traj', 'w', atoms)
-    md.attach(traj_safires.write, interval=1)
-
-    logger = MDLogger(md, atoms, 'safires.log', mode='w')
-    md.attach(logger, interval=1)
+    traj_md = Trajectory('md.traj', 'w', atoms)
+    md.attach(traj_md.write, interval=1)
 
     md.run(1000)
 
@@ -236,7 +189,7 @@ model systems between the solute and all other particles,
 the RDF distance `r` will correspond to the distance from
 the solute. For this particlar example, SAFIRES will reproduce
 exactly the RDF of the unconstrained simulation, see the
-:doi:`the method paper <XX.XXXX/acs.jctc.XXXXXXX>`.
+:doi:`the method paper <10.1103/PhysRev.136.A405>`.
 However, it is good practice to repeat this test for any new
 system and combination of potentials to see the effect of the
 boundary on the given system.

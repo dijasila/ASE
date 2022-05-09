@@ -95,11 +95,11 @@ Uncategorized
 
    defects/defects
    qmmm/qmmm
+   safires/safires
    dimensionality/dimensionality
    deltacodesdft/deltacodesdft
    wannier/wannier
    tut03_vibrations/vibrations
-   safires/safires
 
 
 Further reading
@@ -123,4 +123,5 @@ The following video tutorials are available:
 
 .. |oi_cn| image:: ../static/China.png
    :target: https://wiki.fysik.dtu.dk/ase-files/oi_ch.avi
+
 

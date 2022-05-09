@@ -1,15 +1,13 @@
 """SAFIRES Tutorial input script
 
-DOI: 10.1021/acs.jctc.1c00522
+Ar Lennard Jones parameters obtained from 10.1103/PhysRev.136.A405.
+
+For more information on SAFIRES, refer to the original publication:
+DOI 10.1021/acs.jctc.1c00522
 
 @author: bjk24
-date: 2021-01-22
-
-Ar Lennard Jones parameters obtained from
-10.1103/PhysRev.136.A405
-
+date: 2022-05-06
 """
-
 import numpy as np
 from operator import itemgetter
 
@@ -19,9 +17,7 @@ from ase.calculators.lj import LennardJones
 from ase.md import Langevin
 from ase.io.trajectory import Trajectory
 from ase.constraints import FixAtoms
-from ase.md.verlet import VelocityVerlet
 from ase.md.safires import SAFIRES
-from ase.md import MDLogger
 
 # Set up and pre-equilibrate model system from scratch.
 atoms = Atoms('Ar', positions=[[0, 0, 0]])
@@ -44,47 +40,31 @@ md.run(2000)
 # Prepare model for SAFIRES.
 # Expand solute.
 atoms.wrap()
-atoms.set_tags(2)
+atoms.set_tags(3)
 center = atoms.cell.diagonal() / 2
 distances = [[np.linalg.norm(atom.position - center), atom.index]
              for atom in atoms]
 index_c = sorted(distances, key=itemgetter(0))[0][1]
-atoms[index_c].tag = 0
+atoms[index_c].tag = 1
 
 # Expand inner region.
-ninner = int(len(atoms) * 0.05) + 1  # +1 for the solute
+ninner = int(len(atoms) * 0.05) + 1  # + 1 for the solute
 distances = [[atoms.get_distance(index_c, atom.index, mic=True), atom.index]
              for atom in atoms]
 distances = sorted(distances, key=itemgetter(0))
 for i in range(ninner + 1):
-    # Start counting from i+1 to ignore the solute, which
+    # Start counting from i + 1 to ignore the solute, which
     # is on top of this list with a distance of zero.
-    atoms[distances[i+1][1]].tag = 1
-
-# SAFIRES required that the solute comes first in the atoms
-# list. We therefore have to rearrange the atoms object.
-newatoms = Atoms()
-newatoms.extend(atoms[[atom.index for atom in atoms 
-                       if atom.tag == 0]])
-newatoms.extend(atoms[[atom.index for atom in atoms 
-                       if atom.tag in [1, 2]]])
-newatoms.cell = atoms.cell
-newatoms.pbc = atoms.pbc
-newatoms.calc = atoms.calc
-atoms = newatoms
+    atoms[distances[i+1][1]].tag = 2
 
 # Constrain the central particle (origin).
-atoms.constraints = [FixAtoms(indices=[0])]
+atoms.constraints = [FixAtoms(indices=[index_c])]
 
-# Set up dynamics and attach SAFIRES, trajectory, and logger.
-md = VelocityVerlet(atoms, timestep=1 * units.fs,
-                    logfile="md.log")
-boundary = SAFIRES(atoms, mdobject=md, natoms=1)
-md.attach(boundary.safires, interval=1)
-traj_safires = Trajectory('safires.traj', 'w', atoms)
-md.attach(traj_safires.write, interval=1)
-logger = MDLogger(md, atoms, 'md.log', mode='w')
-md.attach(logger, interval=1)
+# Set up SAFIRES dynamics.
+md = SAFIRES(atoms, timestep=1 * units.fs, friction=0,
+             temperature_K=0, natoms=1, logfile="md.log")
+traj = Trajectory('md.traj', 'w', atoms)
+md.attach(traj.write, interval=1)
 
-# Run NVE SAFIRES run.
+# Run NVE SAFIRES.
 md.run(1000)

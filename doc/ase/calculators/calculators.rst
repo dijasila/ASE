@@ -40,7 +40,7 @@ Supported calculators
 
 The calculators can be divided in four groups:
 
-1) Asap_, BigDFT_, DFTK_, GPAW_, and Hotbit_ have their own native ASE
+1) Asap_, BigDFT_, DeePMD-kit_, DFTK_, GPAW_, and Hotbit_ have their own native ASE
 interfaces.
 
 2) ABINIT, AMBER, CP2K, CASTEP, deMon2k, DFTB+, ELK, EXCITING, FHI-aims, FLEUR, GAUSSIAN,
@@ -49,11 +49,15 @@ interfaces.
    FORTRAN/C/C++ codes are not part of ASE.
 
 3) Pure python implementations included in the ASE package: EMT, EAM,
-   Lennard-Jones and Morse.
+   Lennard-Jones, Morse and HarmonicCalculator.
 
 4) Calculators that wrap others, included in the ASE package:
    :class:`ase.calculators.checkpoint.CheckpointCalculator`,
    the :class:`ase.calculators.loggingcalc.LoggingCalculator`,
+   the :class:`ase.calculators.mixing.LinearCombinationCalculator`,
+   the :class:`ase.calculators.mixing.MixedCalculator`,
+   the :class:`ase.calculators.mixing.SumCalculator`,
+   the :class:`ase.calculators.mixing.AverageCalculator`,
    the :class:`ase.calculators.socketio.SocketIOCalculator`,
    the :ref:`Grimme-D3 <grimme>` potential, and the qmmm calculators
    :class:`~ase.calculators.qmmm.EIQMMM`,  and :class:`~ase.calculators.qmmm.SimpleQMMM`.
@@ -63,6 +67,7 @@ name                                      description
 ========================================= ===========================================
 Asap_                                     Highly efficient EMT code
 BigDFT_                                   Wavelet based code for DFT
+DeePMD-kit_                               A deep learning package for many-body potential energy representation
 DFTK_                                     Plane-wave code for DFT and related models
 GPAW_                                     Real-space/plane-wave/LCAO PAW code
 Hotbit_                                   DFT based tight binding
@@ -84,6 +89,7 @@ elk                                       Full Potential LAPW code
 :mod:`~ase.calculators.gaussian`          Gaussian based electronic structure code
 :mod:`~ase.calculators.gromacs`           Classical molecular dynamics code
 :mod:`~ase.calculators.gulp`              Interatomic potential code
+:mod:`~ase.calculators.harmonic`          Hessian based harmonic force-field code
 :mod:`~ase.calculators.kim`               Classical MD with standardized models
 :mod:`~ase.calculators.lammps`            Classical molecular dynamics code
 :mod:`~ase.calculators.mixing`            Combination of multiple calculators
@@ -132,6 +138,7 @@ where ``abc`` is the module name and ``ABC`` is the class name.
 .. _GPAW: https://wiki.fysik.dtu.dk/gpaw
 .. _Hotbit: https://github.com/pekkosk/hotbit
 .. _DFTK: https://dftk.org
+.. _DeePMD-kit: https://github.com/deepmodeling/deepmd-kit
 
 Calculator keywords
 ===================
@@ -224,6 +231,7 @@ the :meth:`set` method:
    gaussian
    gromacs
    gulp
+   harmonic
    socketio/socketio
    jacapo
    kim
