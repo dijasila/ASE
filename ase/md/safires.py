@@ -294,7 +294,7 @@ class SAFIRES(MolecularDynamics):
     def get_boundary(self):
         return self.current_boundary
 
-    def get_number_of_collisions(self):
+    def get_number_of_conflicts(self):
         return self.nconflicts
 
     def normalize(self, x):
