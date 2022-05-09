@@ -313,8 +313,7 @@ Example: See the tutorial :ref:`safires`.
 
 References:
 
-[1] B. Kirchhoff, E. Ö. Jónsson, A. O. Dohn, T. Jacob, H. Jónsson, 
-    J. Chem. Theory Comput. 2021, 17, 5863–5875.
+[1] B. Kirchhoff, E. Ö. Jónsson, A. O. Dohn, T. Jacob, H. Jónsson, J. Chem. Theory Comput. 2021, 17, 5863–5875.
 
 
 Constant NPT simulations (the isothermal-isobaric ensemble)
