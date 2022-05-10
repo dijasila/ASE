@@ -20,6 +20,7 @@ from ase.md.md import MolecularDynamics
 from ase.parallel import world, DummyMPI
 from ase import units
 from ase.geometry import find_mic
+from ase.parallel import parprint
 
 _allowed_constraints = {'FixAtoms', 'FixCom'}
 
@@ -754,7 +755,7 @@ class SAFIRES(MolecularDynamics):
         conflicts = [(ftr_boundary_idx, atom.index) for atom in ftr_com_atoms
                      if atom.tag == 3 and ftr_d[atom.index] < ftr_boundary]
 
-        return conflicts
+        return (conflicts, ftr_boundary)
 
     def collide(self, atoms, forces, inner_reflect, outer_reflect):
         """Perform elastic collision between two paticles.
@@ -922,12 +923,12 @@ class SAFIRES(MolecularDynamics):
         checkup = False
 
         # Predict boundary conflicts after propagating by self.dt.
-        conflicts = self.predictConflicts(atoms=atoms, 
-                                          forces=NCforces, 
-                                          dt=self.dt,
-                                          halfstep=1,
-                                          constraints=False,
-                                          checkup=checkup)
+        conflicts, boundary = self.predictConflicts(atoms=atoms, 
+                                                    forces=NCforces,
+                                                    dt=self.dt,
+                                                    halfstep=1,
+                                                    constraints=False,
+                                                    checkup=checkup)
 
         # If there are boundary conflicts, execute problem solving.
         if conflicts:
@@ -945,6 +946,13 @@ class SAFIRES(MolecularDynamics):
                     tmp = np.array2string(np.array(conflict))
                     self.writeDebug("      Treating conflict [a1, a2, dt]:"
                             "{:s}\n".format(tmp))
+                # Write event info to stdout.
+                parprint("".join(["<SAFIRES> Iteration {:d}: "
+                           .format(self.get_number_of_steps()),
+                           "Treating atoms {:d} and {:d} at d = {:.5f}"
+                           .format(conflict[0], conflict[1], boundary),
+                           " using dt = {:.5f}"
+                           .format(conflict[2])]))
 
                 # When holonomic constraints for rigid linear triatomic
                 # molecules are present, ask the constraints to 
@@ -1003,12 +1011,12 @@ class SAFIRES(MolecularDynamics):
             
                 # Predict boundary conflicts after propagating by 
                 # self.remaining_dt.
-                conflicts = self.predictConflicts(atoms=atoms, 
-                                                  forces=NCforces, 
-                                                  dt=self.remaining_dt,
-                                                  halfstep=1,
-                                                  constraints=False,
-                                                  checkup=checkup)
+                conflicts, boundary = self.predictConflicts(atoms=atoms, 
+                                                            forces=NCforces, 
+                                                            dt=self.remaining_dt,
+                                                            halfstep=1,
+                                                            constraints=False,
+                                                            checkup=checkup)
         
             # After all conflicts are resolved, the second propagation
             # halfstep is executed.
