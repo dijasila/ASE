@@ -321,7 +321,7 @@ class SAFIRES(MolecularDynamics):
                          [2 * (bc - ad), aa + cc - bb - dd, 2 * (cd + ab)],
                          [2 * (bd + ac), 2 * (cd - ab), aa + dd - bb - cc]])
 
-    def update(self, atoms, forces):
+    def update(self, atoms, forces, update_boundary=False):
         """Return reduced pseudoparticle atoms object.
 
         Parameters:
@@ -332,6 +332,10 @@ class SAFIRES(MolecularDynamics):
         forces: array
             Numpy array containing the vectorfield of forces on
             all atoms.
+
+        update_boundary: bool (optional)
+            Defaults to False, updates self.current_boundary
+            which is read by MDLogger.
 
         Return values:
         
@@ -436,8 +440,8 @@ class SAFIRES(MolecularDynamics):
         # the largest absolute distance from the COM of the solute.
         boundary_idx, boundary = sorted(inner_mols, key=itemgetter(1),
                                         reverse=True)[0]
-
-        self.current_boundary = boundary
+        if update_boundary:
+            self.current_boundary = boundary
 
         return com_atoms, com_forces, r, d, boundary_idx, boundary
     
@@ -710,7 +714,7 @@ class SAFIRES(MolecularDynamics):
         return atoms
 
     def predictConflicts(self, atoms, forces, dt, halfstep, 
-                         constraints, checkup):
+                         constraints, checkup, update_boundary=False):
         """Test-propagate atoms and check if boundary conflict occurs.
 
         Parameters:
@@ -741,6 +745,11 @@ class SAFIRES(MolecularDynamics):
             False for first conflict resolution within a given time
             step, True for any subsequent conflict resolitions within
             the same time step.
+
+        update_boundary: bool (optional)
+            Defaults to false, flag used to communicate to self.update
+            to update the self.current_boundary value which is read
+            and logged by the MDLogger class.
         """
         # Propagate a copy of the atoms object by self.dt.
         FTatoms = atoms.copy()
@@ -749,13 +758,14 @@ class SAFIRES(MolecularDynamics):
 
         # Convert future_atoms to COM atoms objects.
         (ftr_com_atoms, ftr_com_forces, ftr_r, ftr_d,
-        ftr_boundary_idx, ftr_boundary) = self.update(future_atoms, forces)
+        ftr_boundary_idx, ftr_boundary) = self.update(future_atoms, forces, 
+                                            update_boundary=update_boundary)
 
         # Check if future_atoms contains boundary conflict.
         conflicts = [(ftr_boundary_idx, atom.index) for atom in ftr_com_atoms
                      if atom.tag == 3 and ftr_d[atom.index] < ftr_boundary]
 
-        return (conflicts, ftr_boundary)
+        return conflicts
 
     def collide(self, atoms, forces, inner_reflect, outer_reflect):
         """Perform elastic collision between two paticles.
@@ -923,12 +933,13 @@ class SAFIRES(MolecularDynamics):
         checkup = False
 
         # Predict boundary conflicts after propagating by self.dt.
-        conflicts, boundary = self.predictConflicts(atoms=atoms, 
-                                                    forces=NCforces,
-                                                    dt=self.dt,
-                                                    halfstep=1,
-                                                    constraints=False,
-                                                    checkup=checkup)
+        conflicts = self.predictConflicts(atoms=atoms, 
+                                          forces=NCforces,
+                                          dt=self.dt,
+                                          halfstep=1,
+                                          constraints=False,
+                                          checkup=checkup,
+                                          update_boundary=True)
 
         # If there are boundary conflicts, execute problem solving.
         if conflicts:
@@ -943,14 +954,15 @@ class SAFIRES(MolecularDynamics):
                            checkup=False) for c in conflicts]
                 conflict = sorted(dt_list, key=itemgetter(2))[0]
                 if self.debug:
-                    tmp = np.array2string(np.array(conflict))
                     self.writeDebug("      Treating conflict [a1, a2, dt]:"
-                            "{:s}\n".format(tmp))
+                            " [{:d}, {:d}, {:f}]\n".format(conflict[0],
+                            conflict[1], conflict[2]))
                 # Write event info to stdout.
                 parprint("".join(["<SAFIRES> Iteration {:d}: "
                            .format(self.get_number_of_steps()),
                            "Treating atoms {:d} and {:d} at d = {:.5f}"
-                           .format(conflict[0], conflict[1], boundary),
+                           .format(conflict[0], conflict[1], 
+                                   self.current_boundary),
                            " using dt = {:.5f}"
                            .format(conflict[2])]))
 
@@ -1011,12 +1023,12 @@ class SAFIRES(MolecularDynamics):
             
                 # Predict boundary conflicts after propagating by 
                 # self.remaining_dt.
-                conflicts, boundary = self.predictConflicts(atoms=atoms, 
-                                                            forces=NCforces, 
-                                                            dt=self.remaining_dt,
-                                                            halfstep=1,
-                                                            constraints=False,
-                                                            checkup=checkup)
+                conflicts = self.predictConflicts(atoms=atoms, 
+                                                  forces=NCforces, 
+                                                  dt=self.remaining_dt,
+                                                  halfstep=1,
+                                                  constraints=False,
+                                                  checkup=checkup)
         
             # After all conflicts are resolved, the second propagation
             # halfstep is executed.
