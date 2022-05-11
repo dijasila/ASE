@@ -3,7 +3,7 @@ Molecular dynamics
 ==================
 
 .. module:: ase.md
-:synopsis: Molecular Dynamics
+   :synopsis: Molecular Dynamics
 
 Typical computer simulations involve moving the atoms around, either
 to optimize a structure (energy minimization) or to do molecular
@@ -19,9 +19,9 @@ numerically.  A typical molecular dynamics simulation will use the
 step, and then you perform dynamics by calling its
 :meth:`~verlet.VelocityVerlet.run` method::
 
-dyn = VelocityVerlet(atoms, dt=5.0 * units.fs,
-                   trajectory='md.traj', logfile='md.log')
-dyn.run(1000)  # take 1000 steps
+  dyn = VelocityVerlet(atoms, dt=5.0 * units.fs,
+                       trajectory='md.traj', logfile='md.log')
+  dyn.run(1000)  # take 1000 steps
 
 A number of algorithms can be used to perform molecular
 dynamics, with slightly different results.
@@ -29,13 +29,13 @@ dynamics, with slightly different results.
 
 .. note::
 
-Prior to ASE version 3.21.0, inconsistent units were used to
-specify temperature.  Some modules expected kT (in eV), others T
-(in Kelvin).  From ASE 3.21.0, all molecular dynamics modules
-expecting a temperature take a parameter ``temperature_K`` which is
-the temperature in Kelvin.  For compatibility, they still accept
-the ``temperature`` parameter in the same unit as previous versions
-(eV or K), but using the old parameter will issue a warning.
+   Prior to ASE version 3.21.0, inconsistent units were used to
+   specify temperature.  Some modules expected kT (in eV), others T
+   (in Kelvin).  From ASE 3.21.0, all molecular dynamics modules
+   expecting a temperature take a parameter ``temperature_K`` which is
+   the temperature in Kelvin.  For compatibility, they still accept
+   the ``temperature`` parameter in the same unit as previous versions
+   (eV or K), but using the old parameter will issue a warning.
 
 
 
@@ -88,34 +88,34 @@ this to a more reasonable frequency.
 The logging can be customized by explicitly attaching a
 :class:`MDLogger` object to the dynamics::
 
-from ase.md import MDLogger
-dyn = VelocityVerlet(atoms, dt=2*ase.units.fs)
-dyn.attach(MDLogger(dyn, atoms, 'md.log', header=False, stress=False,
-         peratom=True, mode="a"), interval=1000)
+  from ase.md import MDLogger
+  dyn = VelocityVerlet(atoms, dt=2*ase.units.fs)
+  dyn.attach(MDLogger(dyn, atoms, 'md.log', header=False, stress=False,
+             peratom=True, mode="a"), interval=1000)
 
 This example will skip the header line and write energies per atom
 instead of total energies.  The parameters are
 
-``header``: Print a header line defining the columns.
+  ``header``: Print a header line defining the columns.
 
-``stress``: Print the six components of the stress tensor.
+  ``stress``: Print the six components of the stress tensor.
 
-``peratom``:  Print energy per atom instead of total energy.
+  ``peratom``:  Print energy per atom instead of total energy.
 
-``mode``:  If 'a', append to existing file, if 'w' overwrite
-existing file.
+  ``mode``:  If 'a', append to existing file, if 'w' overwrite
+  existing file.
 
 Despite appearances, attaching a logger like this does *not* create a
 cyclic reference to the dynamics.
 
 .. note::
 
-If building your own logging class, be sure not to attach the dynamics
-object directly to the logging object. Instead, create a weak reference
-using the ``proxy`` method of the ``weakref`` package. See the
-*ase.md.MDLogger* source code for an example. (If this is not done, a
-cyclic reference may be created which can cause certain calculators
-to not terminate correctly.)
+   If building your own logging class, be sure not to attach the dynamics
+   object directly to the logging object. Instead, create a weak reference
+   using the ``proxy`` method of the ``weakref`` package. See the
+   *ase.md.MDLogger* source code for an example. (If this is not done, a
+   cyclic reference may be created which can cause certain calculators
+   to not terminate correctly.)
 
 
 .. autoclass:: MDLogger
@@ -204,8 +204,8 @@ the friction are 0.01-0.02 atomic units.
 
 ::
 
-# Room temperature simulation
-dyn = Langevin(atoms, 5 * units.fs, 300, 0.002)
+  # Room temperature simulation
+  dyn = Langevin(atoms, 5 * units.fs, 300, 0.002)
 
 Both the friction and the temperature can be replaced with arrays
 giving per-atom values.  This is mostly useful for the friction, where
@@ -243,8 +243,8 @@ values for this probability are in the order of 1e-4 to 1e-1.
 
 ::
 
-# Room temperature simulation (300 Kelvin, Andersen probability: 0.002)
-dyn = Andersen(atoms, 5 * units.fs, 300, 0.002)
+  # Room temperature simulation (300 Kelvin, Andersen probability: 0.002)
+  dyn = Andersen(atoms, 5 * units.fs, 300, 0.002)
 
 References:
 
@@ -281,8 +281,8 @@ the gromacs manual at www.gromacs.org.
 
 ::
 
-# Room temperature simulation (300K, 0.1 fs time step)
-dyn = NVTBerendsen(atoms, 0.1 * units.fs, 300, taut=0.5*1000*units.fs)
+  # Room temperature simulation (300K, 0.1 fs time step)
+  dyn = NVTBerendsen(atoms, 0.1 * units.fs, 300, taut=0.5*1000*units.fs)
 
 
 SAFIRES dynamics
@@ -323,20 +323,20 @@ Constant NPT simulations (the isothermal-isobaric ensemble)
 
 .. autoclass:: NPT
 
-.. automethod:: run 
-.. automethod:: set_stress
-.. automethod:: set_temperature 
-.. automethod:: set_mask 
-.. automethod:: set_fraction_traceless 
-.. automethod:: get_strain_rate 
-.. automethod:: set_strain_rate 
-.. automethod:: get_time 
-.. automethod:: initialize
-.. automethod:: get_gibbs_free_energy 
-.. automethod:: zero_center_of_mass_momentum 
-.. automethod:: attach 
+    .. automethod:: run 
+    .. automethod:: set_stress
+    .. automethod:: set_temperature 
+    .. automethod:: set_mask 
+    .. automethod:: set_fraction_traceless 
+    .. automethod:: get_strain_rate 
+    .. automethod:: set_strain_rate 
+    .. automethod:: get_time 
+    .. automethod:: initialize
+    .. automethod:: get_gibbs_free_energy 
+    .. automethod:: zero_center_of_mass_momentum 
+    .. automethod:: attach 
 
-   
+       
 Berendsen NPT dynamics
 -----------------------
 .. module:: ase.md.nptberendsen
@@ -419,3 +419,4 @@ Functionality is provided to perform analysis of atomic/molecular behaviour as c
 .. module:: ase.md.analysis
 
 .. autoclass:: DiffusionCoefficient
+
