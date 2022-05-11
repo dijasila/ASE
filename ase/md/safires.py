@@ -169,8 +169,8 @@ class SAFIRES(MolecularDynamics):
         nm_out = int(len(m_out) / self.nout)
         m_in = np.array([atom.mass for atom in atoms if atom.tag == 2])
         nm_in = int(len(m_in) / self.nin)
-        if not (np.round(m_out.sum() / nm_out, decimals=10) 
-                == np.round(m_in.sum() / nm_in, decimals  =10)):
+        if not (np.round(m_out.sum() / nm_out, decimals=10) == np.round(
+                m_in.sum() / nm_in, decimals=10)):
             warnings.warn('The mass of inner and outer solvent molecules is \
                            not exactly the same')
 
@@ -957,7 +957,7 @@ class SAFIRES(MolecularDynamics):
                 conflict = sorted(dt_list, key=itemgetter(2))[0]
                 if self.debug:
                     self.writeDebug("      Treating conflict [a1, a2, dt]:"
-                            " [{:d}, {:d}, {:f}]\n".format(conflict[0],
+                            " [{:d}, {:d}, {:.16f}]\n".format(conflict[0],
                             conflict[1], conflict[2]))
                 # Write event info to stdout.
                 parprint("".join(["<SAFIRES> Iteration {:d}: "
@@ -983,10 +983,10 @@ class SAFIRES(MolecularDynamics):
                     self.writeDebug("      d before boundary propagation:\n")
                     xx, xx, xx, d, xx, xx = (
                         self.update(atoms, forces))
-                    self.writeDebug("         d_inner = {:s}\n".format(
-                        np.array2string(d[conflict[0]])))
-                    self.writeDebug("         d_outer = {:s}\n".format(
-                        np.array2string(d[conflict[1]])))
+                    self.writeDebug("         d_inner = {:.16f}\n".format(
+                                    d[conflict[0]]))
+                    self.writeDebug("         d_outer = {:.16f}\n".format(
+                                    d[conflict[1]]))
 
                 # Propagate to boundary.
                 atoms = self.propagate(atoms, forces, conflict[2], 
@@ -997,10 +997,10 @@ class SAFIRES(MolecularDynamics):
                     self.writeDebug("      d after boundary propagation:\n")
                     xx, xx, xx, d, xx, xx = (
                         self.update(atoms, forces))
-                    self.writeDebug("         d_inner = {:s}\n".format(
-                        np.array2string(d[conflict[0]])))
-                    self.writeDebug("         d_outer = {:s}\n".format(
-                        np.array2string(d[conflict[1]])))
+                    self.writeDebug("         d_inner = {:.16f}\n".format(
+                                    d[conflict[0]]))
+                    self.writeDebug("         d_outer = {:.16f}\n".format(
+                                    d[conflict[1]]))
 
                 # Resolve elastic collision.
                 atoms = self.collide(atoms, forces, conflict[0], conflict[1])
@@ -1009,10 +1009,10 @@ class SAFIRES(MolecularDynamics):
                     self.writeDebug("      d after collision:\n")
                     xx, xx, xx, d, xx, xx = (
                         self.update(atoms, forces))
-                    self.writeDebug("         d_inner = {:s}\n".format(
-                        np.array2string(d[conflict[0]])))
-                    self.writeDebug("         d_outer = {:s}\n".format(
-                        np.array2string(d[conflict[1]])))
+                    self.writeDebug("         d_inner = {:.16f}\n".format(
+                                    d[conflict[0]]))
+                    self.writeDebug("         d_outer = {:.16f}\n".format(
+                                    d[conflict[1]]))
 
                 # Propagate remaining time step.
                 if self.remaining_dt == 0:
@@ -1038,15 +1038,15 @@ class SAFIRES(MolecularDynamics):
                         checkup=checkup, halfstep=2, constraints=True)
             
             if self.debug:
-                self.writeDebug("      Remaining_dt after collision = {:f}\n".format(
-                                self.remaining_dt))
+                self.writeDebug("      Remaining_dt after collision "
+                                "= {:.16f}\n".format(self.remaining_dt))
                 self.writeDebug("      d after makeup propagation:\n")
                 xx, xx, xx, d, xx, xx = (
                     self.update(atoms, forces))
-                self.writeDebug("         d_inner = {:s}\n".format(
-                    np.array2string(d[conflict[0]])))
-                self.writeDebug("         d_outer = {:s}\n".format(
-                    np.array2string(d[conflict[1]])))
+                self.writeDebug("         d_inner = {:.16f}\n".format(
+                                d[conflict[0]]))
+                self.writeDebug("         d_outer = {:.16f}\n".format(
+                                d[conflict[1]]))
 
         # No conflict: regular propagation.
         else:
