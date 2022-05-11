@@ -169,7 +169,8 @@ class SAFIRES(MolecularDynamics):
         nm_out = int(len(m_out) / self.nout)
         m_in = np.array([atom.mass for atom in atoms if atom.tag == 2])
         nm_in = int(len(m_in) / self.nin)
-        if not m_out.sum() / nm_out == m_in.sum() / nm_in:
+        if not (np.round(m_out.sum() / nm_out, decimals=10) 
+                == np.round(m_in.sum() / nm_in, decimals  =10)):
             warnings.warn('The mass of inner and outer solvent molecules is \
                            not exactly the same')
 
