@@ -701,7 +701,8 @@ class SAFIRES(MolecularDynamics):
 
         if halfstep == 2:
             # Velocity update occurs at the end of step(),
-            # after force update.
+            # after force update. Halfstep = 2 is only triggered during
+            # iterations where a conflict was resolved.
             if constraints:
                 atoms.set_positions(x + dt * v)
                 v = (self.atoms.get_positions() - x - dt * d) / dt
@@ -714,7 +715,7 @@ class SAFIRES(MolecularDynamics):
         return atoms
 
     def predictConflicts(self, atoms, forces, dt, halfstep, 
-                         constraints, checkup, update_boundary=False):
+                    constraints, checkup, update_boundary=False):
         """Test-propagate atoms and check if boundary conflict occurs.
 
         Parameters:
@@ -747,7 +748,7 @@ class SAFIRES(MolecularDynamics):
             the same time step.
 
         update_boundary: bool (optional)
-            Defaults to false, flag used to communicate to self.update
+            Defaults to False, flag used to communicate to self.update
             to update the self.current_boundary value which is read
             and logged by the MDLogger class.
         """
@@ -1055,8 +1056,22 @@ class SAFIRES(MolecularDynamics):
                     constraint.redistribute_forces_md(atoms, self.xi, rand=True)
                     constraint.redistribute_forces_md(atoms, self.eta, rand=True)
 
+            x = atoms.get_positions()
+            m = self.masses
+            v = atoms.get_velocities()
+            T = self.temp
+            fr = self.fr
+            eta = self.eta
+            sig = np.sqrt(2 * T * fr / m)
+            d = self.dt**1.5 * sig * eta / (2 * math.sqrt(3))
+            
             atoms = self.propagate(atoms, forces, self.dt, checkup=checkup,
                 halfstep=1, constraints=True)
+            # Recalc velocities after RATTLE constraints are applied.
+            v = (self.atoms.get_positions() - x - d) / self.dt
+            # Do not apply constraints here, this happens below after the
+            # force update.
+            atoms.set_momenta(v * self.masses, apply_constraint=False)
 
         # Finish propagation as usual (second velocity halfstep, 
         # update forces).
