@@ -914,17 +914,18 @@ class SAFIRES(MolecularDynamics):
                 if c.todict()['name'] in _allowed_constraints:
                     self.xi[c.index] = 0.0
                     self.eta[c.index] = 0.0
+            idxChg = [atom.index for atom in atoms if atom.tag != 1]
+            lenChg = len(idxChg)
+            self.xi[idxChg] -= self.xi[idxChg].sum(axis=0) / lenChg
+            self.eta[idxChg] -= self.eta[idxChg].sum(axis=0) / lenChg
  
-            self.xi -= self.xi.sum(axis=0) / lenatoms
-            self.eta -= self.eta.sum(axis=0) / lenatoms
- 
-            # Run again to remove any random forces potentially
-            # redistributed to solute.
-            # TODO: find a more holistic solution.
-            for i, c in enumerate(atoms.constraints):
-                if c.todict()['name'] in _allowed_constraints:
-                    self.xi[c.index] = 0.0
-                    self.eta[c.index] = 0.0
+        # Run again to remove any random forces potentially
+        # redistributed to solute.
+        # TODO: find a more holistic solution.
+        for i, c in enumerate(atoms.constraints):
+            if c.todict()['name'] in _allowed_constraints:
+                self.xi[c.index] = 0.0
+                self.eta[c.index] = 0.0
 
         self.communicator.broadcast(self.xi, 0)
         self.communicator.broadcast(self.eta, 0)
