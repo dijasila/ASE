@@ -441,7 +441,7 @@ class CIFBlock(collections.abc.Mapping):
             assert int(spg) == no, (int(spg), no)
         return spg
 
-    def get_unsymmetrized_structure(self,disorder_groups=-1) -> Atoms:
+    def get_unsymmetrized_structure(self, disorder_groups=-1) -> Atoms:
         """Return Atoms without symmetrizing coordinates.
 
         This returns a (normally) unphysical Atoms object
@@ -465,7 +465,7 @@ class CIFBlock(collections.abc.Mapping):
         if self._does_cif_file_contain_atom_site_disorder_group_block():
             atom_indices_in_disorder_group = self._get_atom_indices_in_disorder_group(disorder_groups)
             symbols = [symbols[index] for index in atom_indices_in_disorder_group]
-            coords  = [coords[index]  for index in atom_indices_in_disorder_group]
+            coords = [coords[index] for index in atom_indices_in_disorder_group]
         # --------------------------------------------------------------------------------------------------
 
         atoms = Atoms(symbols=symbols,
@@ -495,7 +495,7 @@ class CIFBlock(collections.abc.Mapping):
             If disorder_groups is an list of ints, only those atoms labelled '.'/-1 and of that atom_site_disorder_group will be read. 
             If disorder_groups is a list of strs, obtain the atom_site_disorder_assembly and associated atom_site_disorder_group you would like to read in. 
         """
-        if not ((isinstance(disorder_groups,int) and disorder_groups >= -2) or all([(isinstance(value,int) and (value >= 0)) for value in disorder_groups]) or all([isinstance(value,str) for value in disorder_groups])):
+        if not ((isinstance(disorder_groups, int) and disorder_groups >= -2) or all([(isinstance(value, int) and (value >= 0)) for value in disorder_groups]) or all([isinstance(value, str) for value in disorder_groups])):
             raise Exception('disorder_groups in read method must either:\n\t* Be an integer and greater than or equal to -2\n\t* Be a list of integer greater than or equal to 0\n\t* Be a list of strings.')
         # First, get the disorder_groups for atoms in this crystal
         atom_indices_disorder_groups = self._get_entries_in_atom_site_disorder_group_block()
@@ -505,30 +505,31 @@ class CIFBlock(collections.abc.Mapping):
             return list(range(len(atom_indices_disorder_groups)))
         
         # Third, obtain the indices for each atom in the disorder_groups we want to read
-        if isinstance(disorder_groups,int) or all([isinstance(value,int) for value in disorder_groups]):
+        if isinstance(disorder_groups, int) or all([isinstance(value, int) for value in disorder_groups]):
 
             # 3.1: Obtain the disorder groups to read in.
             if disorder_groups == -2:
 
                 # 3.1.1: If disorder_groups is None, the atom_indices_disorder_groups is the lowest atom_indices_disorder_groups in the crystal.
-                disorder_groups_to_read = [min([group_index for group_index in set(atom_indices_disorder_groups) if (isinstance(group_index,int) and (not int(group_index) == -1))])]
+                disorder_groups_to_read = [min([group_index for group_index in set(atom_indices_disorder_groups) if (isinstance(group_index, int) and (not int(group_index) == -1))])]
             
-            elif isinstance(disorder_groups,int) or all([isinstance(value,int) for value in disorder_groups]):
+            elif isinstance(disorder_groups, int) or all([isinstance(value, int) for value in disorder_groups]):
                 # 3.1.2: If disorder_groups is an index, obtain only those atoms that are in the 
-                if isinstance(disorder_groups,int):
+                if isinstance(disorder_groups, int):
                     disorder_groups_to_read = [deepcopy(disorder_groups)]
                 else:
                     disorder_groups_to_read = deepcopy(disorder_groups)
 
             # 3.2: We want to include any instances of -1 or '.', as these indicate non-disordered atoms in the crystal.
-            disorder_groups_to_read += [-1,'.']
+            disorder_groups_to_read += [-1, '.']
 
             # 3.3: Obtain the indices of atoms to read from the crystal files
             atoms_indices_from_disorder_groups_to_read = [index for index in range(len(atom_indices_disorder_groups)) if (atom_indices_disorder_groups[index] in disorder_groups_to_read)]
 
         else:
             # If here, we will be reading in both the atom_site_disorder_assembly and atom_indices_disorder_groups values for each atom in the crystal file.
-            assert all([isinstance(value,str) for value in disorder_groups]) # debugging check
+            # debugging check below
+            assert all([isinstance(value, str) for value in disorder_groups]) 
 
             # 3.1: Obtain the atom_site_disorder_assembly block, to get the atom_site_disorder_assembly value for each atom in the crystal.
             atom_site_disorder_assembly = self._get_entries_in_atom_site_disorder_assembly()
@@ -540,7 +541,8 @@ class CIFBlock(collections.abc.Mapping):
                 disorder_group = atom_indices_disorder_groups[index]
                 disorder_assembly = atom_site_disorder_assembly[index]
                 # 3.2.2: Determine if we should read this atom in from the crystal file.
-                if disorder_group in [-1,'.']: # if the disorder_group is either [-1,'.'], read this atom, as it is not affected by disorder in the crystal file.
+                if disorder_group in [-1, '.']: 
+                    # if the disorder_group is either [-1,'.'], read this atom, as it is not affected by disorder in the crystal file.
                     atoms_indices_from_disorder_groups_to_read.append(index)
                 else:
                     disorder_name = str(disorder_assembly)+str(disorder_group)
@@ -549,7 +551,6 @@ class CIFBlock(collections.abc.Mapping):
 
         # Fourth, return the atom indices to read for this crystal file.
         return atoms_indices_from_disorder_groups_to_read
-
 
     def has_structure(self):
         """Whether this CIF block has an atomic configuration."""
@@ -685,7 +686,7 @@ def parse_cif_pycodcif(fileobj) -> Iterator[CIFBlock]:
 
 def read_cif(fileobj, index, store_tags=False, primitive_cell=False,
              subtrans_included=True, fractional_occupancies=True,
-             disorder_groups=-1,reader='ase') -> Iterator[Atoms]:
+             disorder_groups=-1, reader='ase') -> Iterator[Atoms]:
     """Read Atoms object from CIF file. *index* specifies the data
     block number or name (if string) to return.
 
