@@ -462,10 +462,16 @@ class CIFBlock(collections.abc.Mapping):
         # --------------------------------------------------------------------------------------------------
         # Addition: This variable will allow only atoms of atom_site_disorder_group to be recorded into the Atoms object. GRW, VicUniWellNZ, 27/5/22.
         # Only perform this if the crystal file has disorder included in the file.
-        if self._does_cif_file_contain_atom_site_disorder_group_block():
-            atom_indices_in_disorder_group = self._get_atom_indices_in_disorder_group(disorder_groups)
-            symbols = [symbols[index] for index in atom_indices_in_disorder_group]
-            coords = [coords[index] for index in atom_indices_in_disorder_group]
+        if   disorder_groups == 'remove_?':
+            atom_indices_to_keep = self._tag_or_remove_atoms_with_question_mark_in_their_labels(operator='remove')
+            symbols = [symbols[index] for index in atom_indices_to_keep]
+            coords = [coords[index] for index in atom_indices_to_keep]
+        elif disorder_groups == 'tag_?':
+            atom_tags = self._tag_or_remove_atoms_with_question_mark_in_their_labels(operator='tag')
+        elif self._does_cif_file_contain_atom_site_disorder_group_block():
+            atom_indices_to_keep = self._get_atom_indices_in_disorder_group(disorder_groups)
+            symbols = [symbols[index] for index in atom_indices_to_keep]
+            coords = [coords[index] for index in atom_indices_to_keep]
         # --------------------------------------------------------------------------------------------------
 
         atoms = Atoms(symbols=symbols,
@@ -478,7 +484,51 @@ class CIFBlock(collections.abc.Mapping):
             assert coordtype == 'cartesian'
             atoms.positions[:] = coords
 
+        # --------------------------------------------------------------------------------------------------
+        # Addition: This will tag the atoms that are non-disordered as 0 and disordered as 1. GRW, VicUniWellNZ, 28/5/22.
+        if disorder_groups == 'tag_?':
+            atoms.set_tags(atom_tags)
+        # --------------------------------------------------------------------------------------------------
+
         return atoms
+
+    def _tag_or_remove_atoms_with_question_mark_in_their_labels(self, operator):
+        """
+        Sometimes, disordered atoms are not recorded by the _atom_site_disorder_group or _atom_site_disorder_assembly blocks, but instead recorded in their labels with a ? given in the name
+
+        This method will return the indices of atoms the atoms in the crystal that do not contain ? in the atom label.
+
+        Addition: GRW, VicUniWellNZ, 28/5/22.
+
+        Parameters
+        ----------
+        operator : str.
+            This variable indicates if you want to return 
+            'remove': the indices of atoms you want tokeep in your ase.Atoms object.
+            'tag': the tags for each of the atoms in your ase.Atoms object. 
+        
+        Attributes
+        ----------
+        disorder_groups : int, list of ints, list of strs
+            If disorder_groups == 'tag_?': Tag all atoms as 0 except for those with a ? at the start of end of the atom label, which are tagged as 1.
+            If disorder_groups == 'remove_?': Keep all atoms except for those with a ? at the start of end of the atom label, which are removed.
+
+        Returns
+        -------
+        atoms_indices_from_disorder_groups_to_read : list of ints.
+            These are the indices of atoms to read in from the crystal file into your ase.Atoms object.
+
+        """
+        atom_site_labels = self.get('_atom_site_label')
+        if   operator == 'remove':
+            atom_indices_to_keep = [index for index in range(len(atom_site_labels)) if not (atom_site_labels[index].startswith('?') or atom_site_labels[index].endswith('?'))]
+            return atom_indices_to_keep
+        elif operator == 'tag':
+            tags_for_atoms_in_object = [(1 if (label.startswith('?') or label.endswith('?')) else 0) for label in atom_site_labels]
+            return tags_for_atoms_in_object
+        else:
+            raise Execption('operator variable must be either "remove" or "tag". operator = '+str(operator))
+
 
     def _get_atom_indices_in_disorder_group(self, disorder_groups):
         """
@@ -489,14 +539,20 @@ class CIFBlock(collections.abc.Mapping):
         ----------
         disorder_groups : int, list of ints, list of strs
             This variable includes the disorder_groups you would like to read. 
-            If disorder_groups=-1, read in all atoms from the crystal file.
-            If disorder_groups=-2, read the lowest numbered atom_site_disorder_group, assumed to be the main group that best represents the compound in the crystal. 
-            If disorder_groups is an int, only those atoms labelled '.'/-1 and of that atom_site_disorder_group will be read. 
-            If disorder_groups is an list of ints, only those atoms labelled '.'/-1 and of that atom_site_disorder_group will be read. 
-            If disorder_groups is a list of strs, obtain the atom_site_disorder_assembly and associated atom_site_disorder_group you would like to read in. 
+            If disorder_groups=-1: Read in all atoms from the crystal file.
+            If disorder_groups=-2: Read the lowest numbered atom_site_disorder_group, assumed to be the main group that best represents the compound in the crystal. 
+            If disorder_groups is an int: Only those atoms labelled '.'/-1 and of that atom_site_disorder_group will be read. 
+            If disorder_groups is an list of ints: Only those atoms labelled '.'/-1 and of that atom_site_disorder_group will be read. 
+            If disorder_groups is a list of strs: Obtain the atom_site_disorder_assembly and associated atom_site_disorder_group you would like to read in. 
+
+        Returns
+        -------
+        atoms_indices_from_disorder_groups_to_read : list of ints.
+            These are the indices of atoms to read in from the crystal file into your ase.Atoms object.
         """
         if not ((isinstance(disorder_groups, int) and disorder_groups >= -2) or all([(isinstance(value, int) and (value >= 0)) for value in disorder_groups]) or all([isinstance(value, str) for value in disorder_groups])):
-            raise Exception('disorder_groups in read method must either:\n\t* Be an integer and greater than or equal to -2\n\t* Be a list of integer greater than or equal to 0\n\t* Be a list of strings.')
+            raise Exception('disorder_groups in read method must either:\n\t* Be an integer and greater than or equal to -2\n\t* Be a list of integer greater than or equal to 0\n\t* Be a list of strings.\n\tBe "tag_?" or be "remove_?"')
+
         # First, get the disorder_groups for atoms in this crystal
         atom_indices_disorder_groups = self._get_entries_in_atom_site_disorder_group_block()
 
@@ -527,6 +583,7 @@ class CIFBlock(collections.abc.Mapping):
             atoms_indices_from_disorder_groups_to_read = [index for index in range(len(atom_indices_disorder_groups)) if (atom_indices_disorder_groups[index] in disorder_groups_to_read)]
 
         else:
+
             # If here, we will be reading in both the atom_site_disorder_assembly and atom_indices_disorder_groups values for each atom in the crystal file.
             # debugging check below
             assert all([isinstance(value, str) for value in disorder_groups]) 
