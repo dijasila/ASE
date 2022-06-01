@@ -12,6 +12,7 @@ import shlex
 import warnings
 from typing import Dict, List, Tuple, Optional, Union, Iterator, Any, Sequence
 import collections.abc
+from copy import deepcopy
 
 import numpy as np
 
@@ -342,6 +343,30 @@ class CIFBlock(collections.abc.Mapping):
     def _get_fractional_occupancies(self):
         return self.get('_atom_site_occupancy')
 
+    def _does_cif_file_contain_atom_site_disorder_group_block(self):
+        """
+        Returns if atom_site_disorder_group block is given in the cif file
+        """
+        return ('_atom_site_disorder_group' in self)
+
+    def _get_entries_in_atom_site_disorder_group_block(self):
+        """
+        This method will values for atom_site_disorder_group block from the cif file.
+        """
+        return self.get('_atom_site_disorder_group')
+
+    def _does_cif_file_contain_atom_site_disorder_assembly_block(self):
+        """
+        Returns if _atom_site_disorder_assembly block is given in the cif file
+        """
+        return ('_atom_site_disorder_assembly' in self)
+
+    def _get_entries_in_atom_site_disorder_assembly(self):
+        """
+        This method will values for atom_site_disorder_assembly block from the cif file.
+        """
+        return self.get('_atom_site_disorder_assembly')
+
     def _get_setting(self) -> Optional[int]:
         setting_str = self.get('_symmetry_space_group_setting')
         if setting_str is None:
@@ -408,16 +433,65 @@ class CIFBlock(collections.abc.Mapping):
             assert int(spg) == no, (int(spg), no)
         return spg
 
-    def get_unsymmetrized_structure(self) -> Atoms:
+    def get_unsymmetrized_structure(self, disorder_groups=-1) -> Atoms:
         """Return Atoms without symmetrizing coordinates.
 
         This returns a (normally) unphysical Atoms object
         corresponding only to those coordinates included
         in the CIF file, useful for e.g. debugging.
 
-        This method may change behaviour in the future."""
+        This method may change behaviour in the future.
+
+        Parameters
+        ----------
+        disorder_groups : int, list of ints, list of strs
+            This variable includes the disorder_groups you would like to read. See _get_atom_indices_in_disorder_group method for more information about this variable. Default: -1
+
+        """
         symbols = self.get_symbols()
         coordtype, coords = self._get_site_coordinates()
+
+        # --------------------------------------------------------------------------------------------------
+        # This variable will allow only atoms of atom_site_disorder_group to be recorded into the Atoms object.
+        # Only perform this if the crystal file has disorder included in the file.
+        if disorder_groups == 'remove_disorder':
+
+            atom_indices_to_keep = self._tag_or_remove_atoms_with_question_mark_in_their_labels(operator='remove')
+            atom_indices_to_remove = list(set(range(len(symbols))) - set(atom_indices_to_keep))
+
+            if self._does_cif_file_contain_atom_site_disorder_group_block():
+                atom_indices_to_keep = self._get_atom_indices_in_disorder_group(disorder_groups=-2)
+                atom_indices_to_remove += list(set(range(len(symbols))) - set(atom_indices_to_keep))
+                
+            atom_indices_to_keep = sorted(set(range(len(symbols))) - set(atom_indices_to_remove))
+            symbols = [symbols[index] for index in atom_indices_to_keep]
+            coords = [coords[index] for index in atom_indices_to_keep]
+
+        elif disorder_groups == 'tag_disorder':
+
+            atom_indices_without_disorder = self._tag_or_remove_atoms_with_question_mark_in_their_labels(operator='remove')
+            atom_indices_to_tag = list(set(range(len(symbols))) - set(atom_indices_without_disorder))
+            if self._does_cif_file_contain_atom_site_disorder_group_block():
+                atom_indices_without_disorder = self._get_atom_indices_in_disorder_group(disorder_groups=-2)
+                atom_indices_to_tag += list(set(range(len(symbols))) - set(atom_indices_without_disorder))
+            atom_tags = [(1 if (index in atom_indices_to_tag) else 0) for index in range(len(symbols))]
+        
+        elif disorder_groups == 'remove_?':
+
+            atom_indices_to_keep = sorted(self._tag_or_remove_atoms_with_question_mark_in_their_labels(operator='remove'))
+            symbols = [symbols[index] for index in atom_indices_to_keep]
+            coords = [coords[index] for index in atom_indices_to_keep]
+
+        elif disorder_groups == 'tag_?':
+
+            atom_tags = self._tag_or_remove_atoms_with_question_mark_in_their_labels(operator='tag')
+        
+        elif self._does_cif_file_contain_atom_site_disorder_group_block():
+
+            atom_indices_to_keep = sorted(self._get_atom_indices_in_disorder_group(disorder_groups))
+            symbols = [symbols[index] for index in atom_indices_to_keep]
+            coords = [coords[index] for index in atom_indices_to_keep]
+        # --------------------------------------------------------------------------------------------------
 
         atoms = Atoms(symbols=symbols,
                       cell=self.get_cell(),
@@ -429,7 +503,139 @@ class CIFBlock(collections.abc.Mapping):
             assert coordtype == 'cartesian'
             atoms.positions[:] = coords
 
+        # This will tag the atoms that are non-disordered as 0 and disordered as 1.
+        if disorder_groups in ['tag_disorder', 'tag_?']:
+            atoms.set_tags(atom_tags)
+
         return atoms
+
+    def _tag_or_remove_atoms_with_question_mark_in_their_labels(self, operator):
+        """
+        Sometimes, disordered atoms are not recorded by the _atom_site_disorder_group or _atom_site_disorder_assembly blocks, but instead recorded in their labels with a ? given in the name
+
+        This method will return the indices of atoms the atoms in the crystal that do not contain ? in the atom label.
+
+        Parameters
+        ----------
+        operator : str.
+            This variable indicates if you want to return 
+            'remove': the indices of atoms you want tokeep in your ase.Atoms object.
+            'tag': the tags for each of the atoms in your ase.Atoms object. 
+        
+        Attributes
+        ----------
+        disorder_groups : int, list of ints, list of strs
+            If disorder_groups == 'tag_?': Tag all atoms as 0 except for those with a ? at the start of end of the atom label, which are tagged as 1.
+            If disorder_groups == 'remove_?': Keep all atoms except for those with a ? at the start of end of the atom label, which are removed.
+
+        Returns
+        -------
+        atoms_indices_from_disorder_groups_to_read : list of ints.
+            These are the indices of atoms to read in from the crystal file into your ase.Atoms object.
+
+        """
+
+        #First, obtain the labels for each atom in the crystal
+        atom_site_labels = self.get('_atom_site_label')
+
+        # Second, perform operation
+        if operator == 'remove':
+
+            # 2.1: If you want to remove disordered atoms, obtain the indices of all non-disordered atoms that do not contain a ? in their label
+            atom_indices_to_keep = [index for index in range(len(atom_site_labels)) if not (atom_site_labels[index].startswith('?') or atom_site_labels[index].endswith('?'))]
+            return atom_indices_to_keep
+
+        elif operator == 'tag':
+
+            # 2.2: If you want to tag disordered atoms, tag all atoms as 0 except for those with ? in their label, which we want to tag with a 1
+            tags_for_atoms_in_object = [(1 if (label.startswith('?') or label.endswith('?')) else 0) for label in atom_site_labels]
+            return tags_for_atoms_in_object
+
+        else:
+
+            raise Exception('operator variable must be either "remove" or "tag". operator = '+str(operator))
+
+    def _get_atom_indices_in_disorder_group(self, disorder_groups):
+        """
+        This method will return the indices of atoms in the disorder_groups to read in from the cif file.
+        
+        Parameters
+        ----------
+        disorder_groups : int, list of ints, list of strs
+            This variable includes the disorder_groups you would like to read. Default: -1
+            If disorder_groups=-1: Read in all atoms from the crystal file.
+            If disorder_groups='remove_disorder': Remove all disordered atoms in the crystal. Not used in this method, but used in get_unsymmetrized_structure method. This setting is the recommended setting if you do not want disorder in your crystal when read by ASE.
+            If disorder_groups='tag_disorder': Tag all disordered atoms in the crystal. Not used in this method, but used in get_unsymmetrized_structure method. This setting is the recommended setting if you want to tag all the disordered atoms in your crystal when read by ASE.
+            If disorder_groups=-2: Read the lowest numbered atom_site_disorder_group, assumed to be the main group that best represents the compound in the crystal. 
+            If disorder_groups is an int: Only those atoms labelled '.'/-1 and of that atom_site_disorder_group will be read. 
+            If disorder_groups is an list of ints: Only those atoms labelled '.'/-1 and of that atom_site_disorder_group will be read. 
+            If disorder_groups is a list of strs: Obtain the atom_site_disorder_assembly and associated atom_site_disorder_group you would like to read in. 
+
+        Returns
+        -------
+        atoms_indices_from_disorder_groups_to_read : list of ints.
+            These are the indices of atoms to read in from the crystal file into your ase.Atoms object.
+        """
+        if not ((isinstance(disorder_groups, int) and disorder_groups >= -2) or all([(isinstance(value, int) and (value >= 0)) for value in disorder_groups]) or all([isinstance(value, str) for value in disorder_groups])):
+            raise Exception('disorder_groups in read method must either:\n\t* Be an integer and greater than or equal to -2\n\t* Be a list of integer greater than or equal to 0\n\t* Be a list of strings.\n\tBe "tag_?" or be "remove_?"')
+
+        # First, get the disorder_groups for atoms in this crystal
+        atom_indices_disorder_groups = self._get_entries_in_atom_site_disorder_group_block()
+
+        # Second, if disorder_groups == -1, read in all atoms
+        if disorder_groups == -1:
+            return list(range(len(atom_indices_disorder_groups)))
+        
+        # Third, obtain the indices for each atom in the disorder_groups we want to read
+        if isinstance(disorder_groups, int) or all([isinstance(value, int) for value in disorder_groups]):
+
+            # 3.1: Obtain the disorder groups to read in.
+            if disorder_groups == -2:
+
+                # 3.1.1: If disorder_groups is None, the atom_indices_disorder_groups is the lowest atom_indices_disorder_groups in the crystal.
+                disorder_groups_to_read = [group_index for group_index in set(atom_indices_disorder_groups) if (isinstance(group_index, int) and (not int(group_index) == -1))]
+                if len(disorder_groups_to_read) > 0:
+                    disorder_groups_to_read = [min(disorder_groups_to_read)]
+            
+            elif isinstance(disorder_groups, int) or all([isinstance(value, int) for value in disorder_groups]):
+                # 3.1.2: If disorder_groups is an index, obtain only those atoms that are in the 
+                if isinstance(disorder_groups, int):
+                    disorder_groups_to_read = [deepcopy(disorder_groups)]
+                else:
+                    disorder_groups_to_read = deepcopy(disorder_groups)
+
+            # 3.2: We want to include any instances of -1 or '.', as these indicate non-disordered atoms in the crystal.
+            disorder_groups_to_read += [-1, '.']
+
+            # 3.3: Obtain the indices of atoms to read from the crystal files
+            atoms_indices_from_disorder_groups_to_read = [index for index in range(len(atom_indices_disorder_groups)) if (atom_indices_disorder_groups[index] in disorder_groups_to_read)]
+
+        else:
+
+            # If here, we will be reading in both the atom_site_disorder_assembly and atom_indices_disorder_groups values for each atom in the crystal file.
+            # debugging check below
+            assert all([isinstance(value, str) for value in disorder_groups]) 
+
+            # 3.1: Obtain the atom_site_disorder_assembly block, to get the atom_site_disorder_assembly value for each atom in the crystal.
+            atom_site_disorder_assembly = self._get_entries_in_atom_site_disorder_assembly()
+
+            # 3.2: Obtain the indices of atoms to read from the crystal files
+            atoms_indices_from_disorder_groups_to_read = []
+            for index in range(len(atom_indices_disorder_groups)):
+                # 3.2.1: Get the atom_indices_disorder_group and atom_site_disorder_assembly for this atom in the crystal file.
+                disorder_group = atom_indices_disorder_groups[index]
+                disorder_assembly = atom_site_disorder_assembly[index]
+                # 3.2.2: Determine if we should read this atom in from the crystal file.
+                if disorder_group in [-1, '.']: 
+                    # if the disorder_group is either [-1,'.'], read this atom, as it is not affected by disorder in the crystal file.
+                    atoms_indices_from_disorder_groups_to_read.append(index)
+                else:
+                    disorder_name = str(disorder_assembly)+str(disorder_group)
+                    if disorder_name in disorder_groups:
+                        atoms_indices_from_disorder_groups_to_read.append(index)
+
+        # Fourth, return the atom indices to read for this crystal file.
+        return atoms_indices_from_disorder_groups_to_read
 
     def has_structure(self):
         """Whether this CIF block has an atomic configuration."""
@@ -442,7 +648,8 @@ class CIFBlock(collections.abc.Mapping):
             return True
 
     def get_atoms(self, store_tags=False, primitive_cell=False,
-                  subtrans_included=True, fractional_occupancies=True) -> Atoms:
+                  subtrans_included=True, fractional_occupancies=True,
+                  disorder_groups=-1) -> Atoms:
         """Returns an Atoms object from a cif tags dictionary.  See read_cif()
         for a description of the arguments."""
         if primitive_cell and subtrans_included:
@@ -470,7 +677,7 @@ class CIFBlock(collections.abc.Mapping):
         # The unsymmetrized_structure is not the asymmetric unit
         # because the asymmetric unit should have (in general) a smaller cell,
         # whereas we have the full cell.
-        unsymmetrized_structure = self.get_unsymmetrized_structure()
+        unsymmetrized_structure = self.get_unsymmetrized_structure(disorder_groups)
 
         if cell.rank == 3:
             spacegroup = self.get_spacegroup(subtrans_included)
@@ -564,7 +771,7 @@ def parse_cif_pycodcif(fileobj) -> Iterator[CIFBlock]:
 
 def read_cif(fileobj, index, store_tags=False, primitive_cell=False,
              subtrans_included=True, fractional_occupancies=True,
-             reader='ase') -> Iterator[Atoms]:
+             disorder_groups=-1, reader='ase') -> Iterator[Atoms]:
     """Read Atoms object from CIF file. *index* specifies the data
     block number or name (if string) to return.
 
@@ -595,6 +802,10 @@ def read_cif(fileobj, index, store_tags=False, primitive_cell=False,
     Also, in case of mixed occupancies, the atom's chemical symbol will be
     that of the most dominant species.
 
+    If *disorder_groups* indicates the disorder groups that the user wants to read 
+    from the cif file. See _get_atom_indices_in_disorder_group for more information 
+    about the *disorder_groups* variable. 
+
     String *reader* is used to select CIF reader. Value `ase` selects
     built-in CIF reader (default), while `pycodcif` selects CIF reader based
     on `pycodcif` package.
@@ -608,7 +819,8 @@ def read_cif(fileobj, index, store_tags=False, primitive_cell=False,
         atoms = block.get_atoms(
             store_tags, primitive_cell,
             subtrans_included,
-            fractional_occupancies=fractional_occupancies)
+            fractional_occupancies=fractional_occupancies,
+            disorder_groups=disorder_groups)
         images.append(atoms)
 
     for atoms in images[index]:
