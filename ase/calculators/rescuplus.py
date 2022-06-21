@@ -6,12 +6,12 @@ from ase.calculators.calculator import FileIOCalculator
 
 class Rescuplus(FileIOCalculator):
     """ASE interface for RESCU+.
-    
+
     You may specify the RESCU+ command with the ``command`` keyword of ``__init__`` or
     set the following environment variable as follows::
 
         export ASE_RESCUPLUS_COMMAND="mpiexec -n 1 rescuplus_scf -i PREFIX.rsi > resculog.out && cp rescuplus_scf_out.json PREFIX.rso"
-    
+
     All options for ``rescuplus_scf`` may be passed via the dict input_data, as
     in the ``RESCUPy`` module.
 
@@ -31,14 +31,21 @@ class Rescuplus(FileIOCalculator):
         and stresses.
     """
 
-    implemented_properties = ['energy', 'forces', 'stress']
-    command = 'rescuplus_scf -i PREFIX.rsi > PREFIX.rso'
+    implemented_properties = ["energy", "forces", "stress"]
+    command = "rescuplus_scf -i PREFIX.rsi > PREFIX.rso"
     _deprecated = object()
 
-    def __init__(self, restart=None, ignore_bad_restart_file=_deprecated,
-                 label='rescu', atoms=None, **kwargs):
-        FileIOCalculator.__init__(self, restart, ignore_bad_restart_file,
-                                  label, atoms, **kwargs)
+    def __init__(
+        self,
+        restart=None,
+        ignore_bad_restart_file=_deprecated,
+        label="rescuplus",
+        atoms=None,
+        **kwargs
+    ):
+        FileIOCalculator.__init__(
+            self, restart, ignore_bad_restart_file, label, atoms, **kwargs
+        )
         self.calc = None
 
     def set(self, **kwargs):
@@ -48,10 +55,10 @@ class Rescuplus(FileIOCalculator):
 
     def write_input(self, atoms, properties=None, system_changes=None):
         FileIOCalculator.write_input(self, atoms, properties, system_changes)
-        io.write(self.label + '.rsi', atoms, **self.parameters)
+        io.write(self.label + ".rsi", atoms, **self.parameters)
 
     def read_results(self):
-        output, rscobj = io.read(self.label + '.rso')
+        output, rscobj = io.read(self.label + ".rso")
         self.calc = output.calc
         self.results = output.calc.results
         self.nbands = rscobj.solver.eig.get_number_of_bands()
@@ -94,8 +101,7 @@ class Rescuplus(FileIOCalculator):
     def get_pseudo_density(self):
         raise NotImplementedError
 
-    def get_pseudo_wavefunction(self, band=0, kpt=0, spin=0, broadcast=True,
-                                pad=True):
+    def get_pseudo_wavefunction(self, band=0, kpt=0, spin=0, broadcast=True, pad=True):
         raise NotImplementedError
 
     def get_spin_polarized(self):
@@ -104,10 +110,12 @@ class Rescuplus(FileIOCalculator):
     def get_xc_functional(self):
         return self.xc_func
 
-    def get_wannier_localization_matrix(self, nbands, dirG, kpoint, nextkpoint,
-                                        G_I, spin):
+    def get_wannier_localization_matrix(
+        self, nbands, dirG, kpoint, nextkpoint, G_I, spin
+    ):
         raise NotImplementedError
 
-    def initial_wannier(self, initialwannier, kpointgrid, fixedstates,
-                        edf, spin, nbands):
+    def initial_wannier(
+        self, initialwannier, kpointgrid, fixedstates, edf, spin, nbands
+    ):
         raise NotImplementedError

@@ -29,16 +29,18 @@ def read_rescu_out(fileobj):
 
     """
     from rescupy import TotalEnergy
-    if isinstance(fileobj, str):
-        fileobj = open(fileobj, 'rU')
 
-    ecalc = TotalEnergy.read(fileobj, units='si')
+    if isinstance(fileobj, str):
+        fileobj = open(fileobj, "rU")
+
+    ecalc = TotalEnergy.read(fileobj, units="si")
     cell = ecalc.system.cell.avec
     symbols = ecalc.system.atoms.get_symbols(standard=True)
     positions = ecalc.system.atoms.get_positions(ecalc.system.cell)
     constraint = None
-    structure = Atoms(symbols=symbols, positions=positions, cell=cell,
-                      constraint=constraint, pbc=True)
+    structure = Atoms(
+        symbols=symbols, positions=positions, cell=cell, constraint=constraint, pbc=True
+    )
 
     # Extract calculation results
     energy = ecalc.energy.etot
@@ -59,7 +61,7 @@ def read_rescu_out(fileobj):
     nkpt = ibzkpts.shape[0]
     nspin = 1
     eigenvalues = ecalc.energy.eigenvalues
-    eigenvalues = eigenvalues.reshape((nkpt, -1, nspin))    # [kpt,band,spin]
+    eigenvalues = eigenvalues.reshape((nkpt, -1, nspin))  # [kpt,band,spin]
 
     kpts = []
     for s in range(nspin):
@@ -68,18 +70,31 @@ def read_rescu_out(fileobj):
             kpts.append(kpt)
 
     # Put everything together
-    calc = SinglePointDFTCalculator(structure, energy=energy, forces=forces,
-                                    stress=stress, efermi=efermi,
-                                    magmoms=magnetic_moments, ibzkpts=ibzkpts,
-                                    bzkpts=ibzkpts)
+    calc = SinglePointDFTCalculator(
+        structure,
+        energy=energy,
+        forces=forces,
+        stress=stress,
+        efermi=efermi,
+        magmoms=magnetic_moments,
+        ibzkpts=ibzkpts,
+        bzkpts=ibzkpts,
+    )
     calc.kpts = kpts
     structure.calc = calc
 
     return structure, ecalc
 
 
-def write_rescu_in(fd, atoms, input_data={}, pseudopotentials=None,
-                   kpts=None, gamma_centered=None, **kwargs):
+def write_rescu_in(
+    fd,
+    atoms,
+    input_data={},
+    pseudopotentials=None,
+    kpts=None,
+    gamma_centered=None,
+    **kwargs
+):
     """
     Create an input file for ``rescuplus_scf``.
 
@@ -102,30 +117,30 @@ def write_rescu_in(fd, atoms, input_data={}, pseudopotentials=None,
         If ``kpts`` is set to ``None``, only the Γ-point will be included.
     """
     from rescupy import TotalEnergy
-    
+
     # init input_data dict
-    if 'system' not in input_data.keys():
-        input_data['system'] = {}
-    if 'atoms' not in input_data['system'].keys():
-        input_data['system']['atoms'] = {}
-    if 'cell' not in input_data['system'].keys():
-        input_data['system']['cell'] = {}
-    if 'kpoint' not in input_data['system'].keys():
-        input_data['system']['kpoint'] = {}
+    if "system" not in input_data.keys():
+        input_data["system"] = {}
+    if "atoms" not in input_data["system"].keys():
+        input_data["system"]["atoms"] = {}
+    if "cell" not in input_data["system"].keys():
+        input_data["system"]["cell"] = {}
+    if "kpoint" not in input_data["system"].keys():
+        input_data["system"]["kpoint"] = {}
     # atoms
-    input_data['system']['atoms']['positions'] = atoms.positions
+    input_data["system"]["atoms"]["positions"] = atoms.positions
     # PP
     if pseudopotentials is not None:
-        input_data['system']['atoms']['species'] = pseudopotentials
-    if 'formula' not in input_data['system']['atoms'].keys():
-        input_data['system']['atoms']['formula'] = "".join(atoms.get_chemical_symbols())
+        input_data["system"]["atoms"]["species"] = pseudopotentials
+    if "formula" not in input_data["system"]["atoms"].keys():
+        input_data["system"]["atoms"]["formula"] = "".join(atoms.get_chemical_symbols())
     # kpoints - MP grid
     if kpts is not None:
-        input_data['system']['kpoint']['grid'] = kpts
+        input_data["system"]["kpoint"]["grid"] = kpts
     if gamma_centered is not None:
-        input_data['system']['kpoint']['gamma_centered'] = gamma_centered
+        input_data["system"]["kpoint"]["gamma_centered"] = gamma_centered
     # cell
-    input_data['system']['cell']['avec'] = atoms.cell
+    input_data["system"]["cell"]["avec"] = atoms.cell
     # write file
     ecalc = TotalEnergy(**input_data)
     ecalc.system.atoms.formula = ecalc.system.atoms.get_formula(format="short")
