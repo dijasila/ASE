@@ -516,7 +516,9 @@ potentials)
         )
         self.results["free_energy"] = self.results["energy"]
         self.results['forces'] = convert(self.forces.copy(),
-            'force', self.parameters['units'], 'ASE')
+                                         'force',
+                                         self.parameters['units'],
+                                         'ASE')
         stress = np.array(
             [-tc[i] for i in ("pxx", "pyy", "pzz", "pyz", "pxz", "pxy")]
         )
@@ -650,4 +652,3 @@ class SpecialTee:
     def flush(self):
         self._orig_fd.flush()
         self._out_fd.flush()
-

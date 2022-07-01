@@ -27,7 +27,6 @@ def test_lammps_units_conversions(factory):
         ) as calc:
             atoms.calc = calc
             energy = atoms.get_potential_energy()
-            force  = atoms.get_forces()[0, 2]
+            force = atoms.get_forces()[0, 2]
             assert_allclose(energy, ref_energy, atol=1e-4, rtol=1e-4)
             assert_allclose(force, ref_force, atol=1e-4, rtol=1e-4)
-
