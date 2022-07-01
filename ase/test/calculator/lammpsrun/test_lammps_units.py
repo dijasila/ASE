@@ -1,16 +1,16 @@
 import pytest
 from ase import Atoms
-from ase import units  # for reference values only
-from math import pi    #
+from ase.units import _e, _eps0  # for reference values only
+from math import pi              #
 from numpy.testing import assert_allclose
 
 
 @pytest.mark.calculator_lite
 @pytest.mark.calculator('lammpsrun')
-def test_NaCl_minimize(factory):
+def test_lammps_units_conversions(factory):
     distance = 1.5  # Angstr.
-    ref_energy = -2 * units._e * 1e10 / (4 * pi * units._eps0 * distance)
-    ref_force = 2 * units._e * 1e10 / (4 * pi * units._eps0 * distance**2)
+    ref_energy = -2 * _e * 1e10 / (4 * pi * _eps0 * distance)
+    ref_force = 2 * _e * 1e10 / (4 * pi * _eps0 * distance**2)
 
     atoms = Atoms(['H', 'O'], [(0.1, 0.1, 0.1),
                                (0.1, 0.1, 0.1 + distance)])
