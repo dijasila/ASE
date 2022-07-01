@@ -34,7 +34,6 @@ import warnings
 from typing import Dict, Any
 import numpy as np
 
-from ase import Atoms
 from ase.parallel import paropen
 from ase.calculators.calculator import Calculator
 from ase.calculators.calculator import all_changes
