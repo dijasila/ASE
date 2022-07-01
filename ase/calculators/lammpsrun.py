@@ -515,7 +515,7 @@ potentials)
             tc["pe"], "energy", self.parameters["units"], "ASE"
         )
         self.results["free_energy"] = self.results["energy"]
-        self.results['forces'] = convert(self.forces.copy(),      # LEON
+        self.results['forces'] = convert(self.forces.copy(),
             'force', self.parameters['units'], 'ASE')
         stress = np.array(
             [-tc[i] for i in ("pxx", "pyy", "pzz", "pyz", "pxz", "pxy")]
