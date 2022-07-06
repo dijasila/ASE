@@ -414,6 +414,9 @@ class SAFIRES(MolecularDynamics):
 
             if tag == 1:
                 sol_com = com
+                if self.surface:
+                    sol_com[0] = 0.
+                    sol_com[1] = 0.
 
             # Create new atoms.
             tmp = Atoms(sym)
