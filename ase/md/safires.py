@@ -265,6 +265,10 @@ class SAFIRES(MolecularDynamics):
         """
         cm_origin = atoms[[atom.index for atom 
                            in atoms if atom.tag == 1]].get_center_of_mass()
+        if self.surface:
+            cm_origin[0] = 0.
+            cm_origin[1] = 1.
+
         cm_inner = []
         cm_outer = []
         
@@ -274,10 +278,19 @@ class SAFIRES(MolecularDynamics):
             idx = atoms[i].index
             nat = self.nall[tag]
             if tag == 2:
-                cm_inner.append(atoms[idx:idx + nat].get_center_of_mass())
+                tmp = atoms[idx:idx + nat].get_center_of_mass()
+                if self.surface:
+                    tmp[0] = 0.
+                    tmp[1] = 0.
+                cm_inner.append(tmp)
             if tag == 3:
-                cm_outer.append(atoms[idx:idx + nat].get_center_of_mass())
+                tmp = atoms[idx:idx + nat].get_center_of_mass()
+                if self.surface:
+                    tmp[0] = 0.
+                    tmp[1] = 0.
+                cm_outer.append(tmp)
             i += nat
+
         d_inner = np.linalg.norm(cm_inner - cm_origin, axis=1)
         d_outer = np.linalg.norm(cm_outer - cm_origin, axis=1)
 
