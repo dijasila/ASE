@@ -818,10 +818,37 @@ class SAFIRES(MolecularDynamics):
         # Rotate r_outer to be exactly on top of the r_inner.
         # This simulates the boundary mediating a collision between
         # the particles.
-        axis = self.normalize(np.cross(r[outer_reflect],
-                              r[inner_reflect]))
-        v_outer = np.dot(self.rotation_matrix(axis, theta),
-                         v_outer)
+        if self.surface:
+            # Flip velocity change component of outer particle
+            # to the other side of a symmetric slab model.
+            if theta == np.pi:
+                v_outer *= -1
+        else:
+            # Rotate outer particle velocity change component
+            # back to inital direction.
+            dV_outer = np.dot(self.rotation_matrix(
+                              axis, -1 * theta), dV_outer)
+
+        if theta == np.pi:
+            dV_outer = -1 * dV_outer
+
+        # Commit new momenta to pseudoparticle atoms object.
+        com_atoms[outer_reflect].momentum += (dV_outer * m_outer)
+        com_atoms[inner_reflect].momentum += (dV_inner * m_inner)
+
+        # Expand the pseudoparticle atoms object back into the
+        # original atoms object (inverse action to self.update()).
+        outer_actual = self.idx_real[outer_reflect]
+        inner_actual = self.idx_real[inner_reflect]
+        if theta == np.pi:
+            # Flip velocity change component of outer particle
+            # to the other side of a symmetric slab model.
+            v_outer *= -1
+        else:
+            axis = self.normalize(np.cross(r[outer_reflect],
+                                  r[inner_reflect]))
+            v_outer = np.dot(self.rotation_matrix(axis, theta),
+                             v_outer)
 
         # Perform mass-weighted exchange of normal components of
         # velocities, or hard wall collision (reflective = True).
@@ -860,16 +887,16 @@ class SAFIRES(MolecularDynamics):
             self.writeDebug("      dV_outer = {:s}\n"
                           .format(np.array2string(dV_outer)))
 
-        if not self.surface and theta != 0 and theta != np.pi:
+        if self.surface:
+            # Flip velocity change component of outer particle
+            # to the other side of a symmetric slab model.
+            if theta == np.pi:
+                dV_outer *= -1
+        else:
             # Rotate outer particle velocity change component
             # back to inital direction.
             dV_outer = np.dot(self.rotation_matrix(
                               axis, -1 * theta), dV_outer)
-
-        if theta == np.pi:
-            # Flip velocity change component of outer particle
-            # to the other side of a symmetric slab model.
-            dV_outer = -1 * dV_outer
 
         # Commit new momenta to pseudoparticle atoms object.
         com_atoms[outer_reflect].momentum += (dV_outer * m_outer)
