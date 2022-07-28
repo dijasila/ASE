@@ -342,6 +342,10 @@ def define_external_io_format(entry_point):
 # B=like F, but opens in binary mode
 
 F = define_io_format
+F('abacus', 'ABACUS STRU', '1F', ext='stru',
+  magic=b'ATOMIC_SPECIES')
+F('abacus-out', 'ABACUS output file', '+F',
+  module='abacus', glob='running_*.log')
 F('abinit-in', 'ABINIT input file', '1F',
   module='abinit', magic=b'*znucl *')
 F('abinit-out', 'ABINIT output file', '1F',
