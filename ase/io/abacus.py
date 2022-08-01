@@ -1,20 +1,20 @@
 # -*- coding: utf-8 -*-
 """
 Created on Wed Jun 13 10:31:30 2018
-
 @author: shenzx
 
-Modified on Wed Jun 03 22:00:00 2022
+Modified on Wed Aug 01 11:44:51 2022
 @author: Ji Yu-yang
 """
 
+import re
 import warnings
 import numpy as np
 
 from ase import Atoms
 from ase.utils import reader, writer
 from ase.units import Bohr, Hartree, GPa
-
+re_float = r'[\d\.\-\+Ee]+'
 
 def judge_exist_stru(stru=None):
     if stru is None:
@@ -227,193 +227,216 @@ def write_abacus(fd,
 
 
 @reader
-def read_abacus(fd, ase=True):
-    """Read structure information from abacus structure file"""
+def read_abacus(fd, latname=None, verbose=False):
+    """Read structure information from abacus structure file.
+    
+    If `latname` is not None, 'LATTICE_VECTORS' should be removed in structure files of ABACUS. 
+    Allowed values: 'sc', 'fcc', 'bcc', 'hexagonal', 'trigonal', 'st', 'bct', 'so', 'baco', 'fco', 'bco', 'sm', 'bacm', 'triclinic'
+
+    If `verbose` is True, pseudo-potential and basis will be output along with the Atoms object.
+    """
 
     from ase.constraints import FixCartesian
 
-    lines = fd.readlines()
-    # initialize reading information
-    temp = []
-    for line in lines:
-        line = line.strip()
-        line = line.replace('\n', ' ')
-        line = line.replace('\t', ' ')
-        line = line.replace('//', ' ')
-        line = line.replace('#', ' ')
+    contents = fd.read()
+    title_str = r'(?:LATTICE_CONSTANT|NUMERICAL_ORBITAL|ABFS_ORBITAL|LATTICE_VECTORS|LATTICE_PARAMETERS|ATOMIC_POSITIONS)'
 
-        if len(line) != 0:
-            temp.append(line)
+    # remove comments and empty lines
+    contents = re.compile(r"#.*|//.*").sub('', contents)
+    contents = re.compile(r'\n{2,}').sub('\n', contents)
 
-    #print(temp)
-    atom_species = 0
-    for i in range(len(temp)):
-        if temp[i] == 'NUMERICAL_ORBITAL':
-            atom_species = i - 1
-            break
+    # specie, mass, pps
+    specie_pattern = re.compile(rf'ATOMIC_SPECIES\s*\n([\s\S]+?)\s*\n{title_str}')
+    specie_lines = np.array([line.split() for line in specie_pattern.search(contents).group(1).split('\n')])
+    symbols = specie_lines[:, 0]
+    atom_mass = specie_lines[:, 1].astype(float)
+    atom_potential = specie_lines[:, 2]
+    ntype = len(symbols)
 
-    atom_symbol = []
-    atom_mass = []
-    atom_potential = []
-    atom_number = []
-    atom_magnetism = []
-    atom_positions = []
-    atom_appendix = []
-
-    # get symbol, mass, potential
-    for i in range(1, atom_species+1):
-        atom_symbol.append(temp[i].split()[0])
-        atom_mass.append(float(temp[i].split()[1]))
-        atom_potential.append(temp[i].split()[2])
-        atom_number.append(0)
-        atom_magnetism.append(0)
-        atom_positions.append([])
-        atom_appendix.append([])
-
-    # get abfs basis
-    atom_basis = []
-    atom_offsite_basis = []
-    for i in range(atom_species+2, (atom_species+1) * 2):
-        atom_basis.append(temp[i].split()[0])
-    if 'ABFS_ORBITAL' in temp:
-        scale = 3
-        for i in range((atom_species+1) * 2 + 1, (atom_species+1) * 3):
-            atom_offsite_basis.append(temp[i].split()[0])
+    # basis
+    aim_title = 'NUMERICAL_ORBITAL'
+    aim_title_sub = title_str.replace('|'+aim_title, '')
+    orb_pattern = re.compile(rf'{aim_title}\s*\n([\s\S]+?)\s*\n{aim_title_sub}')
+    orb_lines = orb_pattern.search(contents)
+    if orb_lines:
+        atom_basis = orb_lines.group(1).split('\n')
     else:
-        scale = 2
+        atom_basis = []
 
-    # get lattice
-    atom_lattice_scale = float(temp[(atom_species+1) * scale + 1].split()[0])
-    atom_lattice = np.array(
-        [[float(temp[(atom_species+1) * scale + 3 + i].split()[:3][j])
-          for j in range(3)] for i in range(3)])
+    # ABFs basis
+    aim_title = 'ABFS_ORBITAL'
+    aim_title_sub = title_str.replace('|'+aim_title, '')
+    abf_pattern = re.compile(rf'{aim_title}\s*\n([\s\S]+?)\s*\n{aim_title_sub}')
+    abf_lines = abf_pattern.search(contents)
+    if abf_lines:
+        atom_offsite_basis = abf_lines.group(1).split('\n')
+    else:
+        atom_offsite_basis = []
 
-    # get coordinates type
-    atom_coor = temp[(atom_species + 1) * scale + 7].split()[0]
+    # lattice constant
+    aim_title = 'LATTICE_CONSTANT'
+    aim_title_sub = title_str.replace('|'+aim_title, '')
+    a0_pattern = re.compile(rf'{aim_title}\s*\n([\s\S]+?)\s*\n{aim_title_sub}')
+    a0_lines = a0_pattern.search(contents)
+    atom_lattice_scale = float(a0_lines.group(1))
 
-    # get position,  atoms number, magnetism, appendix
-    for i in range(atom_species):
-        pos_start = (atom_species + 1) * scale + 8 + 3 * i
-        for j in range(i):
-            pos_start += atom_number[j]
-        atom_it = atom_symbol.index(temp[pos_start].split()[0])
-        atom_magnetism[atom_it] = float(temp[pos_start + 1].split()[0])
-        atom_number[atom_it] = int(temp[pos_start + 2].split()[0])
-
-        atom_positions[atom_it] = np.array(
-            [[float(temp[pos_start + 3 + i].split()[:3][j])
-              for j in range(3)] for i in range(atom_number[atom_it])])
-
-        atom_appendix[atom_it] = [temp[pos_start + 3 + i].split()[3:]
-                                  for i in range(atom_number[atom_it])]
-
-    # Reset structure information and return results
-    # and parse appendix: m, v, mag(magmom), (not support angle1, angle2)
-    formula_symbol = ''
-    formula_positions = []
-    fix_cart = []
-    velocities = []
-    magnetism = []
-    ci = -1  # fix ci atom
-
-    def extract_appendix(start=0):
-        xyz = ~np.array(atom_appendix[i][j][start:start+3]).astype('bool')
-        vel = []
-        mag = []
-        if len(atom_appendix[i][j]) > start+3:
-            # velocity in unit A/fs ?
-            if atom_appendix[i][j][start+3] in ['v', 'vel', 'velocity']:
-                vel = list(map(float, atom_appendix[i][j][start+4:start+7]))
-                if len(atom_appendix[i][j]) > start+7:
-                    if atom_appendix[i][j][start+7] in ['mag', 'magmom']:
-                        if len(atom_appendix[i][j]) == start+9:
-                            warnings.warn(
-                                "Non-colinear angle-settings are not yet supported for this interface.")
-                            mag = float(atom_appendix[i][j][start+8])
-                        else:
-                            mag = list(
-                                map(float, atom_appendix[i][j][start+8:start+11]))
-            elif atom_appendix[i][j][start+3] in ['mag', 'magmom']:
-                if len(atom_appendix[i][j]) == start+5 or len(atom_appendix[i][j][start+5]) in ['v', 'vel', 'velocity']:
-                    mag = float(atom_appendix[i][j][start+4])
-                    if atom_appendix[i][j][start+5] in ['v', 'vel', 'velocity']:
-                        vel = list(
-                            map(float, atom_appendix[i][j][start+8:start+11]))
-                else:
-                    mag = list(
-                        map(float, atom_appendix[i][j][start+4:start+7]))
-                    if atom_appendix[i][j][start+7] in ['v', 'vel', 'velocity']:
-                        vel = list(
-                            map(float, atom_appendix[i][j][start+8:start+11]))
-        return xyz, vel, mag
-
-    for i in range(atom_species):
-        if atom_number[i] == 1:
-            formula_symbol += atom_symbol[i]
-
+    # lattice vector
+    if latname:
+        aim_title = 'LATTICE_PARAMETERS'
+        aim_title_sub = title_str.replace('|'+aim_title, '')
+        lparam_pattern = re.compile(rf'{aim_title}\s*\n([\s\S]+?)\s*\n{aim_title_sub}')
+        lparam_lines = lparam_pattern.search(contents)
+        atom_lattice = get_lattice_from_latname(lparam_lines, latname)
+    else:
+        aim_title = 'LATTICE_VECTORS'
+        aim_title_sub = title_str.replace('|'+aim_title, '')
+        vec_pattern = re.compile(rf'{aim_title}\s*\n([\s\S]+?)\s*\n{aim_title_sub}')
+        vec_lines = vec_pattern.search(contents)
+        if vec_lines:
+            atom_lattice = np.array([line.split() for line in vec_pattern.search(contents).group(1).split('\n')]).astype(float)
         else:
-            formula_symbol += atom_symbol[i] + str(atom_number[i])
+            raise Exception(f"Parameter `latname` or `LATTICE_VECTORS` in {fd.name} must be set.")
+    atom_lattice = atom_lattice * atom_lattice_scale * Bohr
 
-        for j in range(atom_number[i]):
-            formula_positions.append(atom_positions[i][j])
+    aim_title = 'ATOMIC_POSITIONS'
+    type_pattern = re.compile(rf'{aim_title}\s*\n(\w+)\s*\n')
+    # type of coordinates
+    atom_pos_type = type_pattern.search(contents).group(1)
+    assert atom_pos_type in ['Direct', 'Cartesian'], "Only two type of atomic coordinates are supported: 'Direct' or 'Cartesian'."
 
-            # extract m
-            # for ABACUS, 0: fix   1: move
-            # for ASE,    0: move  1: fix
-            xyz = np.array([0, 0, 0])
-            vel = []
-            mag = []
-            ci += 1
-            if atom_appendix[i][j][0] == 'm':
-                xyz, vel, mag = extract_appendix(1)
-            elif atom_appendix[i][j][0] in [0, 1]:
-                xyz, vel, mag = extract_appendix(0)
+    block_pattern = re.compile(rf'{atom_pos_type}\s*\n([\s\S]+)')
+    block = block_pattern.search(contents).group()
+    atom_magnetism = []
+    atom_symbol = []
+    atom_block = []
+    for i, symbol in enumerate(symbols):
+        pattern = re.compile(rf'{symbol}\s*\n({re_float})\s*\n(\d+)')
+        sub_block = pattern.search(block)
+        number = int(sub_block.group(2))
 
-            fix_cart.append(FixCartesian(ci, xyz))
-            if vel:
-                velocities.append(vel)
+        # symbols, magnetism
+        sym = [symbol]*number
+        atom_mags = [float(sub_block.group(1))]*number
+        for j in range(number):
+            atom_symbol.append(sym[j])
+            atom_magnetism.append(atom_mags[j])
 
-            if mag:
-                magnetism.append(mag)
-            else:
-                magnetism.append(atom_magnetism[i])
-
-    formula_cell = atom_lattice * atom_lattice_scale * Bohr
-
-    if ase is True:
-        if atom_coor == 'Direct':
-            atoms = Atoms(symbols=formula_symbol,
-                          cell=formula_cell,
-                          scaled_positions=formula_positions,
-                          pbc=True)
-
-        elif atom_coor == 'Cartesian':
-            atoms = Atoms(symbols=formula_symbol,
-                          cell=formula_cell,
-                          positions=np.array(
-                              formula_positions)*atom_lattice_scale*Bohr,
-                          pbc=True)
-
+        if i == ntype-1:
+            lines_pattern = re.compile(rf'{symbol}\s*\n{re_float}\s*\n\d+\s*\n([\s\S]+)\s*\n')
         else:
-            raise ValueError("atomic coordinate type is ERROR")
+            lines_pattern = re.compile(rf'{symbol}\s*\n{re_float}\s*\n\d+\s*\n([\s\S]+?)\s*\n\w+\s*\n{re_float}')
+        lines = lines_pattern.search(block)
+        for j in [line.split() for line in lines.group(1).split('\n')]:
+            atom_block.append(j)
+    atom_block = np.array(atom_block)
+    atom_magnetism = np.array(atom_magnetism)
 
-        if velocities:
-            atoms.set_velocities(velocities)
+    # position
+    atom_positions = atom_block[:, 0:3].astype(float)
+    natoms = len(atom_positions)
 
-        atoms.set_initial_magnetic_moments(magnetism)
-        atoms.set_constraint(fix_cart)
+    # fix_cart 
+    if (atom_block[:, 3] == ['m']*natoms).all():
+        atom_xyz = ~atom_block[:, 4:7].astype(bool)
+    else:
+        atom_xyz = ~atom_block[:, 3:6].astype(bool)
+    fix_cart = [FixCartesian(ci, xyz) for ci, xyz in enumerate(atom_xyz)]
 
+    def _get_index(labels, num):
+        index = None
+        res = []
+        for l in labels:
+            if l in atom_block:
+                index = np.where(atom_block == l)[-1][0]
+        if index is not None:
+            res = atom_block[:, index+1:index+1+num].astype(float)
+
+        return res, index
+    
+    # velocity
+    v_labels = ['v', 'vel', 'velocity']
+    atom_vel, v_index = _get_index(v_labels, 3)
+    
+    # magnetism
+    m_labels = ['mag', 'magmom']
+    if 'angle1' in atom_block or 'angle2' in atom_block:
+        warnings.warn("Non-colinear angle-settings are not yet supported for this interface.")
+    mags, m_index = _get_index(m_labels, 1)
+    try:     # non-colinear
+        if m_index:
+            atom_magnetism = atom_block[:, m_index+1:m_index+4].astype(float)
+    except:  # colinear
+        if m_index:
+            atom_magnetism = mags
+
+    # to ase
+    if atom_pos_type == 'Direct':
+        atoms = Atoms(symbols=atom_symbol,
+                          cell=atom_lattice,
+                          scaled_positions=atom_positions,
+                          pbc=True)
+    elif atom_pos_type== 'Cartesian':
+        atoms = Atoms(symbols=atom_symbol,
+                          cell=atom_lattice,
+                          positions=atom_positions*atom_lattice_scale*Bohr,
+                          pbc=True)   
+    if v_index:
+        atoms.set_velocities(atom_vel)
+    if atom_magnetism.any():
+        atoms.set_initial_magnetic_moments(atom_magnetism)
+    atoms.set_constraint(fix_cart)
+
+    if verbose:
+        return atoms, atom_potential, atom_basis, atom_offsite_basis
+    else:
         return atoms
 
-    else:
-        return (formula_symbol,
-                formula_cell,
-                formula_positions,
-                atom_potential,
-                atom_basis,
-                atom_offsite_basis)
 
-# Read ABACUS results
+def get_lattice_from_latname(lines, latname=None):   
+
+    from math import sqrt
+    lines = lines.group(1).split(' ')
+
+    if latname == 'sc':
+        return np.eye(3)
+    elif latname == 'fcc':
+        return np.array([[-0.5, 0, 0.5], [0, 0.5, 0.5], [-0.5, 0.5, 0]])
+    elif latname == 'bcc':
+        return np.array([[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5]])
+    elif latname == 'hexagonal':
+        x = float(lines[0])
+        return np.array([[1.0, 0, 0], [-0.5, sqrt(3)/2, 0], [0, 0, x]])
+    elif latname == 'trigonal':
+        x = float(lines[0])
+        tx=sqrt((1-x)/2)
+        ty=sqrt((1-x)/6)
+        tz=sqrt((1+2*x)/3)
+        return np.array([[tx, -ty, tz], [0, 2*ty, tz], [-tx, -ty, tz]])
+    elif latname == 'st':
+        x = float(lines[0])
+        return np.array([[1.0, 0, 0], [0, 1, 0], [0, 0, x]])
+    elif latname == 'bct':
+        x = float(lines[0])
+        return np.array([[0.5, -0.5, x], [0.5, 0.5, x], [0.5, 0.5, x]])
+    elif latname == 'baco':
+        x, y = list(map(float, lines))
+        return np.array([[0.5, x/2, 0], [-0.5, x/2, 0], [0, 0, y]])
+    elif latname == 'fco':
+        x, y = list(map(float, lines))
+        return np.array([[0.5, 0, y/2], [0.5, x/2, 0], [0.5, x/2, 0]])
+    elif latname == 'bco':
+        x, y = list(map(float, lines))
+        return np.array([[0.5, x/2, y/2], [-0.5, x/2, y/2], [-0.5, -x/2, y/2]])
+    elif latname == 'bco':
+        x, y, z = list(map(float, lines))
+        return np.array([[1, 0, 0], [x*z, x*sqrt(1-z**2), 0], [0, 0, y]])
+    elif latname == 'bacm':
+        x, y, z = list(map(float, lines))
+        return np.array([[0.5, 0, -y/2], [x*z, x*sqrt(1-z**2), 0], [0.5, 0, y/2]])
+    elif latname == 'triclinic':
+        x, y, m, n, l = list(map(float, lines))
+        fac = sqrt(1+2*m*n*l-m**2-n**2-l**2)/sqrt(1-m**2)
+        return np.array([[1, 0, 0], [x*m, x*sqrt(1-m**2), 0], [y*n, y*(l-n*m/sqrt(1-m**2)), y*fac]])
 
 
 @reader
