@@ -23,6 +23,19 @@ def test_parse_dfpt_dielectric(testdir):
 
     assert np.allclose(diel, diel_0)
 
+    bec = atoms.calc.get_born_effective_charges()
+
+    bec_0 = [
+        [[1.96712461, 0.0, -0.0],
+         [0.0, 1.96712461, 0.0],
+         [-0.0, -0.0, 1.96712461]],
+        [[-1.96712461, -0.0, 0.0],
+         [-0.0, -1.96712461, -0.0],
+         [0.0, 0.0, -1.96712461]],
+    ]
+
+    assert np.allclose(bec, bec_0)
+
 
 @pytest.fixture()
 def vasprun():
