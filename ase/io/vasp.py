@@ -564,6 +564,16 @@ def read_vasp_xml(filename='vasprun.xml', index=-1):
         if len(kpoints) == 0:
             kpoints = None
 
+
+        # DFPT properties
+        # dielectric tensor
+        dielectric_tensor = None
+        sblocks = step.find('varray[@name="dielectric_dft"]')
+        if sblocks is not None:
+            dielectric_tensor = np.zeros((3, 3), dtype=float)
+            for i, vector in enumerate(sblocks):
+                dielectric_tensor[i] =  np.fromstring(vector.text, sep=' ')
+
         atoms = atoms_init.copy()
         atoms.set_cell(cell)
         atoms.set_scaled_positions(scpos)
@@ -574,7 +584,8 @@ def read_vasp_xml(filename='vasprun.xml', index=-1):
                                               free_energy=free_energy,
                                               ibzkpts=ibz_kpts,
                                               efermi=efermi,
-                                              dipole=dipole)
+                                              dipole=dipole,
+                                              dielectric_tensor=dielectric_tensor)
         atoms.calc.name = 'vasp'
         atoms.calc.kpts = kpoints
         atoms.calc.parameters = parameters

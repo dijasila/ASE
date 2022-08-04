@@ -1,8 +1,27 @@
 import pytest
+from pathlib import Path
 
 import numpy as np
 from ase.io import read
 from io import StringIO
+
+
+parent = Path(__file__).parents[2]
+
+
+def test_parse_dfpt_dielectric(testdir):
+    outfile = parent / "testdata/vasp/vasprun_dfpt.xml"
+    atoms = read(outfile, format="vasp-xml")
+
+    diel = atoms.calc.get_dielectric_tensor()
+
+    diel_0 = [
+        [3.170042, 0.000000, -0.00000],
+        [0.000000, 3.170042, 0.000000],
+        [-0.00000, 0.000000, 3.170042],
+    ]
+
+    assert np.allclose(diel, diel_0)
 
 
 @pytest.fixture()
