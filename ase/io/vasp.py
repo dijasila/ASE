@@ -579,10 +579,7 @@ def read_vasp_xml(filename='vasprun.xml', index=-1):
         if fblocks is not None:
             born_charges = np.zeros((natoms, 3, 3), dtype=float)
             for ii, block in enumerate(fblocks[1:]):  # 1. element = dimension
-                print(ii, block)
                 for jj, vector in enumerate(block):
-                    print(vector)
-                    print(ii, jj, vector.text)
                     born_charges[ii, jj] = np.fromstring(vector.text, sep=' ')
 
         atoms = atoms_init.copy()
