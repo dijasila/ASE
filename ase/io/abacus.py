@@ -14,7 +14,7 @@ import numpy as np
 from ase import Atoms
 from ase.utils import reader, writer
 from ase.units import Bohr, Hartree, GPa
-re_float = r'[\d\.\-\+Ee]+'
+re_float = r'[-+]?\d+\.*\d*(?:[Ee][-+]\d+)?'
 
 def judge_exist_stru(stru=None):
     if stru is None:
@@ -443,259 +443,225 @@ def get_lattice_from_latname(lines, latname=None):
 def read_abacus_out(fd, index=-1):
     """Import ABACUS output files with all data available, i.e.
     relaxations, MD information, force information ..."""
-    import re
-    import os
-    from ase import Atom
+
     from ase.cell import Cell
-    from ase.data import atomic_masses, atomic_numbers
     from ase.calculators.singlepoint import SinglePointDFTCalculator, SinglePointKPoint
 
-    def _set_eig_occ():
-        eigs, occs = [], []
-        eigsfull, occsfull = [], []
-        ik, ib = 0, 0
-        for i in range(totline):
-            if i % (nbands+2) == 0:
-                ik += 1
-                next(fd)
-            elif (i+1) % (nbands+2) == 0:
-                ik = 0
-                next(fd)
-                continue
-            else:
-                sline = next(fd).split()
-                if len(sline) == 3:
-                    eig, occ = sline[1:]
-                elif len(sline) == 4:
-                    eig, occ = sline[2:]
-                eigs.append(float(eig))
-                occs.append(float(occ))
-                ib += 1
-                if ib == nbands:
-                    eigsfull.append(eigs)
-                    occsfull.append(occs)
-                    ib = 0
-                    eigs, occs = [], []
-        return eigsfull, occsfull
+    contents = fd.read()
 
-    molecular_dynamics = False
-    images = []
-    scaled_position = None
-    position = None
+    scaled_positions = None
+    positions = None
     efermi = None
     energy = None
-    force = None
+    forces = None
     stress = None
-    nbands = None
-    natom = None
-    nspin = None
-    nkstot = None
-    nkstot_ibz = None
     ibzkpts = None
+    kweights = None
     kpts = None
-    eigenvalues, occupations = [], []
+    images = []
 
-    # find flag
-    k_find = False
+    # cells
+    a0_pattern = re.compile(
+        rf'lattice constant \(Bohr\)\s*=\s*({re_float})')
+    cell_pattern = re.compile(
+        rf'Lattice vectors: \(Cartesian coordinate: in unit of a_0\)\n\s*({re_float})\s*({re_float})\s*({re_float})\n\s*({re_float})\s*({re_float})\s*({re_float})\n\s*({re_float})\s*({re_float})\s*({re_float})\n')
+    alat = float(a0_pattern.search(contents).group(1))*Bohr
+    cell = Cell(np.reshape(cell_pattern.findall(contents)[-1], (3, 3)).astype(float)*alat)
 
-    for line in fd:
-        if 'Version' in line:
-            ver = 'ABACUS version: ' + ' '.join(line.split()[1:])
+    # labels and positions
+    def str_to_sites(val_in):
+        val = np.array(val_in)
+        labels = val[:, 0]
+        pos = val[:, 1:4].astype(float)
+        if val.shape[1] == 5:
+            mag = val[:, 4].astype(float)
+            vel = np.zeros((3, ), dtype=float)
+        elif val.shape[1] == 8:
+            mag = val[:, 4].astype(float)
+            vel = val[:, 5:8].astype(float)
+        return labels, pos, mag, vel
 
-        # extract total numbers
-        if "TOTAL ATOM NUMBER" in line:
-            natom = int(line.split()[-1])
+    pos_pattern = re.compile(
+        rf'(CARTESIAN COORDINATES \( UNIT = {re_float} Bohr \)\.+\n\s*atom\s*x\s*y\s*z\s*mag(\s*vx\s*vy\s*vz\s*|\s*)\n[\s\S]+?)\n\n|(DIRECT COORDINATES\n\s*atom\s*x\s*y\s*z\s*mag(\s*vx\s*vy\s*vz\s*|\s*)\n[\s\S]+?)\n\n')
+    site_pattern = re.compile(
+        rf'tau[cd]_([a-zA-Z]+)\d+\s+({re_float})\s+({re_float})\s+({re_float})\s+({re_float})\s+({re_float})\s+({re_float})\s+({re_float})|tau[cd]_([a-zA-Z]+)\d+\s+({re_float})\s+({re_float})\s+({re_float})\s+({re_float})')
+    class_pattern = re.compile(
+        r'(DIRECT) COORDINATES|(CARTESIAN) COORDINATES')
+    unit_pattern = re.compile(rf'UNIT = ({re_float}) Bohr')
+    # for '|', it will match all the patterns which results in '' or None
+    coord_class = list(class_pattern.search(contents).groups())
+    remove_empty(coord_class)
+    coord_class = coord_class[0]
+    data = list(pos_pattern.findall(contents)[-1])
+    remove_empty(data)
+    site = list(map(list, site_pattern.findall(data[0])))
+    list(map(remove_empty, site))
+    labels, pos, mag, vel = str_to_sites(site)
+    if coord_class == 'CARTESIAN':
+        unit = float(unit_pattern.search(contents).group(1))*Bohr
+        positions = pos*unit
+    elif coord_class == 'DIRECT':
+        scaled_positions = pos
 
-        # extract position
-        if 'DIRECT COORDINATES' in line and not molecular_dynamics:
-            scaled_position = []
-            next(fd)
-            atoms = Atoms()
-            for i in range(natom):
-                at, x, y, z, mag, vx, vy, vz = next(
-                    fd).split()  # velocity in unit A/fs ?
-                at = re.match('[a-zA-Z]+', at.split('_')[-1]).group()
-                scaled_position.append(list(map(float, [x, y, z])))
-                momentum = atomic_masses[atomic_numbers[at]
-                                         ]*np.array([vx, vy, vz], dtype=float)
-                atoms.append(Atom(symbol=at, momentum=momentum, magmom=mag))
-        if 'CARTESIAN COORDINATES' in line and not molecular_dynamics:
-            position = []
-            next(fd)
-            atoms = Atoms()
-            for i in range(natom):
-                at, x, y, z, mag, vx, vy, vz = next(
-                    fd).split()  # velocity in unit A/fs ?
-                at = re.match('[a-zA-Z]+', at.split('_')[-1]).group()
-                position.append(list(map(float, [x, y, z])))
-                momentum = atomic_masses[atomic_numbers[at]
-                                         ]*np.array([vx, vy, vz], dtype=float)
-                atoms.append(Atom(symbol=at, momentum=momentum, magmom=mag))
+    # kpoints
+    def str_to_kpoints(val_in):
+        lines = re.search(
+            rf'KPOINTS\s*DIRECT_X\s*DIRECT_Y\s*DIRECT_Z\s*WEIGHT([\s\S]+?)DONE', val_in).group(1).strip().split('\n')
+        data = []
+        for line in lines:
+            data.append(line.strip().split()[1:5])
+        data = np.array(data, dtype=float)
+        kpoints = data[:, :3]
+        weights = data[:, 3]
+        return kpoints, weights
 
-        # extract cell
-        if "Volume (Bohr^3)" in line and not molecular_dynamics:
-            V_b = float(line.split()[-1])
-        if "Volume (A^3)" in line and not molecular_dynamics:
-            V_a = float(line.split()[-1])
-        if "Lattice vectors: (Cartesian coordinate: in unit of a_0)" in line and not molecular_dynamics:
-            cell = []
-            a_0 = pow(V_b/V_a, 1/3)*Bohr
-            for i in range(3):
-                ax, ay, az = next(fd).split()
-                cell.append([float(ax)*a_0, float(ay)*a_0, float(az)*a_0])
-            cell = Cell(cell)
-            if scaled_position:
-                position = cell.cartesian_positions(scaled_position)
-            else:
-                position = np.array(position)*a_0
+    k_pattern = re.compile(r'minimum distributed K point number\s*=\s*\d+([\s\S]+?DONE : INIT K-POINTS Time)')
+    sub_contents = k_pattern.search(contents).group(1)
+    ibzkpts, kweights = str_to_kpoints(sub_contents)
 
-        # extract nbands, nspin and nkstot/nkstot_ibz
-        if 'NBANDS' in line:
-            nbands = int(line.split()[-1])
+    # parse eigenvalues and occupations
+    def _parse_eig(res):
+        _kpts = []
+        for i, lspin in enumerate(res):
+            for j, state in enumerate(res[lspin]):
+                kpt = SinglePointKPoint(kweights[j], i, ibzkpts[j], state.energies, state.occupations)
+                _kpts.append(kpt)        
+        return _kpts
 
-        # extract md information
-        if 'STEP OF MOLECULAR DYNAMICS' in line:
-            molecular_dynamics = True
-            md_step = int(line.split()[-1])
-            md_stru_file = os.path.join(
-                os.path.dirname(fd.name), f'STRU_MD_{md_step}')
-            md_stru_dir = os.path.join(
-                os.path.dirname(fd.name), f'STRU')
-            md_stru_dir_file = os.path.join(md_stru_dir, f'STRU_MD_{md_step}')
-            if os.path.exists(md_stru_file):
-                md_atoms = read_abacus(open(md_stru_file, 'r'))
-                images.append(md_atoms)
-            elif os.path.exists(md_stru_dir_file):   # compatible with ABACUS v2.2.3
-                md_atoms = read_abacus(open(md_stru_dir_file, 'r'))
-                images.append(md_atoms)
-            else:
-                raise FileNotFoundError(f"Can't find {md_stru_file} or {md_stru_dir_file}")
-
-        # extract ibzkpts
-        if 'SETUP K-POINTS' in line and not k_find:
-            nspin = int(next(fd).split()[-1])
-            next(fd)
-            sline = next(fd).split()
-            if sline[0] == 'nkstot':
-                nkstot = int(sline[-1])
-            else:
-                nkstot = int(next(fd).split()[-1])
-            sline = next(fd).split()
-            if sline and sline[0] == 'nkstot_ibz':
-                nkstot_ibz = int(sline[-1])
-            next(fd)
-            nks = nkstot_ibz if nkstot_ibz else nkstot
-            totline = (nbands+2)*nks
-            ibzkpts = []
-            weights = []
+    # SCF: extract eigenvalues and occupations
+    def str_to_energy_occupation(val_in):
+        def extract_data(val_in, nks):
+            State = namedtuple(
+                'State', ['kpoint', 'energies', 'occupations', 'npws'])
+            data = []
             for i in range(nks):
-                kindex, kx, ky, kz, wei = next(fd).split()[:5]
-                ibzkpts.append(list(map(float, [kx, ky, kz])))
-                weights.append(float(wei))
-            ibzkpts = np.array(ibzkpts)
-            weights = np.array(weights)
-            k_find = True
+                kx, ky, kz, npws = re.search(
+                    rf'{i+1}/{nks} kpoint \(Cartesian\)\s*=\s*({re_float})\s*({re_float})\s*({re_float})\s*\((\d+)\s*pws\)', val_in).groups()
+                res = np.array(list(map(lambda x: x.strip().split(), re.search(
+                    rf'{i+1}/{nks} kpoint \(Cartesian\)\s*=.*\n([\s\S]+?)\n\n', val_in).group(1).split('\n'))), dtype=float)
+                energies = res[:, 1]
+                occupations = res[:, 2]
+                state = State(kpoint=np.array([kx, ky, kz], dtype=float), energies=energies.astype(
+                    float), occupations=occupations.astype(float), npws=int(npws))
+                data.append(state)
+            return data
 
-        # extract bands and occupations
-        # ABACUS nscf.log without efermi
-        if ('STATE ENERGY(eV) AND OCCUPATIONS    NSPIN == 1' in line) or ('band eigenvalue in this processor (eV)' in line and nspin == 1):
-            eigs, occs = _set_eig_occ()
-            eigenvalues.append(eigs)
-            occupations.append(occs)
-            if eigenvalues and occupations:
-                kpts = []
-                for w, k, e, o in zip(weights, ibzkpts, eigenvalues[0], occupations[0]):
-                    kpt = SinglePointKPoint(w, 0, k, e, o)
-                    kpts.append(kpt)
+        nspin = int(re.search(
+            r'STATE ENERGY\(eV\) AND OCCUPATIONS\s*NSPIN\s*==\s*(\d+)', val_in).group(1))
+        nks = int(
+            re.search(r'\d+/(\d+) kpoint \(Cartesian\)', val_in).group(1))
+        data = dict()
+        if nspin in [1, 4]:
+            data['up'] = extract_data(val_in, nks)
+        elif nspin == 2:
+            val_up = re.search(
+                r'SPIN UP :([\s\S]+?)\n\nSPIN', val_in).group()
+            data['up'] = extract_data(val_up, nks)
+            val_dw = re.search(
+                r'SPIN DOWN :([\s\S]+?)(?:\n\n\s*EFERMI|\n\n\n)', val_in).group()
+            data['down'] = extract_data(val_dw, nks)
+        return data
 
-        if ('STATE ENERGY(eV) AND OCCUPATIONS    NSPIN == 2' in line) or ('band eigenvalue in this processor (eV)' in line and nspin == 2):
-            eigenvalues, occupations = [], []
-            sline = next(fd)
-            if 'SPIN UP' in sline or 'spin up' in sline:
-                eigs, occs = _set_eig_occ()
-                eigenvalues.append(eigs)
-                occupations.append(occs)
-            sline = next(fd)
-            if 'SPIN DOWN' in sline or 'spin down' in sline:
-                eigs, occs = _set_eig_occ()
-                eigenvalues.append(eigs)
-                occupations.append(occs)
-            if eigenvalues and occupations:
-                kpts = []
-                for s in range(nspin):
-                    for w, k, e, o in zip(weights, ibzkpts, eigenvalues[s], occupations[s]):
-                        kpt = SinglePointKPoint(w, s, k, e, o)
-                        kpts.append(kpt)
+    scf_eig_pattern = re.compile(r'(STATE ENERGY\(eV\) AND OCCUPATIONS\s*NSPIN\s*==\s*\d+[\s\S]+?(?:\n\n\s*EFERMI|\n\n\n))')
+    scf_eig_all = scf_eig_pattern.findall(contents)
+    if scf_eig_all:
+        scf_eig = str_to_energy_occupation(scf_eig_all[-1])
+        kpts = _parse_eig(scf_eig)
 
-        # extract force
-        if "TOTAL-FORCE (eV/Angstrom)" in line:
-            force = np.zeros((natom, 3))
-            for i in range(4):
-                next(fd)
-            for i in range(natom):
-                element, fx, fy, fz = next(fd).split()
-                force[i] = [float(fx), float(fy), float(fz)]
+    # NSCF: extract eigenvalues and occupations
+    def str_to_bandstructure(val_in):
+        def extract_data(val_in, nks):
+            State = namedtuple('State', ['kpoint', 'energies', 'occupations'])
+            data = []
+            for i in range(nks):
+                kx, ky, kz = re.search(
+                    rf'k\-points{i+1}\(\d+\):\s*({re_float})\s*({re_float})\s*({re_float})', val_in).groups()
+                res = np.array(list(map(lambda x: x.strip().split(), re.search(
+                    rf'k\-points{i+1}\(\d+\):.*\n([\s\S]+?)\n\n', val_in).group(1).split('\n'))))
+                energies = res[:, 2]
+                occupations = res[:, 3]
+                state = State(kpoint=np.array([kx, ky, kz], dtype=float), energies=energies.astype(float), occupations=occupations.astype(float))
+                data.append(state)
+            return data
 
-        # extract energy(Ry), potential(Ry), kinetic(Ry), temperature(K) and pressure(KBAR) for MD
-        if "Energy              Potential           Kinetic             Temperature         Pressure (KBAR)" in line:
-            md_e, md_pot = map(float, next(fd).split())[:2]
-            md_e *= Hartree
-            md_pot *= Hartree
+        nks = int(re.search(r'k\-points\d+\((\d+)\)', val_in).group(1))
+        data = dict()
+        if re.search('spin up', val_in) and re.search('spin down', val_in):
+            val = re.search(r'spin up :\n([\s\S]+?)\n\n\n', val_in).group()
+            val_new = extract_data(val, nks)
+            data['up'] = val_new[:int(nks/2)]
+            data['down'] = val_new[int(nks/2):]
+        else:
+            data['up'] = extract_data(val_in, nks)
+        return data
 
-        # extract stress
-        if "TOTAL-STRESS (KBAR)" in line:
-            stress = np.zeros((3, 3))
-            for i in range(3):
-                next(fd)
-            for i in range(3):
-                sx, sy, sz = next(fd).split()
-                stress[i] = [float(sx), float(sy), float(sz)]
-            stress *= -0.1 * GPa
-            stress = stress.reshape(9)[[0, 4, 8, 5, 2, 1]]
-        elif "MD STRESS (KBAR)" in line:
-            stress = np.zeros((3, 3))
-            for i in range(3):
-                next(fd)
-            for i in range(3):
-                sx, sy, sz = next(fd).split()
-                stress[i] = [float(sx), float(sy), float(sz)]
-            stress *= -0.1 * GPa
-            stress = stress.reshape(9)[[0, 4, 8, 5, 2, 1]]
-            # if nkstot_ibz:
-            images[-1].calc = SinglePointDFTCalculator(md_atoms, energy=md_e, free_energy=md_pot,
-                                                       forces=force, stress=stress, efermi=efermi, ibzkpts=ibzkpts)
-            # elif nkstot:
-            #     images[-1].calc = SinglePointDFTCalculator(atoms, energy=energy,
-            #                             forces=force, stress=stress, efermi=efermi, bzkpts=ibzkpts)
-            images[-1].calc.name = 'Abacus'
+    nscf_eig_pattern = re.compile(r'(band eigenvalue in this processor \(eV\)\s*:\n[\s\S]+?\n\n\n)')
+    nscf_eig_all = nscf_eig_pattern.findall(contents)
+    if nscf_eig_all:
+        nscf_eig = str_to_bandstructure(nscf_eig_all[-1])
+        kpts = _parse_eig(nscf_eig)
 
-        # extract efermi
-        if "E_Fermi" in line:
-            efermi = float(line.split()[-1])
+    # forces
+    def str_to_force(val_in):
+        data = []
+        val = [v.strip().split() for v in val_in.split('\n')]
+        for v in val:
+            data.append(np.array(v[1:], dtype=float))
+        return np.array(data)
 
-        # extract energy
-        if "final etot is" in line:
-            energy = float(line.split()[-2])
+    force_pattern = re.compile(r'TOTAL\-FORCE\s*\(eV/Angstrom\)\n\n.*\s*atom\s*x\s*y\s*z\n([\s\S]+?)\n\n')
+    forces_all = force_pattern.findall(contents)
+    if forces_all:
+        forces = str_to_force(forces_all[-1])
 
-    fd.close()
-    if not molecular_dynamics:
-        atoms.set_cell(cell)
-        atoms.set_positions(position)
-        # if nkstot_ibz:
-        calc = SinglePointDFTCalculator(atoms, energy=energy, free_energy=energy,
-                                        forces=force, stress=stress, efermi=efermi, ibzkpts=ibzkpts)
-        # elif nkstot:
-        #     calc = SinglePointDFTCalculator(atoms, energy=energy,
-        #                                 forces=force, stress=stress, efermi=efermi, bzkpts=ibzkpts)
+    # stress
+    stress_pattern = re.compile(rf'(?:TOTAL\-|MD\s*)STRESS\s*\(KBAR\)\n\n.*\n\n\s*({re_float})\s*({re_float})\s*({re_float})\n\s*({re_float})\s*({re_float})\s*({re_float})\n\s*({re_float})\s*({re_float})\s*({re_float})\n')
+    stress_all = stress_pattern.findall(contents)
+    if stress_all:
+        stress = np.reshape(stress_all[-1], (3, 3)).astype(float)
+        stress *= -0.1 * GPa
+        stress = stress.reshape(9)[[0, 4, 8, 5, 2, 1]]
+    
+    # total/potential energy
+    energy_pattern = re.compile(rf'\s*final etot is\s*({re_float})\s*eV')
+    energy_all = energy_pattern.findall(contents)
+    if energy_all:
+        energy = float(energy_all[-1])
+    
+    # fermi energy
+    fermi_pattern = re.compile(rf'EFERMI\s*=\s*({re_float})\s*eV')
+    fermi_all = fermi_pattern.findall(contents)
+    if fermi_all:
+        efermi = float(fermi_all[-1])
 
-        if kpts:
-            calc.kpts = kpts
-        calc.name = 'Abacus'
-        atoms.calc = calc
-        
-        return [atoms]
-    else:
-        # return requested images, code borrowed from ase/io/trajectory.py
+    # extract energy(Ry), potential(Ry), kinetic(Ry), temperature(K) and pressure(KBAR) for MD
+    md_pattern = re.compile(rf'Energy\s*Potential\s*Kinetic\s*Temperature\s*(?:Pressure \(KBAR\)\s*\n|\n)\s*({re_float})\s*({re_float})')
+    md_all = md_pattern.findall(contents)
+
+    # set atoms:
+    if md_all:
+        import os
+        from glob2 import glob
+
+        md_stru_file = os.path.join(
+            os.path.dirname(fd.name), f'STRU_MD_*')
+        md_stru_dir = os.path.join(
+            os.path.dirname(fd.name), f'STRU')
+        md_stru_dir_file = os.path.join(md_stru_dir, f'STRU_MD_*')
+        if glob(md_stru_dir):
+            files = glob(md_stru_dir)
+        elif glob(md_stru_file):
+            files = glob(md_stru_file)
+        else:
+            raise FileNotFoundError(f"Can't find {md_stru_file} or {md_stru_dir_file}")
+        for i, file in enumerate(files):
+            md_atoms = read_abacus(open(file, 'r'))
+            md_e, md_pot = list(map(float, md_all[i]))
+            md_atoms.calc = SinglePointDFTCalculator(md_atoms, energy=md_e*Hartree, free_energy=md_pot*Hartree,
+                                                       forces=forces_all[i], stress=stress_all[i], efermi=fermi_all[i], ibzkpts=ibzkpts)
+            md_atoms.calc.name = 'Abacus'
+            images.append(md_atoms)
+                # return requested images, code borrowed from ase/io/trajectory.py
         if isinstance(index, int):
             return images[index]
         else:
@@ -721,3 +687,33 @@ def read_abacus_out(fd, index=-1):
                     if stop < 0:
                         stop += len(images)
             return [images[i] for i in range(start, stop, step)]
+    else:
+        calc = SinglePointDFTCalculator(atoms, energy=energy, free_energy=energy,
+                                        forces=forces, stress=stress, efermi=efermi, ibzkpts=ibzkpts)
+        if kpts:
+            calc.kpts = kpts
+        calc.name = 'Abacus'
+        if coord_class == 'CARTESIAN':
+            atoms = Atoms(symbols=labels, positions=positions,  magmoms=mag, cell=cell, pbc=True, calculator=calc, velocities=vel)
+        elif coord_class == 'DIRECT':
+            atoms = Atoms(symbols=labels, scaled_positions=scaled_positions,  magmoms=mag, cell=cell, pbc=True, calculator=calc, velocities=vel)
+        return [atoms]
+
+
+def remove_empty(a: list):
+    """Remove '' and [] in `a`"""
+    while '' in a:
+        a.remove('')
+    while [] in a:
+        a.remove([])
+    while None in a:
+        a.remove(None)
+
+def handle_data(data):
+    data.remove('')
+
+    def handle_elem(elem):
+        elist = elem.split(' ')
+        remove_empty(elist)  # `list` will be modified in function
+        return elist
+    return list(map(handle_elem, data))
