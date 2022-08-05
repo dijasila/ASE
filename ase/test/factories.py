@@ -51,6 +51,33 @@ def make_factory_fixture(name):
     return _factory
 
 
+@factory('abacus')
+class AbacusFactory:
+    def __init__(self, executable, pp, basis=None, offsite_basis=None):
+        self.executable = executable
+        self.pp = pp
+        self.basis = basis
+        self.offsite_basis = offsite_basis
+
+    def calc(self, **kwargs):
+        from ase.calculators.abacus import Abacus, AbacusProfile
+        profile = AbacusProfile([self.executable])
+
+        return Abacus(profile=profile, 
+                      pp=self.pp, 
+                      basis=self.basis, 
+                      offsite_basis=self.offsite_basis, 
+                      **kwargs)
+
+    def version(self):
+        from ase.calculators.abacus import get_abacus_version
+        txt = read_stdout([self.executable])
+        return get_abacus_version(txt)
+
+    @classmethod
+    def fromconfig(cls, config):
+        return cls(config.executables['abacus'])
+
 @factory('abinit')
 class AbinitFactory:
     def __init__(self, executable, pp_paths):

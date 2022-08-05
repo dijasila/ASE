@@ -444,6 +444,7 @@ def read_abacus_out(fd, index=-1):
     """Import ABACUS output files with all data available, i.e.
     relaxations, MD information, force information ..."""
 
+    from collections import namedtuple
     from ase.cell import Cell
     from ase.calculators.singlepoint import SinglePointDFTCalculator, SinglePointKPoint
 
