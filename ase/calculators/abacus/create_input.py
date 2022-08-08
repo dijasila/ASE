@@ -436,7 +436,7 @@ class AbacusInput:
     # Set the INPUT and KPT parameters  -START-
     def set(self, **kwargs):
         for key in kwargs:
-            if key in ['xc', 'dft_functional']:
+            if key in ['xc']:
                 self.system_params['dft_functional'] = kwargs['xc']
             elif key in self.system_params:
                 self.system_params[key] = kwargs[key]
@@ -654,7 +654,11 @@ class AbacusInput:
                   ):
         k = self.kpt_params
 
-        if self.elec_params['gamma_only'] == 1 or self.elec_params['kspacing'] > 0.0:
+        gamma_only = self.elec_params.get('gamma_only', 0)
+        kspacing = self.elec_params.get('kspacing', 0.0) 
+        if  gamma_only is not None and gamma_only == 1:
+            return 
+        if  kspacing is not None and kspacing > 0.0:
             return
 
         else:

@@ -28,18 +28,6 @@ def get_abacus_version(string):
     return match.group(1)
 
 
-class AbacusProfile:
-    def __init__(self, argv):
-        self.argv = argv
-
-    def run(self, directory, outputname):
-        from subprocess import check_call
-
-        with open(directory / outputname, "w") as fd:
-            check_call(self.argv, stdout=fd, cwd=directory,
-                       env=os.environ)
-
-
 class Abacus(AbacusInput, FileIOCalculator):
     # Initialize parameters and get some information -START-
     name = 'abacus'

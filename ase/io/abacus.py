@@ -689,15 +689,17 @@ def read_abacus_out(fd, index=-1):
                         stop += len(images)
             return [images[i] for i in range(start, stop, step)]
     else:
+        if coord_class == 'CARTESIAN':
+            atoms = Atoms(symbols=labels, positions=positions,  magmoms=mag, cell=cell, pbc=True, velocities=vel)
+        elif coord_class == 'DIRECT':
+            atoms = Atoms(symbols=labels, scaled_positions=scaled_positions,  magmoms=mag, cell=cell, pbc=True, velocities=vel)
+        
         calc = SinglePointDFTCalculator(atoms, energy=energy, free_energy=energy,
                                         forces=forces, stress=stress, efermi=efermi, ibzkpts=ibzkpts)
         if kpts:
             calc.kpts = kpts
         calc.name = 'Abacus'
-        if coord_class == 'CARTESIAN':
-            atoms = Atoms(symbols=labels, positions=positions,  magmoms=mag, cell=cell, pbc=True, calculator=calc, velocities=vel)
-        elif coord_class == 'DIRECT':
-            atoms = Atoms(symbols=labels, scaled_positions=scaled_positions,  magmoms=mag, cell=cell, pbc=True, calculator=calc, velocities=vel)
+        atoms.calc = calc
         return [atoms]
 
 
