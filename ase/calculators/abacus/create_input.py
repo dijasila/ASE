@@ -20,16 +20,6 @@ from ase.calculators import calculator
 """This module defines an ASE interface to ABACUS
 
 Developed on the basis of modules by Zhen-Xiong Shen, modified by Yu-yang Ji.
- The path of the directory containing the
- pseudopotential and basis directories (LDA, PBE, SG15, ORBITAL, ...)
- should be set by the enviromental flag $ABACUS_PP_PATH, $ABACUS_ORBITAL_PATH.
-
-The user should also set the enviroment flag
- $ABACUS_SCRIPT pointing to a python script looking
-
-like::
-    import os
-    exitcode = os.system('abacus')
 http://abacus.ustc.edu.cn/
 """
 

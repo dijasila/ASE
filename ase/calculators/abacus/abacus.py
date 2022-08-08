@@ -1,4 +1,3 @@
-from __future__ import print_function
 # -*- coding: utf-8 -*-
 """
 Created on Fri Jun  8 16:33:38 2018
@@ -116,7 +115,7 @@ class Abacus(AbacusInput, FileIOCalculator):
             self.results.clear()
 
     def set_atoms(self, atoms):
-        self.atoms = atoms
+        self.atoms = atoms.copy()
 
     def check_state(self, atoms):
         system_changes = FileIOCalculator.check_state(self, atoms)
@@ -159,6 +158,7 @@ class Abacus(AbacusInput, FileIOCalculator):
             out_dir, f'running_{cal}.log'), format='abacus-out')
         self.calc = output.calc
         self.results = output.calc.results
+        self.set_atoms(output)
 
     def get_fermi_level(self):
         if self.calc is None:
