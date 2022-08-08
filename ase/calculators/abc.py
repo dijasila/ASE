@@ -51,14 +51,6 @@ class GetPropertiesMixin(ABC):
         """Calculate magnetic moments projected onto atoms."""
         return self.get_property('magmoms', atoms)
 
-    def get_dielectric_tensor(self, atoms=None):
-        """Calculate dielectric tensor."""
-        return self.get_property('dielectric_tensor', atoms)
-
-    def get_born_effective_charges(self, atoms=None):
-        """Calculate Born effective charge tensors."""
-        return self.get_property('born_effective_charges', atoms)
-
 
 class GetOutputsMixin(ABC):
     """Mixin class for providing get_fermi_level() and others.

@@ -13,7 +13,7 @@ def test_parse_dfpt_dielectric(testdir):
     outfile = parent / "testdata/vasp/vasprun_dfpt.xml"
     atoms = read(outfile, format="vasp-xml")
 
-    diel = atoms.calc.get_dielectric_tensor()
+    diel = atoms.calc.results['dielectric_tensor']
 
     diel_0 = [
         [3.170042, 0.000000, -0.00000],
@@ -23,7 +23,7 @@ def test_parse_dfpt_dielectric(testdir):
 
     assert np.allclose(diel, diel_0)
 
-    bec = atoms.calc.get_born_effective_charges()
+    bec = atoms.calc.results['born_effective_charges']
 
     bec_0 = [
         [[1.96712461, 0.0, -0.0],

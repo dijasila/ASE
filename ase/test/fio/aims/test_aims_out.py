@@ -145,7 +145,7 @@ def test_parse_dfpt_dielectric(testdir):
     outfile = parent / "testdata/aims/DFPT_dielectric.out"
     atoms = read(outfile, format="aims-output")
 
-    diel = atoms.calc.get_dielectric_tensor()
+    diel = atoms.calc.results["dielectric_tensor"]
 
     diel_0 = [
         [7.18759265e00, -1.0000000e-15, 1.9000000e-14],
