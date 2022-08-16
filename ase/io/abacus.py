@@ -209,7 +209,7 @@ def write_abacus(fd,
                 if isinstance(constr, FixAtoms):
                     fix_cart[constr.index] = [0, 0, 0]
                 elif isinstance(constr, FixCartesian):
-                    fix_cart[constr.a] = constr.mask
+                    fix_cart[constr.index] = constr.mask
 
         write_input_stru_core(fd,
                               atoms,
