@@ -462,12 +462,22 @@ def read_abacus_out(fd, index=-1):
     images = []
 
     # cells
+    # a0_pattern = re.compile(
+    #     rf'lattice constant \(Bohr\)\s*=\s*({re_float})')
     a0_pattern = re.compile(
-        rf'lattice constant \(Bohr\)\s*=\s*({re_float})')
+        rf'lattice constant \(Angstrom\)\s*=\s*({re_float})')
+    # VB_pattern = re.compile(rf'Volume \(Bohr\^3\)\s*=\s*({re_float})')
+    # VB = float(VB_pattern.search(contents).group(1))
+    # VA_pattern = re.compile(rf'Volume \(A\^3\)\s*=\s*({re_float})')
+    # VA = float(VA_pattern.search(contents).group(1))
+    
     cell_pattern = re.compile(
         rf'Lattice vectors: \(Cartesian coordinate: in unit of a_0\)\n\s*({re_float})\s*({re_float})\s*({re_float})\n\s*({re_float})\s*({re_float})\s*({re_float})\n\s*({re_float})\s*({re_float})\s*({re_float})\n')
-    alat = float(a0_pattern.search(contents).group(1))*Bohr
-    cell = Cell(np.reshape(cell_pattern.findall(contents)[-1], (3, 3)).astype(float)*alat)
+    # alat = float(a0_pattern.search(contents).group(1))*Bohr
+    _lattice = np.reshape(cell_pattern.findall(contents)[-1], (3, 3)).astype(float)
+    # alat = pow(VA/Cell(_lattice).volume, 1/3)
+    alat = float(a0_pattern.search(contents).group(1))
+    cell = Cell(_lattice*alat)
 
     # labels and positions
     def str_to_sites(val_in):
