@@ -130,7 +130,7 @@ def write_input_stru_core(fd,
 
         fd.write('\n')
         fd.write('LATTICE_CONSTANT\n')
-        fd.write('1.889726125 \n')
+        fd.write(f'{1/Bohr} \n')
         fd.write('\n')
 
         fd.write('LATTICE_VECTORS\n')
