@@ -118,7 +118,7 @@ class Abacus(AbacusInput, FileIOCalculator):
         self.atoms = atoms.copy()
 
     def check_state(self, atoms):
-        system_changes = FileIOCalculator.check_state(self, atoms)
+        system_changes = FileIOCalculator.check_state(self, atoms, tol=1e-8)
         # Ignore boundary conditions:
         if 'pbc' in system_changes:
             system_changes.remove('pbc')
