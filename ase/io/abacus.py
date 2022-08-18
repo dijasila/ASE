@@ -382,8 +382,8 @@ def read_abacus(fd, latname=None, verbose=False):
                           pbc=True)   
     if v_index:
         atoms.set_velocities(atom_vel)
-    if atom_magnetism.any():
-        atoms.set_initial_magnetic_moments(atom_magnetism)
+
+    atoms.set_initial_magnetic_moments(atom_magnetism)
     atoms.set_constraint(fix_cart)
 
     if verbose:
