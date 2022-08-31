@@ -15,25 +15,14 @@ def test_parse_dfpt_dielectric(testdir):
 
     diel = atoms.calc.results['dielectric_tensor']
 
-    diel_0 = [
-        [3.170042, 0.000000, -0.00000],
-        [0.000000, 3.170042, 0.000000],
-        [-0.00000, 0.000000, 3.170042],
-    ]
-
+    diel_0 = np.diag(3 * [2.6958435, ])
     assert np.allclose(diel, diel_0)
 
     bec = atoms.calc.results['born_effective_charges']
 
-    bec_0 = [
-        [[1.96712461, 0.0, -0.0],
-         [0.0, 1.96712461, 0.0],
-         [-0.0, -0.0, 1.96712461]],
-        [[-1.96712461, -0.0, 0.0],
-         [-0.0, -1.96712461, -0.0],
-         [0.0, 0.0, -1.96712461]],
-    ]
+    _bec = np.diag(3 * [1.14672091, ])
 
+    bec_0 = np.array([_bec, -_bec])
     assert np.allclose(bec, bec_0)
 
 
