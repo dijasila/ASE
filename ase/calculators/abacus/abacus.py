@@ -78,11 +78,11 @@ class AbacusTemplate(CalculatorTemplate):
             "forces": "cal_force",
             "stress": "cal_stress",
         }
-        # Ensure FHI-aims will calculate all desired properties
+        # Ensure ABACUS will calculate all desired properties
         for property in properties:
-            aims_name = property_flags.get(property, None)
-            if aims_name is not None:
-                parameters[aims_name] = 1
+            abacus_name = property_flags.get(property, None)
+            if abacus_name is not None:
+                parameters[abacus_name] = 1
 
         return parameters
 
@@ -138,7 +138,7 @@ class Abacus(GenericFileIOCalculator):
         """Construct the ABACUS calculator.
 
         The keyword arguments (kwargs) can be one of the ASE standard
-        keywords: 'xc', 'kpts' or any of FHI-aims'
+        keywords: 'xc', 'kpts' or any of ABACUS'
         native keywords.
 
 
@@ -160,7 +160,7 @@ class Abacus(GenericFileIOCalculator):
         """
 
         if profile is None:
-            profile = AbacusProfile(["aims"])
+            profile = AbacusProfile(["abacus"])
 
             super().__init__(template=AbacusTemplate(),
                              profile=profile,
