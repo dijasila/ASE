@@ -54,23 +54,17 @@ class AbacusTemplate(CalculatorTemplate):
 
         self.outputname = "abacus.out"
 
-    def initialize(self, atoms, parameters):
-        parameters = dict(parameters)
-        ntype = parameters.get('ntype', None)
-        if not ntype:
-            numbers = np.unique(atoms.get_atomic_numbers())
-            parameters["ntype"] = len(numbers)
-        return parameters
-
-    def update_parameters(self, properties, parameters):
+    def update_parameters(self, atoms, parameters, properties):
         """Check and update the parameters to match the desired calculation
 
         Parameters
         ----------
-        properties: list of str
-            The list of properties to calculate
+        atoms : atoms.Atoms
+            The atoms object to perform the calculation on.
         parameters: dict
             The parameters used to perform the calculation.
+        properties: list of str
+            The list of properties to calculate
 
         Returns
         -------
@@ -88,6 +82,11 @@ class AbacusTemplate(CalculatorTemplate):
             if abacus_name is not None:
                 parameters[abacus_name] = 1
 
+        ntype = parameters.get('ntype', None)
+        if not ntype:
+            numbers = np.unique(atoms.get_atomic_numbers())
+            parameters["ntype"] = len(numbers)
+
         return parameters
 
     def write_input(self, directory, atoms, parameters, properties):
@@ -104,7 +103,7 @@ class AbacusTemplate(CalculatorTemplate):
         properties: list of str
             The list of properties to calculate
         """
-        parameters = self.update_parameters(properties, parameters)
+        parameters = self.update_parameters(atoms, parameters, properties)
 
         self.initialize(atoms)
         pseudo_dir = parameters.pop('pseudo_dir', None)
