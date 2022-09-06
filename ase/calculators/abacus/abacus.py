@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
+""" This module defines an ASE interface to ABACUS.
 Created on Fri Jun  8 16:33:38 2018
 
 Modified on Wed Jun 20 15:00:00 2018
@@ -15,10 +14,12 @@ import numpy as np
 
 from ase.io import write, read
 from ase.calculators.abacus.create_input import AbacusInput
-from ase.calculators.calculator import FileIOCalculator, PropertyNotPresent
+# from ase.calculators.calculator import FileIOCalculator, PropertyNotPresent
+from ase.calculators.genericfileio import (GenericFileIOCalculator,
+                                           CalculatorTemplate)
 
-error_template = 'Property "%s" not available. Please try running ABACUS\n' \
-                 'first by calling Atoms.get_potential_energy().'
+# error_template = 'Property "%s" not available. Please try running ABACUS\n' \
+#                  'first by calling Atoms.get_potential_energy().'
 
 
 def get_abacus_version(string):
@@ -27,179 +28,141 @@ def get_abacus_version(string):
     return match.group(1)
 
 
-class Abacus(AbacusInput, FileIOCalculator):
-    # Initialize parameters and get some information -START-
-    name = 'abacus'
+class AbacusProfile:
+    def __init__(self, argv):
+        self.argv = argv
 
-    implemented_properties = [
-        'energy', 'free_energy', 'forces', 'fermi', 'stress',
-        'magmom', 'magmoms'
-    ]
+    def run(self, directory, outputname):
+        from subprocess import check_call
 
-    default_parameters = dict(calculation='scf',
-                              ecutwfc=50,
-                              smearing_method='gaussian',
-                              mixing_type='pulay-kerker',
-                              basis_type='lcao',
-                              gamma_only=1,
-                              ks_solver="genelpa",
-                              stru_file='STRU',
-                              )
+        with open(directory / outputname, "w") as fd:
+            check_call(self.argv, stdout=fd, cwd=directory,
+                       env=os.environ)
 
-    def __init__(self,
-                 restart=None,
-                 ignore_bad_restart_file=FileIOCalculator._deprecated,
-                 directory='.',
-                 label='abacus',
-                 atoms=None,
-                 command=None,
-                 txt='abacus.out',
-                 **kwargs):
 
-        self.results = {}
+class AbacusTemplate(CalculatorTemplate):
+    def __init__(self):
+        super().__init__(
+            "abacus",
+            [
+                "energy",
+                "forces",
+                "stress",
+                "free_energy",
+            ],
+        )
 
-        # Initialize parameter dictionaries
-        AbacusInput.__init__(self, restart)
-
-        # Set directory and label
-        self.directory = directory
-        self.label = label
-
-        FileIOCalculator.__init__(self,
-                                  restart,
-                                  ignore_bad_restart_file,
-                                  label,
-                                  atoms,
-                                  **kwargs)
-
-        self.command = command
-        self.txt = txt
-
-    # Initialize parameters and get some information -END-
-
-    def set(self, **kwargs):
-        """Override the set function, to test for changes in the
-        Abacus Calculator, then call the create_input.set()
-        on remaining inputs for ABACSU specific keys.
-
-        Allows for setting ``label``, ``directory`` and ``txt``
-        without resetting the results in the calculator.
-        """
-        changed_parameters = {}
-
-        if 'label' in kwargs:
-            self.label = kwargs.get('label')
-
-        if 'directory' in kwargs:
-            # str() call to deal with pathlib objects
-            self.directory = str(kwargs.get('directory'))
-
-        if 'txt' in kwargs:
-            self.txt = kwargs.get('txt')
-
-        if 'atoms' in kwargs:
-            atoms = kwargs.get('atoms')
-            self.atoms = atoms  # Resets results
-
-        if 'command' in kwargs:
-            self.command = kwargs.get('command')
-
-        changed_parameters.update(FileIOCalculator.set(self, **kwargs))
-
-        # We might at some point add more to changed parameters, or use it
-        if changed_parameters:
-            self.reset()  # We don't want to clear atoms
-        if kwargs:
-            # If we make any changes to Abacus input, we always reset
-            AbacusInput.set(self, **kwargs)
-            self.results.clear()
-
-    def set_atoms(self, atoms):
-        self.atoms = atoms.copy()
-
-    def check_state(self, atoms):
-        system_changes = FileIOCalculator.check_state(self, atoms, tol=1e-8)
-        # Ignore boundary conditions:
-        if 'pbc' in system_changes:
-            system_changes.remove('pbc')
-        return system_changes
+        self.outputname = "abacus.out"
 
     def initialize(self, atoms):
         numbers = np.unique(atoms.get_atomic_numbers())
         self.system_params["ntype"] = len(numbers)
 
-    def write_input(self, atoms, properties=None, system_changes=None, scaled=None, set_vel=False, set_mag=False):
-        FileIOCalculator.write_input(self, atoms, properties, system_changes)
+    def update_parameters(self, properties, parameters):
+        """Check and update the parameters to match the desired calculation
 
-        if scaled is None:
-            scaled = np.all(atoms.get_pbc())
+        Parameters
+        ----------
+        properties: list of str
+            The list of properties to calculate
+        parameters: dict
+            The parameters used to perform the calculation.
+
+        Returns
+        -------
+        dict
+            The updated parameters object
+        """
+        parameters = dict(parameters)
+        property_flags = {
+            "forces": "cal_force",
+            "stress": "cal_stress",
+        }
+        # Ensure FHI-aims will calculate all desired properties
+        for property in properties:
+            aims_name = property_flags.get(property, None)
+            if aims_name is not None:
+                parameters[aims_name] = 1
+
+        return parameters
+
+    def write_input(self, directory, atoms, parameters, properties):
+        """Write the input files for the calculation
+
+        Parameters
+        ----------
+        directory : Path
+            The working directory to store the input files.
+        atoms : atoms.Atoms
+            The atoms object to perform the calculation on.
+        parameters: dict
+            The parameters used to perform the calculation.
+        properties: list of str
+            The list of properties to calculate
+        """
+        parameters = self.update_parameters(properties, parameters)
 
         self.initialize(atoms)
-        AbacusInput.write_input_core(self, directory=self.directory)
-        AbacusInput.write_kpt(self, directory=self.directory)
-        AbacusInput.write_pp(
-            self, pp=self.parameters['pp'], directory=self.directory, pseudo_dir=self.parameters.get('pseudo_dir', None))
-        if 'basis' in self.parameters.keys():
-            AbacusInput.write_orb(
-                self, basis=self.parameters['basis'], directory=self.directory, basis_dir=self.parameters.get('basis_dir', None))
-        if 'offsite_basis' in self.parameters.keys():
-            AbacusInput.write_abfs(self, offsite_basis=self.parameters['offsite_basis'], directory=self.directory, offsite_basis_dir=self.parameters.get(
+        pseudo_dir = parameters.pop('pseudo_dir', None)
+        basis_dir = parameters.pop('orbital_dir') if parameters.get(
+            'orbital_dir', None) else parameters.pop('basis_dir', None)
+
+        abacus_input = AbacusInput()
+        abacus_input.set(**parameters)
+        abacus_input.write_input_core(directory=directory)
+        abacus_input.write_kpt(directory=directory)
+        abacus_input.write_pp(
+            pp=parameters['pp'], directory=directory, pseudo_dir=pseudo_dir)
+        if 'basis' in parameters.keys():
+            abacus_input.write_orb(
+                basis=parameters['basis'], directory=directory, basis_dir=basis_dir)
+        if 'offsite_basis' in parameters.keys():
+            abacus_input.write_abfs(offsite_basis=parameters['offsite_basis'], directory=directory, offsite_basis_dir=parameters.get(
                 'offsite_basis_dir', None))
 
-        write(os.path.join(self.directory, 'STRU'), atoms, format='abacus', pp=self.parameters['pp'], basis=self.parameters.get('basis', None),
-              offsite_basis=self.parameters.get('offsite_basis', None), scaled=scaled, set_vel=False, set_mag=False)
+        write(os.path.join(directory, 'STRU'), atoms, format='abacus', pp=parameters['pp'], basis=basis_dir,
+              offsite_basis=parameters.get('offsite_basis', None), scaled=parameters.get("scaled", True), init_vel=parameters.get("init_vel", True))
 
-    def read_results(self):
-        out_dir = 'OUT.ABACUS' if 'suffix' not in self.parameters.keys(
-        ) else self.parameters['suffix']
-        cal = 'scf' if 'calculation' not in self.parameters.keys(
-        ) else self.parameters['calculation']
-        output = read(os.path.join(
-            out_dir, f'running_{cal}.log'), format='abacus-out')
-        self.calc = output.calc
-        self.results = output.calc.results
-        self.set_atoms(output)
+    def execute(self, directory, profile):
+        profile.run(directory, self.outputname)
 
-    def get_fermi_level(self):
-        if self.calc is None:
-            raise PropertyNotPresent(error_template % 'Fermi level')
-        return self.calc.get_fermi_level()
+    def read_results(self, directory):
+        from ase.io.abacus import read_abacus_results
 
-    def get_ibz_k_points(self):
-        if self.calc is None:
-            raise PropertyNotPresent(error_template % 'IBZ k-points')
-        ibzkpts = self.calc.get_ibz_k_points()
-        return ibzkpts
+        dst = directory / self.outputname
+        return read_abacus_results(dst, index=-1)
 
-    def get_k_point_weights(self):
-        if self.calc is None:
-            raise PropertyNotPresent(error_template % 'K-point weights')
-        k_point_weights = self.calc.get_k_point_weights()
-        return k_point_weights
 
-    def get_eigenvalues(self, **kwargs):
-        if self.calc is None:
-            raise PropertyNotPresent(error_template % 'Eigenvalues')
-        eigenvalues = self.calc.get_eigenvalues(**kwargs)
-        return eigenvalues
+class Abacus(GenericFileIOCalculator):
+    def __init__(self, profile=None, directory='.', **kwargs):
+        """Construct the ABACUS calculator.
 
-    def get_number_of_spins(self):
-        if self.calc is None:
-            raise PropertyNotPresent(error_template % 'Number of spins')
-        nspins = self.calc.get_number_of_spins()
-        return nspins
+        The keyword arguments (kwargs) can be one of the ASE standard
+        keywords: 'xc', 'kpts' or any of FHI-aims'
+        native keywords.
 
-    def band_structure(self, efermi=0.0):
-        """Create band-structure object for plotting."""
-        from ase.spectrum.band_structure import get_band_structure
-        return get_band_structure(calc=self, reference=efermi)
 
-    def run(self):
-        with open(self.txt, 'a') as f:
-            run = subprocess.Popen(self.command,
-                                   stderr=f,
-                                   stdin=f,
-                                   stdout=f,
-                                   cwd=self.directory,
-                                   shell=True)
-            return run.communicate()
+        Arguments:
+
+        pp: dict
+            A filename for each atomic species, e.g.
+            ``{'O': 'O.UPF', 'H': 'H.UPF'}``.
+            A dummy name will be used if none are given.
+
+        basis: dict
+            A filename for each atomic species, e.g.
+            ``{'O': 'O.orb', 'H': 'H.orb'}``.
+            A dummy name will be used if none are given.
+
+        kwargs : dict
+            Any of the base class arguments.
+
+        """
+
+        if profile is None:
+            profile = AbacusProfile(["aims"])
+
+            super().__init__(template=AbacusTemplate(),
+                             profile=profile,
+                             parameters=kwargs,
+                             directory=directory)
