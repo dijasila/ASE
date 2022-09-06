@@ -148,7 +148,7 @@ def write_input_stru_core(fd,
         fd.write('\n')
         fd.write('\n')
         vel = stru.get_velocities()   # velocity in unit A/fs ?
-        mag = stru.get_magnetic_moments()
+        # mag = stru.get_magnetic_moments()
         for i in range(len(atoms_list)):
             fd.write(atoms_list[i])
             fd.write('\n')
