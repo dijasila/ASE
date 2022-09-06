@@ -54,9 +54,13 @@ class AbacusTemplate(CalculatorTemplate):
 
         self.outputname = "abacus.out"
 
-    def initialize(self, atoms):
-        numbers = np.unique(atoms.get_atomic_numbers())
-        self.system_params["ntype"] = len(numbers)
+    def initialize(self, atoms, parameters):
+        parameters = dict(parameters)
+        ntype = parameters.get('ntype', None)
+        if not ntype:
+            numbers = np.unique(atoms.get_atomic_numbers())
+            parameters["ntype"] = len(numbers)
+        return parameters
 
     def update_parameters(self, properties, parameters):
         """Check and update the parameters to match the desired calculation
