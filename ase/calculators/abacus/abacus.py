@@ -1,4 +1,3 @@
-from __future__ import print_function
 # -*- coding: utf-8 -*-
 """
 Created on Fri Jun  8 16:33:38 2018
@@ -20,6 +19,12 @@ from ase.calculators.calculator import FileIOCalculator, PropertyNotPresent
 
 error_template = 'Property "%s" not available. Please try running ABACUS\n' \
                  'first by calling Atoms.get_potential_energy().'
+
+
+def get_abacus_version(string):
+    import re
+    match = re.search(r'Version:\s*(.*)\n', string, re.M)
+    return match.group(1)
 
 
 class Abacus(AbacusInput, FileIOCalculator):
@@ -110,10 +115,10 @@ class Abacus(AbacusInput, FileIOCalculator):
             self.results.clear()
 
     def set_atoms(self, atoms):
-        self.atoms = atoms
+        self.atoms = atoms.copy()
 
     def check_state(self, atoms):
-        system_changes = FileIOCalculator.check_state(self, atoms)
+        system_changes = FileIOCalculator.check_state(self, atoms, tol=1e-8)
         # Ignore boundary conditions:
         if 'pbc' in system_changes:
             system_changes.remove('pbc')
@@ -153,6 +158,7 @@ class Abacus(AbacusInput, FileIOCalculator):
             out_dir, f'running_{cal}.log'), format='abacus-out')
         self.calc = output.calc
         self.results = output.calc.results
+        self.set_atoms(output)
 
     def get_fermi_level(self):
         if self.calc is None:
