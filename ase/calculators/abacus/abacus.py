@@ -105,7 +105,6 @@ class AbacusTemplate(CalculatorTemplate):
         """
         parameters = self.update_parameters(atoms, parameters, properties)
 
-        self.initialize(atoms)
         pseudo_dir = parameters.pop('pseudo_dir', None)
         basis_dir = parameters.pop('orbital_dir') if parameters.get(
             'orbital_dir', None) else parameters.pop('basis_dir', None)
