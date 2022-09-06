@@ -184,7 +184,7 @@ def write_abacus(fd,
                  pp=None,
                  basis=None,
                  offsite_basis=None,
-                 scaled=False,
+                 scaled=True,
                  set_vel=False,
                  set_mag=False):
 
