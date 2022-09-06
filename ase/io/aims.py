@@ -1262,10 +1262,10 @@ class AimsOutCalcChunk(AimsOutChunk):
     @lazyproperty
     def polarization(self):
         """ Parse the polarization vector from the aims.out file"""
-        line_ind = self.reverse_search_for(["Cartesian Polarization"])
+        line_start = self.reverse_search_for(["Cartesian Polarization"])
         if line_start == LINE_NOT_FOUND:
             return
-  
+        line = self.lines[line_start]  
         return np.array([float(s) for s in line.split()[-3:]])
 
     @lazymethod
