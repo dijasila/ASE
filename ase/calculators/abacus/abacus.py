@@ -104,6 +104,11 @@ class AbacusTemplate(CalculatorTemplate):
         basis_dir = parameters.pop('orbital_dir') if parameters.get(
             'orbital_dir', None) else parameters.pop('basis_dir', None)
 
+        self.out_suffix = parameters.get(
+            'suffix') if parameters.get('suffix', None) else 'ABACUS'
+        self.cal_name = parameters.get(
+            'calculation') if parameters.get('calculation', None) else 'scf'
+
         abacus_input = AbacusInput()
         abacus_input.set(**parameters)
         abacus_input.write_input_core(directory=directory)
@@ -124,10 +129,10 @@ class AbacusTemplate(CalculatorTemplate):
         profile.run(directory, self.outputname)
 
     def read_results(self, directory):
-        from ase.io.abacus import read_abacus_out
-
-        dst = directory / self.outputname
-        return read_abacus_out(dst, index=-1)
+        from ase.io.abacus import read
+        path = directory / 'OUT.' + self.suffix
+        atoms = read(path / f'running_{self.cal_name}.log', format='abacus-out')
+        return dict(atoms.calc.properties())
 
 
 class Abacus(GenericFileIOCalculator):
