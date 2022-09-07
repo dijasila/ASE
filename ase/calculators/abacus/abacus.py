@@ -117,17 +117,17 @@ class AbacusTemplate(CalculatorTemplate):
             abacus_input.write_abfs(offsite_basis=parameters['offsite_basis'], directory=directory, offsite_basis_dir=parameters.get(
                 'offsite_basis_dir', None))
 
-        write(os.path.join(directory, 'STRU'), atoms, format='abacus', pp=parameters['pp'], basis=basis_dir,
+        write(os.path.join(directory, 'STRU'), atoms, format='abacus', pp=parameters['pp'], basis=parameters['basis'],
               offsite_basis=parameters.get('offsite_basis', None), scaled=parameters.get("scaled", True), init_vel=parameters.get("init_vel", True))
 
     def execute(self, directory, profile):
         profile.run(directory, self.outputname)
 
     def read_results(self, directory):
-        from ase.io.abacus import read_abacus_results
+        from ase.io.abacus import read_abacus_out
 
         dst = directory / self.outputname
-        return read_abacus_results(dst, index=-1)
+        return read_abacus_out(dst, index=-1)
 
 
 class Abacus(GenericFileIOCalculator):
