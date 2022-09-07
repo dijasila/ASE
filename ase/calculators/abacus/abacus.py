@@ -159,7 +159,7 @@ class Abacus(GenericFileIOCalculator):
         if profile is None:
             profile = AbacusProfile(["abacus"])
 
-            super().__init__(template=AbacusTemplate(),
-                             profile=profile,
-                             parameters=kwargs,
-                             directory=directory)
+        super().__init__(template=AbacusTemplate(),
+                         profile=profile,
+                         parameters=kwargs,
+                         directory=directory)
