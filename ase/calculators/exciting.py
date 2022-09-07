@@ -11,6 +11,7 @@ from xml.dom import minidom
 class Exciting:
     def __init__(self, dir='calc', paramdict=None,
                  speciespath=None,
+                 mpi_command = None,
                  bin='excitingser', kpts=(1, 1, 1),
                  autormt=False, tshift=True, **kwargs):
         """Exciting calculator object constructor
@@ -25,6 +26,8 @@ class Exciting:
             is the value.  Default: None
         speciespath: string
             Directory or URL to look up species files
+        mpi_command: string
+            MPI command to run exciting
         bin: string
             Path or executable name of exciting.  Default: ``excitingser``
         kpts: integer list length 3
@@ -43,6 +46,7 @@ class Exciting:
             speciespath = os.environ['EXCITINGROOT'] + '/species'
         self.speciespath = speciespath
         self.converged = False
+        self.mpi_command = mpi_command
         self.excitingbinary = bin
         self.autormt = autormt
         self.tshift = tshift
@@ -90,6 +94,8 @@ class Exciting:
         assert xmlfile.is_file()
         print(xmlfile.read_text())
         argv = [self.excitingbinary, 'input.xml']
+        if self.mpi_command != None:
+            argv = [self.mpi_command] + argv
         from subprocess import check_call
         check_call(argv, cwd=self.dir)
 
