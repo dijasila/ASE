@@ -391,7 +391,7 @@ def read_abacus(fd, latname=None, verbose=False):
                       positions=atom_positions * atom_lattice_scale * Bohr,
                       pbc=True)
     if v_index:
-        atoms.init_velocities(atom_vel)
+        atoms.set_velocities(atom_vel)
 
     atoms.set_initial_magnetic_moments(atom_magnetism)
     atoms.set_constraint(fix_cart)
