@@ -130,7 +130,7 @@ class AbacusTemplate(CalculatorTemplate):
 
     def read_results(self, directory):
         from ase.io import read
-        path = directory / 'OUT.' + self.out_suffix
+        path = directory / ('OUT.' + self.out_suffix)
         atoms = read(path / f'running_{self.cal_name}.log', format='abacus-out')
         return dict(atoms.calc.properties())
 
