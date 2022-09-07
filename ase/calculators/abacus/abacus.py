@@ -9,17 +9,12 @@ Modified on Wed Jun 03 23:00:00 2022
 """
 
 import os
-import subprocess
 import numpy as np
 
-from ase.io import write, read
+from ase.io import write
 from ase.calculators.abacus.create_input import AbacusInput
-# from ase.calculators.calculator import FileIOCalculator, PropertyNotPresent
 from ase.calculators.genericfileio import (GenericFileIOCalculator,
                                            CalculatorTemplate)
-
-# error_template = 'Property "%s" not available. Please try running ABACUS\n' \
-#                  'first by calling Atoms.get_potential_energy().'
 
 
 def get_abacus_version(string):
