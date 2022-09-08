@@ -28,14 +28,7 @@ class AbacusProfile:
         self.argv = argv
 
     def run(self, directory, outputname):
-        # import subprocess
         from subprocess import check_call
-
-        # with open(directory / outputname, "w") as fd:
-        #     proc = subprocess.Popen(
-        #         self.argv, stdout=fd, stderr=subprocess.PIPE, shell=True, cwd=directory, env=os.environ)
-
-        #     out, err = proc.communicate()
 
         with open(directory / outputname, "w") as fd:
             check_call(self.argv, stdout=fd, cwd=directory,
