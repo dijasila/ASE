@@ -419,6 +419,21 @@
 
           Date     :  20220906, Time     :  153558.027
 ------------------------------------------------------------
+Convergence:  q   app.   | density   |  eigen (eV) |  Etot (eV)  |  forces (eV/A) |  CPU  time  |  Clock  time
+SCF  1    :   0.2884E+00 | 0.1997E+02|  0.2256E+01 |  0.2936E+00 |  .             |   0.057  s  |   0.057  s                                                     
+SCF  2    :   0.2584E+00 | 0.2163E-01|  0.1678E+02 |  0.1236E+01 |  .             |   0.072  s  |   0.059  s                                                     
+SCF  3    :   0.8109E-01 | 0.1713E+00|  -0.3236E+01|  0.5742E-02 |  .             |   0.071  s  |   0.055  s                                                     
+SCF  4    :   0.5357E-01 | 0.1033E-01|  -0.1762E+00|  0.5149E-01 |  .             |   0.072  s  |   0.055  s                                                     
+SCF  5    :   0.1448E-01 | 0.2428E-01|  -0.4038E+00|  0.5009E-02 |  .             |   0.071  s  |   0.057  s                                                     
+SCF  6    :   0.3629E-02 | 0.1100E-01|  -0.5801E+00|  0.3497E-03 |  .             |   0.071  s  |   0.056  s                                                     
+SCF  7    :   0.3067E-02 | 0.3403E-02|  0.3544E+00 |  -0.6235E-04|  .             |   0.071  s  |   0.055  s                                                     
+SCF  8    :   0.2842E-03 | 0.1871E-02|  -0.1001E-02|  0.1134E-04 |  .             |   0.071  s  |   0.057  s                                                     
+SCF  9    :   0.1000E-03 | 0.1713E-03|  -0.5507E-02|  0.2280E-05 |  .             |   0.070  s  |   0.056  s                                                     
+SCF  10   :   0.9331E-04 | 0.5074E-04|  -0.9677E-02|  0.6032E-05 |  .             |   0.072  s  |   0.055  s                                                     
+SCF  11   :   0.2038E-04 | 0.7913E-04|  0.1711E-02 |  -0.9947E-06|  .             |   0.070  s  |   0.056  s                                                     
+SCF  12   :   0.2957E-05 | 0.1281E-04|  0.2814E-03 |  -0.1729E-06|  .             |   0.073  s  |   0.057  s                                                     
+SCF  13   :   0.8064E-07 | 0.2013E-05|  -0.2582E-05|  -0.5893E-09|  .             |   0.070  s  |   0.056  s                                                     
+SCF  14   :   0.3700E-07 | 0.2087E-07|  -0.1461E-05|  0.4176E-10 |  0.1702E+00    |   0.259  s  |   0.244  s  
   | Estimated reciprocal-space cutoff momentum G_max:         3.25746748 bohr^-1 .
   | Reciprocal lattice points for long-range Hartree potential:      64
   Partitioning the integration grid into batches with parallel hashing+maxmin method.
@@ -776,58 +791,6 @@
   | formula. For all systems that are not real metals, this value can be
   | meaningless and should be avoided.
 
-------------------------------------------------------------------------------
-  Methods described in the following list of references were used in this FHI-aims run.
-  If you publish the results, please make sure to cite these reference if they apply.
-  FHI-aims is an academic code, and for our developers (often, Ph.D. students
-  and postdocs), scientific credit in the community is essential.
-  Thank you for helping us!
-
-  For any use of FHI-aims, please cite:
-
-    Volker Blum, Ralf Gehrke, Felix Hanke, Paula Havu, Ville Havu,
-    Xinguo Ren, Karsten Reuter, and Matthias Scheffler
-    'Ab initio molecular simulations with numeric atom-centered orbitals'
-    Computer Physics Communications 180, 2175-2196 (2009)
-    http://doi.org/10.1016/j.cpc.2009.06.022
-
-
-  The provided symmetry information was generated with SPGlib:
-
-    Atsushi Togo, Yusuke Seto, Dimitar Pashov
-    SPGlib 1.7.3 obtained from http://spglib.sourceforge.net
-    Copyright (C) 2008 Atsushi Togo
-
-
-  The ELSI infrastructure was used in your run to solve the Kohn-Sham electronic structure.
-  Please check out http://elsi-interchange.org to learn more.
-  If scalability is important for your project, please acknowledge ELSI by citing:
-
-    V. W-z. Yu, F. Corsetti, A. Garcia, W. P. Huhn, M. Jacquelin, W. Jia,
-    B. Lange, L. Lin, J. Lu, W. Mi, A. Seifitokaldani, A. Vazquez-Mayagoitia,
-    C. Yang, H. Yang, and V. Blum
-    'ELSI: A unified software interface for Kohn-Sham electronic structure solvers'
-    Computer Physics Communications 222, 267-285 (2018).
-    http://doi.org/10.1016/j.cpc.2017.09.007
-
-
-  For the real-space grid partitioning and parallelization used in this calculation, please cite:
-
-    Ville Havu, Volker Blum, Paula Havu, and Matthias Scheffler,
-    'Efficient O(N) integration for all-electron electronic structure calculation'
-    'using numerically tabulated basis functions'
-    Journal of Computational Physics 228, 8367-8379 (2009).
-    http://doi.org/10.1016/j.jcp.2009.08.008
-
-  Of course, there are many other important community references, e.g., those cited in the
-  above references. Our list is limited to references that describe implementations in the
-  FHI-aims code. The reason is purely practical (length of this list) - please credit others as well.
-
- * A warning was issued further up regarding the CPU load.
-   Some CPUs do not participate in the eigenvalue solution.
-   In corner cases, this may be the correct behavior. Otherwise,
-   consider using a scalapack/elpa version of the code for a parallel treatment.
-
 ------------------------------------------------------------
           Leaving FHI-aims.
           Date     :  20220906, Time     :  153601.034
@@ -838,34 +801,6 @@
 
           Detailed time accounting                     :  max(cpu_time)    wall_clock(cpu1)
           | Total time                                  :        3.612 s           3.923 s
-          | Preparation time                            :        0.208 s           0.258 s
-          | Boundary condition initalization            :        0.070 s           0.070 s
-          | Grid partitioning                           :        0.008 s           0.008 s
-          | Preloading free-atom quantities on grid     :        0.019 s           0.018 s
-          | Free-atom superposition energy              :        0.001 s           0.002 s
-          | Total time for integrations                 :        0.286 s           0.286 s
-          | Total time for solution of K.-S. equations  :        0.129 s           0.128 s
-          | Total time for density & force components   :        0.725 s           0.725 s
-          | Total time for mixing & preconditioning     :        0.306 s           0.094 s
-          | Total time for Hartree multipole update     :        0.010 s           0.010 s
-          | Total time for Hartree multipole sum        :        0.147 s           0.146 s
-          | Total time for total energy evaluation      :        0.004 s           0.003 s
-          | Total time NSC force correction             :        0.026 s           0.028 s
-          | Total time for scaled ZORA corrections      :        0.000 s           0.000 s
-          | Total time for Wannier Center Evolution     :        1.235 s           1.235 s
-
-          Partial memory accounting:
-          | Residual value for overall tracked memory usage across tasks:     0.000000 MB (should be 0.000000 MB)
-          | Peak values for overall tracked memory usage:
-          |   Minimum:        2.375 MB (on task 206 after allocating min_atom_atom_tab)
-          |   Maximum:       20.250 MB (on task  84 after allocating d_wave)
-          |   Average:       14.602 MB
-          | Largest tracked array allocation:
-          |   Minimum:        1.396 MB (atom_atom_dist_list on task 206)
-          |   Maximum:        5.281 MB (hamiltonian_shell on task  84)
-          |   Average:        3.633 MB
-          Note:  These values currently only include a subset of arrays which are explicitly tracked.
-          The "true" memory usage will be greater.
 
           Have a nice day.
 ------------------------------------------------------------
