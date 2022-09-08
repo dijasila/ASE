@@ -59,7 +59,7 @@ class AbacusFactory:
         self.basis_dir = basis_dir
 
     def calc(self, **kwargs):
-        from ase.calculators.abacus import Abacus
+        from ase.calculators.abacus import Abacus, AbacusProfile
         pp = {}
         for path in self.pp_dir.glob('*.UPF'):
             fname = path.name
@@ -72,7 +72,8 @@ class AbacusFactory:
             # Names are e.g. Al_gga_10au_100Ry_3s3p2d.orb
             symbol = fname.split('_', 1)[0]
             basis[symbol] = fname
-        return Abacus(command=self.executable, pp=pp, basis=basis, pseudo_dir=self.pp_dir, basis_dir=self.basis_dir, **kwargs)
+        profile = AbacusProfile([self.executable])
+        return Abacus(profile=profile, pp=pp, basis=basis, pseudo_dir=self.pp_dir, basis_dir=self.basis_dir, **kwargs)
 
     def version(self):
         from ase.calculators.abacus import get_abacus_version
@@ -84,6 +85,7 @@ class AbacusFactory:
         paths = config.datafiles['abacus']
         assert len(paths) == 2
         return cls(config.executables['abacus'], paths[0], paths[1])
+
 
 @factory('abinit')
 class AbinitFactory:
