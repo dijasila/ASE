@@ -10,11 +10,14 @@ Modified on Wed Aug 01 11:44:51 2022
 import re
 import warnings
 import numpy as np
+from collections import namedtuple
 
 from ase import Atoms
-from ase.utils import reader, writer
+from ase.cell import Cell
 from ase.units import Bohr, Hartree, GPa
-re_float = r'[-+]?\d+\.*\d*(?:[Ee][-+]\d+)?'
+from ase.utils import lazymethod, lazyproperty, reader, writer
+from ase.calculators.singlepoint import SinglePointDFTCalculator, SinglePointKPoint
+_re_float = r'[-+]?\d+\.*\d*(?:[Ee][-+]\d+)?'
 
 
 def judge_exist_stru(stru=None):
@@ -316,7 +319,7 @@ def read_abacus(fd, latname=None, verbose=False):
     atom_symbol = []
     atom_block = []
     for i, symbol in enumerate(symbols):
-        pattern = re.compile(rf'{symbol}\s*\n({re_float})\s*\n(\d+)')
+        pattern = re.compile(rf'{symbol}\s*\n({_re_float})\s*\n(\d+)')
         sub_block = pattern.search(block)
         number = int(sub_block.group(2))
 
@@ -329,10 +332,10 @@ def read_abacus(fd, latname=None, verbose=False):
 
         if i == ntype - 1:
             lines_pattern = re.compile(
-                rf'{symbol}\s*\n{re_float}\s*\n\d+\s*\n([\s\S]+)\s*\n')
+                rf'{symbol}\s*\n{_re_float}\s*\n\d+\s*\n([\s\S]+)\s*\n')
         else:
             lines_pattern = re.compile(
-                rf'{symbol}\s*\n{re_float}\s*\n\d+\s*\n([\s\S]+?)\s*\n\w+\s*\n{re_float}')
+                rf'{symbol}\s*\n{_re_float}\s*\n\d+\s*\n([\s\S]+?)\s*\n\w+\s*\n{_re_float}')
         lines = lines_pattern.search(block)
         for j in [line.split() for line in lines.group(1).split('\n')]:
             atom_block.append(j)
@@ -449,14 +452,109 @@ def get_lattice_from_latname(lines, latname=None):
         return np.array([[1, 0, 0], [x * m, x * sqrt(1 - m**2), 0], [y * n, y * (l - n * m / sqrt(1 - m**2)), y * fac]])
 
 
+class AbacusOutChunk:
+    """Base class for AbacusOutChunks"""
+
+    def __init__(self, contents):
+        """Constructor
+
+        Parameters
+        ----------
+        contents: str
+            The contents of the output file 
+        """
+        self.contents = contents
+
+    @lazyproperty
+    def cells(self):
+        """Parse all the cells from the output file"""
+        a0_pattern = re.compile(
+            rf'lattice constant \(Angstrom\)\s*=\s*({_re_float})')
+        cell_pattern = re.compile(
+            rf'Lattice vectors: \(Cartesian coordinate: in unit of a_0\)\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n')
+        alat = float(a0_pattern.search(self.contents).group(1))
+        _lattice = np.reshape(cell_pattern.findall(
+            self.contents), (-1, 3, 3)).astype(float)
+
+        return [i for i in _lattice * alat]
+
+    @lazyproperty
+    def coordinate_system(self):
+        """Parse coordinate system (Cartesian or Direct) from the output file"""
+        # for '|', it will match all the patterns which results in '' or None
+        class_pattern = re.compile(
+            r'(DIRECT) COORDINATES|(CARTESIAN) COORDINATES')
+        coord_class = list(class_pattern.search(self.contents).groups())
+        remove_empty(coord_class)
+
+        return coord_class[0]
+
+    @lazymethod
+    def _parse_atoms(self):
+        """Create atoms object for all the structures in the output file"""
+        def str_to_sites(val_in):
+            val = np.array(val_in)
+            labels = val[:, 0]
+            pos = val[:, 1:4].astype(float)
+            if val.shape[1] == 5:
+                mag = val[:, 4].astype(float)
+                vel = np.zeros((3, ), dtype=float)
+            elif val.shape[1] == 8:
+                mag = val[:, 4].astype(float)
+                vel = val[:, 5:8].astype(float)
+            return labels, pos, mag, vel
+
+        def initial_atoms(pos_block):
+            data = list(pos_block)
+            remove_empty(data)
+            site = list(map(list, site_pattern.findall(data[0])))
+            list(map(remove_empty, site))
+            labels, pos, mag, vel = str_to_sites(site)
+            if self.coordinate_system == 'CARTESIAN':
+                unit = float(unit_pattern.search(self.contents).group(1)) * Bohr
+                positions = pos * unit
+                atoms = Atoms(symbols=labels,
+                              positions=positions, velocities=vel)
+            elif self.coordinate_system == 'DIRECT':
+                scaled_positions = pos
+                atoms = Atoms(symbols=labels,
+                              scaled_positions=scaled_positions, velocities=vel)
+
+            return atoms
+
+        pos_pattern = re.compile(
+            rf'(CARTESIAN COORDINATES \( UNIT = {_re_float} Bohr \)\.+\n\s*atom\s*x\s*y\s*z\s*mag(\s*vx\s*vy\s*vz\s*|\s*)\n[\s\S]+?)\n\n|(DIRECT COORDINATES\n\s*atom\s*x\s*y\s*z\s*mag(\s*vx\s*vy\s*vz\s*|\s*)\n[\s\S]+?)\n\n')
+        site_pattern = re.compile(
+            rf'tau[cd]_([a-zA-Z]+)\d+\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})|tau[cd]_([a-zA-Z]+)\d+\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})')
+        unit_pattern = re.compile(rf'UNIT = ({_re_float}) Bohr')
+
+        return list(map(initial_atoms, pos_pattern.findall(self.contents)))
+
+
+class AbacusOutHeaderChunk(AbacusOutChunk):
+    """General information that the header of the running_*.log file contains"""
+
+    def __init__(self, contents):
+        """Constructor
+
+        Parameters
+        ----------
+        contents: str
+            The contents of the output file 
+        """
+        super().__init__(contents)
+        self._k_points = None
+        self._k_points_weights = None
+
+    @lazyproperty
+    def initial_cell(self):
+        return
+
+
 @reader
 def read_abacus_out(fd, index=-1):
     """Import ABACUS output files with all data available, i.e.
     relaxations, MD information, force information ..."""
-
-    from collections import namedtuple
-    from ase.cell import Cell
-    from ase.calculators.singlepoint import SinglePointDFTCalculator, SinglePointKPoint
 
     contents = fd.read()
 
@@ -473,21 +571,22 @@ def read_abacus_out(fd, index=-1):
 
     # cells
     # a0_pattern = re.compile(
-    #     rf'lattice constant \(Bohr\)\s*=\s*({re_float})')
+    #     rf'lattice constant \(Bohr\)\s*=\s*({_re_float})')
     a0_pattern = re.compile(
-        rf'lattice constant \(Angstrom\)\s*=\s*({re_float})')
-    # VB_pattern = re.compile(rf'Volume \(Bohr\^3\)\s*=\s*({re_float})')
+        rf'lattice constant \(Angstrom\)\s*=\s*({_re_float})')
+    # VB_pattern = re.compile(rf'Volume \(Bohr\^3\)\s*=\s*({_re_float})')
     # VB = float(VB_pattern.search(contents).group(1))
-    # VA_pattern = re.compile(rf'Volume \(A\^3\)\s*=\s*({re_float})')
+    # VA_pattern = re.compile(rf'Volume \(A\^3\)\s*=\s*({_re_float})')
     # VA = float(VA_pattern.search(contents).group(1))
 
     cell_pattern = re.compile(
-        rf'Lattice vectors: \(Cartesian coordinate: in unit of a_0\)\n\s*({re_float})\s*({re_float})\s*({re_float})\n\s*({re_float})\s*({re_float})\s*({re_float})\n\s*({re_float})\s*({re_float})\s*({re_float})\n')
+        rf'Lattice vectors: \(Cartesian coordinate: in unit of a_0\)\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n')
     # alat = float(a0_pattern.search(contents).group(1))*Bohr
     _lattice = np.reshape(cell_pattern.findall(
         contents)[-1], (3, 3)).astype(float)
     # alat = pow(VA/Cell(_lattice).volume, 1/3)
     alat = float(a0_pattern.search(contents).group(1))
+
     cell = Cell(_lattice * alat)
 
     # labels and positions
@@ -504,12 +603,12 @@ def read_abacus_out(fd, index=-1):
         return labels, pos, mag, vel
 
     pos_pattern = re.compile(
-        rf'(CARTESIAN COORDINATES \( UNIT = {re_float} Bohr \)\.+\n\s*atom\s*x\s*y\s*z\s*mag(\s*vx\s*vy\s*vz\s*|\s*)\n[\s\S]+?)\n\n|(DIRECT COORDINATES\n\s*atom\s*x\s*y\s*z\s*mag(\s*vx\s*vy\s*vz\s*|\s*)\n[\s\S]+?)\n\n')
+        rf'(CARTESIAN COORDINATES \( UNIT = {_re_float} Bohr \)\.+\n\s*atom\s*x\s*y\s*z\s*mag(\s*vx\s*vy\s*vz\s*|\s*)\n[\s\S]+?)\n\n|(DIRECT COORDINATES\n\s*atom\s*x\s*y\s*z\s*mag(\s*vx\s*vy\s*vz\s*|\s*)\n[\s\S]+?)\n\n')
     site_pattern = re.compile(
-        rf'tau[cd]_([a-zA-Z]+)\d+\s+({re_float})\s+({re_float})\s+({re_float})\s+({re_float})\s+({re_float})\s+({re_float})\s+({re_float})|tau[cd]_([a-zA-Z]+)\d+\s+({re_float})\s+({re_float})\s+({re_float})\s+({re_float})')
+        rf'tau[cd]_([a-zA-Z]+)\d+\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})|tau[cd]_([a-zA-Z]+)\d+\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})')
     class_pattern = re.compile(
         r'(DIRECT) COORDINATES|(CARTESIAN) COORDINATES')
-    unit_pattern = re.compile(rf'UNIT = ({re_float}) Bohr')
+    unit_pattern = re.compile(rf'UNIT = ({_re_float}) Bohr')
     # for '|', it will match all the patterns which results in '' or None
     coord_class = list(class_pattern.search(contents).groups())
     remove_empty(coord_class)
@@ -560,7 +659,7 @@ def read_abacus_out(fd, index=-1):
             data = []
             for i in range(nks):
                 kx, ky, kz, npws = re.search(
-                    rf'{i+1}/{nks} kpoint \(Cartesian\)\s*=\s*({re_float})\s*({re_float})\s*({re_float})\s*\((\d+)\s*pws\)', val_in).groups()
+                    rf'{i+1}/{nks} kpoint \(Cartesian\)\s*=\s*({_re_float})\s*({_re_float})\s*({_re_float})\s*\((\d+)\s*pws\)', val_in).groups()
                 res = np.array(list(map(lambda x: x.strip().split(), re.search(
                     rf'{i+1}/{nks} kpoint \(Cartesian\)\s*=.*\n([\s\S]+?)\n\n', val_in).group(1).split('\n'))), dtype=float)
                 energies = res[:, 1]
@@ -600,7 +699,7 @@ def read_abacus_out(fd, index=-1):
             data = []
             for i in range(nks):
                 kx, ky, kz = re.search(
-                    rf'k\-points{i+1}\(\d+\):\s*({re_float})\s*({re_float})\s*({re_float})', val_in).groups()
+                    rf'k\-points{i+1}\(\d+\):\s*({_re_float})\s*({_re_float})\s*({_re_float})', val_in).groups()
                 res = np.array(list(map(lambda x: x.strip().split(), re.search(
                     rf'k\-points{i+1}\(\d+\):.*\n([\s\S]+?)\n\n', val_in).group(1).split('\n'))))
                 energies = res[:, 2]
@@ -644,7 +743,7 @@ def read_abacus_out(fd, index=-1):
 
     # stress
     stress_pattern = re.compile(
-        rf'(?:TOTAL\-|MD\s*)STRESS\s*\(KBAR\)\n\n.*\n\n\s*({re_float})\s*({re_float})\s*({re_float})\n\s*({re_float})\s*({re_float})\s*({re_float})\n\s*({re_float})\s*({re_float})\s*({re_float})\n')
+        rf'(?:TOTAL\-|MD\s*)STRESS\s*\(KBAR\)\n\n.*\n\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n')
     stress_all = stress_pattern.findall(contents)
     if stress_all:
         stress = np.reshape(stress_all[-1], (3, 3)).astype(float)
@@ -652,20 +751,20 @@ def read_abacus_out(fd, index=-1):
         stress = stress.reshape(9)[[0, 4, 8, 5, 2, 1]]
 
     # total/potential energy
-    energy_pattern = re.compile(rf'\s*final etot is\s*({re_float})\s*eV')
+    energy_pattern = re.compile(rf'\s*final etot is\s*({_re_float})\s*eV')
     energy_all = energy_pattern.findall(contents)
     if energy_all:
         energy = float(energy_all[-1])
 
     # fermi energy
-    fermi_pattern = re.compile(rf'EFERMI\s*=\s*({re_float})\s*eV')
+    fermi_pattern = re.compile(rf'EFERMI\s*=\s*({_re_float})\s*eV')
     fermi_all = fermi_pattern.findall(contents)
     if fermi_all:
         efermi = float(fermi_all[-1])
 
     # extract energy(Ry), potential(Ry), kinetic(Ry), temperature(K) and pressure(KBAR) for MD
     md_pattern = re.compile(
-        rf'Energy\s*Potential\s*Kinetic\s*Temperature\s*(?:Pressure \(KBAR\)\s*\n|\n)\s*({re_float})\s*({re_float})')
+        rf'Energy\s*Potential\s*Kinetic\s*Temperature\s*(?:Pressure \(KBAR\)\s*\n|\n)\s*({_re_float})\s*({_re_float})')
     md_all = md_pattern.findall(contents)
 
     # set atoms:

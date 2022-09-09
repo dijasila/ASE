@@ -17,7 +17,6 @@ def test_abacus_Al_volrelax(factory):
     """
 
     kpts = [4, 4, 4]
-    command = 'mpirun -n 28 abacus'
     input_param = {'ntype': 1, 'ecutwfc': 20, 'scf_nmax': 50, 'smearing_method': 'gaussian',
                    'smearing_sigma': 0.01, 'basis_type': 'lcao', 'ks_solver': 'genelpa',
                    'mixing_type': 'pulay', 'mixing_beta': 0.7, 'scf_thr': 1e-8, 'out_chg': 1,
@@ -29,7 +28,6 @@ def test_abacus_Al_volrelax(factory):
         calc = factory.calc(calculation='cell-relax', force_thr_ev=0.01,
                             stress_thr=10, cal_force=1, cal_stress=1, out_stru=1,
                             kpts=kpts, **input_param)
-        calc.command = command
         Al.calc = calc
         Al.get_potential_energy()  # Execute
 
@@ -53,7 +51,6 @@ def test_abacus_Al_volrelax(factory):
         Al = bulk('Al', 'fcc', a=4.5, cubic=True)
         calc = factory.calc(calculation='scf', cal_force=1, cal_stress=1, out_stru=1,
                             kpts=kpts, **input_param)
-        calc.command = command
         Al.calc = calc
 
         with PreconLBFGS(Al, logfile='relaxation.log') as qn:
