@@ -465,14 +465,33 @@ class AbacusOutChunk:
         """
         self.contents = contents
 
+    def parse_scalar(self, pattern):
+        """Parse a scalar property from the chunk according to specific pattern
+
+        Parameters
+        ----------
+        pattern: str
+            The pattern used to parse
+
+        Returns
+        -------
+        float
+            The scalar value of the property
+        """
+        pattern_compile = re.compile(pattern)
+        res = pattern_compile.search(self.contents)
+        if res:
+            return float(res.group(1))
+        else:
+            return None
+
     @lazyproperty
     def cells(self):
         """Parse all the cells from the output file"""
-        a0_pattern = re.compile(
-            rf'lattice constant \(Angstrom\)\s*=\s*({_re_float})')
+        a0_pattern_str = rf'lattice constant \(Angstrom\)\s*=\s*({_re_float})'
         cell_pattern = re.compile(
             rf'Lattice vectors: \(Cartesian coordinate: in unit of a_0\)\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n')
-        alat = float(a0_pattern.search(self.contents).group(1))
+        alat = self.parse_scalar(a0_pattern_str)
         _lattice = np.reshape(cell_pattern.findall(
             self.contents), (-1, 3, 3)).astype(float)
 
@@ -490,8 +509,8 @@ class AbacusOutChunk:
         return coord_class[0]
 
     @lazymethod
-    def _parse_atoms(self):
-        """Create atoms object for all the structures in the output file"""
+    def _parse_site(self):
+        """Create site information for all the structures in the output file"""
         def str_to_sites(val_in):
             val = np.array(val_in)
             labels = val[:, 0]
@@ -504,7 +523,7 @@ class AbacusOutChunk:
                 vel = val[:, 5:8].astype(float)
             return labels, pos, mag, vel
 
-        def initial_atoms(pos_block):
+        def parse_block(pos_block):
             data = list(pos_block)
             remove_empty(data)
             site = list(map(list, site_pattern.findall(data[0])))
@@ -513,14 +532,9 @@ class AbacusOutChunk:
             if self.coordinate_system == 'CARTESIAN':
                 unit = float(unit_pattern.search(self.contents).group(1)) * Bohr
                 positions = pos * unit
-                atoms = Atoms(symbols=labels,
-                              positions=positions, velocities=vel)
             elif self.coordinate_system == 'DIRECT':
-                scaled_positions = pos
-                atoms = Atoms(symbols=labels,
-                              scaled_positions=scaled_positions, velocities=vel)
-
-            return atoms
+                positions = pos
+            return labels, positions, mag, vel
 
         pos_pattern = re.compile(
             rf'(CARTESIAN COORDINATES \( UNIT = {_re_float} Bohr \)\.+\n\s*atom\s*x\s*y\s*z\s*mag(\s*vx\s*vy\s*vz\s*|\s*)\n[\s\S]+?)\n\n|(DIRECT COORDINATES\n\s*atom\s*x\s*y\s*z\s*mag(\s*vx\s*vy\s*vz\s*|\s*)\n[\s\S]+?)\n\n')
@@ -528,7 +542,7 @@ class AbacusOutChunk:
             rf'tau[cd]_([a-zA-Z]+)\d+\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})|tau[cd]_([a-zA-Z]+)\d+\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})')
         unit_pattern = re.compile(rf'UNIT = ({_re_float}) Bohr')
 
-        return list(map(initial_atoms, pos_pattern.findall(self.contents)))
+        return list(map(parse_block, pos_pattern.findall(self.contents)))
 
 
 class AbacusOutHeaderChunk(AbacusOutChunk):
@@ -543,12 +557,90 @@ class AbacusOutHeaderChunk(AbacusOutChunk):
             The contents of the output file 
         """
         super().__init__(contents)
-        self._k_points = None
-        self._k_points_weights = None
 
     @lazyproperty
     def initial_cell(self):
-        return
+        """The initial cell from the header of the running_*.log file"""
+        return self.cells[0]
+
+    @lazyproperty
+    def initial_atoms(self):
+        """Create an atoms object for the initial structure from the 
+        header of the running_*.log file"""
+        labels, positions, mag, vel = self._parse_site()[0]
+        if self.coordinate_system == 'CARTESIAN':
+            return Atoms(symbols=labels, positions=positions,
+                         cell=self.initial_cell, pbc=True, velocities=vel, magmoms=mag)
+        elif self.coordinate_system == 'DIRECT':
+            return Atoms(symbols=labels, scaled_positions=positions,
+                         cell=self.initial_cell, pbc=True, velocities=vel, magmoms=mag)
+
+    @lazymethod
+    def _parse_k_points(self):
+        """Get the list of k-points used in the calculation"""
+        def str_to_kpoints(val_in):
+            lines = re.search(
+                rf'KPOINTS\s*DIRECT_X\s*DIRECT_Y\s*DIRECT_Z\s*WEIGHT([\s\S]+?)DONE', val_in).group(1).strip().split('\n')
+            data = []
+            for line in lines:
+                data.append(line.strip().split()[1:5])
+            data = np.array(data, dtype=float)
+            kpoints = data[:, :3]
+            weights = data[:, 3]
+            return kpoints, weights
+
+        k_pattern = re.compile(
+            r'minimum distributed K point number\s*=\s*\d+([\s\S]+?DONE : INIT K-POINTS Time)')
+        sub_contents = k_pattern.search(self.contents).group(1)
+        k_points, k_point_weights = str_to_kpoints(sub_contents)
+
+        return k_points, k_point_weights
+
+    @lazyproperty
+    def n_atoms(self):
+        """The number of atoms for the material"""
+        pattern_str = r'TOTAL ATOM NUMBER = (\d+)'
+
+        return int(self.parse_scalar(pattern_str))
+
+    @lazyproperty
+    def n_bands(self):
+        """The number of Kohn-Sham states for the chunk"""
+        pattern_str = r'NBANDS = (\d+)'
+
+        return int(self.parse_scalar(pattern_str))
+
+    @lazyproperty
+    def n_occupied_bands(self):
+        """The number of occupied Kohn-Sham states for the chunk"""
+        pattern_str = r'occupied bands = (\d+)'
+
+        return int(self.parse_scalar(pattern_str))
+
+    @lazyproperty
+    def n_spin(self):
+        """The number of spin channels for the chunk"""
+        pattern_str = r'nspin = (\d+)'
+
+        return int(self.parse_scalar(pattern_str))
+
+    @lazyproperty
+    def n_k_points(self):
+        """The number of spin channels for the chunk"""
+        nks = self.parse_scalar(r'nkstot_ibz = (\d+)') if self.parse_scalar(
+            r'nkstot_ibz = (\d+)') else self.parse_scalar(r'nkstot = (\d+)')
+
+        return int(nks)
+
+    @lazyproperty
+    def k_points(self):
+        """All k-points listed in the calculation"""
+        return self._parse_k_points()[0]
+
+    @lazyproperty
+    def k_point_weights(self):
+        """The k-point weights for the calculation"""
+        return self._parse_k_points()[1]
 
 
 @reader
