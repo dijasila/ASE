@@ -486,7 +486,7 @@ class AbacusOutChunk:
             return None
 
     @lazyproperty
-    def cells(self):
+    def _cells(self):
         """Parse all the cells from the output file"""
         a0_pattern_str = rf'lattice constant \(Angstrom\)\s*=\s*({_re_float})'
         cell_pattern = re.compile(
@@ -561,7 +561,7 @@ class AbacusOutHeaderChunk(AbacusOutChunk):
     @lazyproperty
     def initial_cell(self):
         """The initial cell from the header of the running_*.log file"""
-        return self.cells[0]
+        return self._cells[0]
 
     @lazyproperty
     def initial_atoms(self):
@@ -674,6 +674,29 @@ class AbacusOutHeaderChunk(AbacusOutChunk):
             "k_points": self.k_points,
             "k_point_weights": self.k_point_weights,
         }
+
+
+class AbacusOutCalcChunk(AbacusOutChunk):
+    """A part of the running_*.log file correponding to a single structure"""
+
+    def __init__(self, contents, header, index=-1):
+        """Constructor
+
+        Parameters
+        ----------
+        lines: str
+            The contents of the output file
+        header: dict
+            A summary of the relevant information from the running_*.log header
+        index: dict
+            index of image
+        """
+        super().__init__(contents)
+        self._header = header.header_summary
+
+    @lazyproperty
+    def forces(self):
+        """Parse the forces from the running_*.log file"""
 
 
 @reader
