@@ -575,6 +575,21 @@ class AbacusOutHeaderChunk(AbacusOutChunk):
             return Atoms(symbols=labels, scaled_positions=positions,
                          cell=self.initial_cell, pbc=True, velocities=vel, magmoms=mag)
 
+    @lazyproperty
+    def is_relaxation(self):
+        """Determine if the calculation is an atomic position optimization or not"""
+        return 'STEP OF ION RELAXATION' in self.contents
+
+    @lazyproperty
+    def is_cell_relaxation(self):
+        """Determine if the calculation is an variable cell optimization or not"""
+        return 'RELAX CELL' in self.contents
+
+    @lazyproperty
+    def is_md(self):
+        """Determine if calculation is a molecular dynamics calculation"""
+        return 'STEP OF MOLECULAR DYNAMICS' in self.contents
+
     @lazymethod
     def _parse_k_points(self):
         """Get the list of k-points used in the calculation"""
@@ -618,7 +633,7 @@ class AbacusOutHeaderChunk(AbacusOutChunk):
         return int(self.parse_scalar(pattern_str))
 
     @lazyproperty
-    def n_spin(self):
+    def n_spins(self):
         """The number of spin channels for the chunk"""
         pattern_str = r'nspin = (\d+)'
 
@@ -641,6 +656,24 @@ class AbacusOutHeaderChunk(AbacusOutChunk):
     def k_point_weights(self):
         """The k-point weights for the calculation"""
         return self._parse_k_points()[1]
+
+    @lazyproperty
+    def header_summary(self):
+        """Dictionary summarizing the information inside the header"""
+        return {
+            "initial_atoms": self.initial_atoms,
+            "initial_cell": self.initial_cell,
+            "is_relaxation": self.is_relaxation,
+            "is_cell_relaxation": self.is_cell_relaxation,
+            "is_md": self.is_md,
+            "n_atoms": self.n_atoms,
+            "n_bands": self.n_bands,
+            "n_occupied_bands": self.n_occupied_bands,
+            "n_spins": self.n_spins,
+            "n_k_points": self.n_k_points,
+            "k_points": self.k_points,
+            "k_point_weights": self.k_point_weights,
+        }
 
 
 @reader
