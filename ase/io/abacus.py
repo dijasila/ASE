@@ -1098,8 +1098,7 @@ class AbacusOutCalcChunk(AbacusOutChunk):
             "fermi_energy": self.E_f,
             "n_iter": self.n_iter,
             "eigenvalues": self.eigenvalues,
-            "occupations": self.occupations,
-            "kpts": self.kpts,
+            "occupations": self.occupations
         }
 
         return {
@@ -1113,7 +1112,6 @@ class AbacusOutCalcChunk(AbacusOutChunk):
 
         calc = SinglePointDFTCalculator(
             atoms,
-            energy=self.energy,
             energy=self.energy,
             free_energy=self.free_energy,
             forces=self.forces,
