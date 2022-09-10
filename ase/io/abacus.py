@@ -544,6 +544,51 @@ class AbacusOutChunk:
 
         return list(map(parse_block, pos_pattern.findall(self.contents)))
 
+    @lazyproperty
+    def _forces(self):
+        """Parse all the forces from the output file"""
+        def str_to_force(val_in):
+            data = []
+            val = [v.strip().split() for v in val_in.split('\n')]
+            for v in val:
+                data.append(np.array(v[1:], dtype=float))
+            return np.array(data)
+
+        force_pattern = re.compile(
+            r'TOTAL\-FORCE\s*\(eV/Angstrom\)\n\n.*\s*atom\s*x\s*y\s*z\n([\s\S]+?)\n\n')
+        forces_all = force_pattern.findall(self.contents)
+
+        if forces_all:
+            return list(map(str_to_force, forces_all))
+        else:
+            return
+
+    @lazyproperty
+    def _stress(self):
+        """Parse the stress from the output file"""
+        from ase.stress import full_3x3_to_voigt_6_stress
+        stress_pattern = re.compile(
+            rf'(?:TOTAL\-|MD\s*)STRESS\s*\(KBAR\)\n\n.*\n\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n')
+        stress_all = stress_pattern.findall(self.contents)
+
+        if stress_all:
+            stress_all = -0.1 * GPa * \
+                np.array(stress_all).reshape((-1, 3, 3)).astype(float)
+            return list(map(full_3x3_to_voigt_6_stress, stress_all))
+        else:
+            return
+
+    @lazyproperty
+    def _energy(self):
+        """Parse the energy from the output file"""
+        energy_pattern = re.compile(rf'\s*final etot is\s*({_re_float})\s*eV')
+        energy_all = energy_pattern.findall(self.contents)
+
+        if energy_all:
+            return list(map(float, energy_all))
+        else:
+            return
+
 
 class AbacusOutHeaderChunk(AbacusOutChunk):
     """General information that the header of the running_*.log file contains"""
@@ -693,10 +738,31 @@ class AbacusOutCalcChunk(AbacusOutChunk):
         """
         super().__init__(contents)
         self._header = header.header_summary
+        self.index = index
 
     @lazyproperty
     def forces(self):
         """Parse the forces from the running_*.log file"""
+        try:
+            return self._forces[self.index]
+        except:
+            return
+
+    @lazyproperty
+    def stress(self):
+        """Parse the stress from the running_*.log file"""
+        try:
+            return self._stress[self.index]
+        except:
+            return
+
+    @lazyproperty
+    def energy(self):
+        """Parse the energy from the running_*.log file"""
+        try:
+            return self._energy[self.index]
+        except:
+            return
 
 
 @reader
