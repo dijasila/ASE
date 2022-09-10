@@ -7,6 +7,7 @@ Modified on Wed Aug 01 11:44:51 2022
 @author: Ji Yu-yang
 """
 
+from email import header
 import re
 import warnings
 import numpy as np
@@ -508,7 +509,7 @@ class AbacusOutChunk:
         class_pattern = re.compile(
             r'(DIRECT) COORDINATES|(CARTESIAN) COORDINATES')
         coord_class = list(class_pattern.search(self.contents).groups())
-        remove_empty(coord_class)
+        _remove_empty(coord_class)
 
         return coord_class[0]
 
@@ -536,9 +537,9 @@ class AbacusOutChunk:
 
         def parse_block(pos_block):
             data = list(pos_block)
-            remove_empty(data)
+            _remove_empty(data)
             site = list(map(list, site_pattern.findall(data[0])))
-            list(map(remove_empty, site))
+            list(map(_remove_empty, site))
             labels, pos, mag, vel = str_to_sites(site)
             if self.coordinate_system == 'CARTESIAN':
                 unit = float(unit_pattern.search(self.contents).group(1)) * Bohr
@@ -1114,289 +1115,32 @@ class AbacusOutCalcChunk(AbacusOutChunk):
 
 
 @reader
-def read_abacus_out(fd, index=-1):
+def read_abacus_out(fd, index=-1, non_convergence_ok=False):
     """Import ABACUS output files with all data available, i.e.
     relaxations, MD information, force information ..."""
-
     contents = fd.read()
+    header_chunk = AbacusOutHeaderChunk(contents)
+    final_chunk = AbacusOutCalcChunk(contents, header_chunk, -1)
+    if not non_convergence_ok and not final_chunk.converged:
+        raise ValueError("The calculation did not complete successfully")
 
-    scaled_positions = None
-    positions = None
-    efermi = None
-    energy = None
-    forces = None
-    stress = None
-    ibzkpts = None
-    kweights = None
-    kpts = None
-    images = []
-
-    # cells
-    # a0_pattern = re.compile(
-    #     rf'lattice constant \(Bohr\)\s*=\s*({_re_float})')
-    a0_pattern = re.compile(
-        rf'lattice constant \(Angstrom\)\s*=\s*({_re_float})')
-    # VB_pattern = re.compile(rf'Volume \(Bohr\^3\)\s*=\s*({_re_float})')
-    # VB = float(VB_pattern.search(contents).group(1))
-    # VA_pattern = re.compile(rf'Volume \(A\^3\)\s*=\s*({_re_float})')
-    # VA = float(VA_pattern.search(contents).group(1))
-
-    cell_pattern = re.compile(
-        rf'Lattice vectors: \(Cartesian coordinate: in unit of a_0\)\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n')
-    # alat = float(a0_pattern.search(contents).group(1))*Bohr
-    _lattice = np.reshape(cell_pattern.findall(
-        contents)[-1], (3, 3)).astype(float)
-    # alat = pow(VA/Cell(_lattice).volume, 1/3)
-    alat = float(a0_pattern.search(contents).group(1))
-
-    cell = Cell(_lattice * alat)
-
-    # labels and positions
-    def str_to_sites(val_in):
-        val = np.array(val_in)
-        labels = val[:, 0]
-        pos = val[:, 1:4].astype(float)
-        if val.shape[1] == 5:
-            mag = val[:, 4].astype(float)
-            vel = np.zeros((3, ), dtype=float)
-        elif val.shape[1] == 8:
-            mag = val[:, 4].astype(float)
-            vel = val[:, 5:8].astype(float)
-        return labels, pos, mag, vel
-
-    pos_pattern = re.compile(
-        rf'(CARTESIAN COORDINATES \( UNIT = {_re_float} Bohr \)\.+\n\s*atom\s*x\s*y\s*z\s*mag(\s*vx\s*vy\s*vz\s*|\s*)\n[\s\S]+?)\n\n|(DIRECT COORDINATES\n\s*atom\s*x\s*y\s*z\s*mag(\s*vx\s*vy\s*vz\s*|\s*)\n[\s\S]+?)\n\n')
-    site_pattern = re.compile(
-        rf'tau[cd]_([a-zA-Z]+)\d+\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})|tau[cd]_([a-zA-Z]+)\d+\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})')
-    class_pattern = re.compile(
-        r'(DIRECT) COORDINATES|(CARTESIAN) COORDINATES')
-    unit_pattern = re.compile(rf'UNIT = ({_re_float}) Bohr')
-    # for '|', it will match all the patterns which results in '' or None
-    coord_class = list(class_pattern.search(contents).groups())
-    remove_empty(coord_class)
-    coord_class = coord_class[0]
-    data = list(pos_pattern.findall(contents)[-1])
-    remove_empty(data)
-    site = list(map(list, site_pattern.findall(data[0])))
-    list(map(remove_empty, site))
-    labels, pos, mag, vel = str_to_sites(site)
-    if coord_class == 'CARTESIAN':
-        unit = float(unit_pattern.search(contents).group(1)) * Bohr
-        positions = pos * unit
-    elif coord_class == 'DIRECT':
-        scaled_positions = pos
-
-    # kpoints
-    def str_to_kpoints(val_in):
-        lines = re.search(
-            rf'KPOINTS\s*DIRECT_X\s*DIRECT_Y\s*DIRECT_Z\s*WEIGHT([\s\S]+?)DONE', val_in).group(1).strip().split('\n')
-        data = []
-        for line in lines:
-            data.append(line.strip().split()[1:5])
-        data = np.array(data, dtype=float)
-        kpoints = data[:, :3]
-        weights = data[:, 3]
-        return kpoints, weights
-
-    k_pattern = re.compile(
-        r'minimum distributed K point number\s*=\s*\d+([\s\S]+?DONE : INIT K-POINTS Time)')
-    sub_contents = k_pattern.search(contents).group(1)
-    ibzkpts, kweights = str_to_kpoints(sub_contents)
-
-    # parse eigenvalues and occupations
-    def _parse_eig(res):
-        _kpts = []
-        for i, lspin in enumerate(res):
-            for j, state in enumerate(res[lspin]):
-                kpt = SinglePointKPoint(
-                    kweights[j], i, ibzkpts[j], state.energies, state.occupations)
-                _kpts.append(kpt)
-        return _kpts
-
-    # SCF: extract eigenvalues and occupations
-    def str_to_energy_occupation(val_in):
-        def extract_data(val_in, nks):
-            State = namedtuple(
-                'State', ['kpoint', 'energies', 'occupations', 'npws'])
-            data = []
-            for i in range(nks):
-                kx, ky, kz, npws = re.search(
-                    rf'{i+1}/{nks} kpoint \(Cartesian\)\s*=\s*({_re_float})\s*({_re_float})\s*({_re_float})\s*\((\d+)\s*pws\)', val_in).groups()
-                res = np.array(list(map(lambda x: x.strip().split(), re.search(
-                    rf'{i+1}/{nks} kpoint \(Cartesian\)\s*=.*\n([\s\S]+?)\n\n', val_in).group(1).split('\n'))), dtype=float)
-                energies = res[:, 1]
-                occupations = res[:, 2]
-                state = State(kpoint=np.array([kx, ky, kz], dtype=float), energies=energies.astype(
-                    float), occupations=occupations.astype(float), npws=int(npws))
-                data.append(state)
-            return data
-
-        nspin = int(re.search(
-            r'STATE ENERGY\(eV\) AND OCCUPATIONS\s*NSPIN\s*==\s*(\d+)', val_in).group(1))
-        nks = int(
-            re.search(r'\d+/(\d+) kpoint \(Cartesian\)', val_in).group(1))
-        data = dict()
-        if nspin in [1, 4]:
-            data['up'] = extract_data(val_in, nks)
-        elif nspin == 2:
-            val_up = re.search(
-                r'SPIN UP :([\s\S]+?)\n\nSPIN', val_in).group()
-            data['up'] = extract_data(val_up, nks)
-            val_dw = re.search(
-                r'SPIN DOWN :([\s\S]+?)(?:\n\n\s*EFERMI|\n\n\n)', val_in).group()
-            data['down'] = extract_data(val_dw, nks)
-        return data
-
-    scf_eig_pattern = re.compile(
-        r'(STATE ENERGY\(eV\) AND OCCUPATIONS\s*NSPIN\s*==\s*\d+[\s\S]+?(?:\n\n\s*EFERMI|\n\n\n))')
-    scf_eig_all = scf_eig_pattern.findall(contents)
-    if scf_eig_all:
-        scf_eig = str_to_energy_occupation(scf_eig_all[-1])
-        kpts = _parse_eig(scf_eig)
-
-    # NSCF: extract eigenvalues and occupations
-    def str_to_bandstructure(val_in):
-        def extract_data(val_in, nks):
-            State = namedtuple('State', ['kpoint', 'energies', 'occupations'])
-            data = []
-            for i in range(nks):
-                kx, ky, kz = re.search(
-                    rf'k\-points{i+1}\(\d+\):\s*({_re_float})\s*({_re_float})\s*({_re_float})', val_in).groups()
-                res = np.array(list(map(lambda x: x.strip().split(), re.search(
-                    rf'k\-points{i+1}\(\d+\):.*\n([\s\S]+?)\n\n', val_in).group(1).split('\n'))))
-                energies = res[:, 2]
-                occupations = res[:, 3]
-                state = State(kpoint=np.array([kx, ky, kz], dtype=float), energies=energies.astype(
-                    float), occupations=occupations.astype(float))
-                data.append(state)
-            return data
-
-        nks = int(re.search(r'k\-points\d+\((\d+)\)', val_in).group(1))
-        data = dict()
-        if re.search('spin up', val_in) and re.search('spin down', val_in):
-            val = re.search(r'spin up :\n([\s\S]+?)\n\n\n', val_in).group()
-            val_new = extract_data(val, nks)
-            data['up'] = val_new[:int(nks / 2)]
-            data['down'] = val_new[int(nks / 2):]
-        else:
-            data['up'] = extract_data(val_in, nks)
-        return data
-
-    nscf_eig_pattern = re.compile(
-        r'(band eigenvalue in this processor \(eV\)\s*:\n[\s\S]+?\n\n\n)')
-    nscf_eig_all = nscf_eig_pattern.findall(contents)
-    if nscf_eig_all:
-        nscf_eig = str_to_bandstructure(nscf_eig_all[-1])
-        kpts = _parse_eig(nscf_eig)
-
-    # forces
-    def str_to_force(val_in):
-        data = []
-        val = [v.strip().split() for v in val_in.split('\n')]
-        for v in val:
-            data.append(np.array(v[1:], dtype=float))
-        return np.array(data)
-
-    force_pattern = re.compile(
-        r'TOTAL\-FORCE\s*\(eV/Angstrom\)\n\n.*\s*atom\s*x\s*y\s*z\n([\s\S]+?)\n\n')
-    forces_all = force_pattern.findall(contents)
-    if forces_all:
-        forces = str_to_force(forces_all[-1])
-
-    # stress
-    stress_pattern = re.compile(
-        rf'(?:TOTAL\-|MD\s*)STRESS\s*\(KBAR\)\n\n.*\n\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n')
-    stress_all = stress_pattern.findall(contents)
-    if stress_all:
-        stress = np.reshape(stress_all[-1], (3, 3)).astype(float)
-        stress *= -0.1 * GPa
-        stress = stress.reshape(9)[[0, 4, 8, 5, 2, 1]]
-
-    # total/potential energy
-    energy_pattern = re.compile(rf'\s*final etot is\s*({_re_float})\s*eV')
-    energy_all = energy_pattern.findall(contents)
-    if energy_all:
-        energy = float(energy_all[-1])
-
-    # fermi energy
-    fermi_pattern = re.compile(rf'EFERMI\s*=\s*({_re_float})\s*eV')
-    fermi_all = fermi_pattern.findall(contents)
-    if fermi_all:
-        efermi = float(fermi_all[-1])
-
-    # extract energy(Ry), potential(Ry), kinetic(Ry), temperature(K) and pressure(KBAR) for MD
-    md_pattern = re.compile(
-        rf'Energy\s*Potential\s*Kinetic\s*Temperature\s*(?:Pressure \(KBAR\)\s*\n|\n)\s*({_re_float})\s*({_re_float})')
-    md_all = md_pattern.findall(contents)
-
-    # set atoms:
-    if md_all:
-        import os
-        from glob2 import glob
-
-        md_stru_file = os.path.join(
-            os.path.dirname(fd.name), f'STRU_MD_*')
-        md_stru_dir = os.path.join(
-            os.path.dirname(fd.name), f'STRU')
-        md_stru_dir_file = os.path.join(md_stru_dir, f'STRU_MD_*')
-        if glob(md_stru_dir):
-            files = glob(md_stru_dir)
-        elif glob(md_stru_file):
-            files = glob(md_stru_file)
-        else:
-            raise FileNotFoundError(
-                f"Can't find {md_stru_file} or {md_stru_dir_file}")
-        for i, file in enumerate(files):
-            md_atoms = read_abacus(open(file, 'r'))
-            md_e, md_pot = list(map(float, md_all[i]))
-            md_atoms.calc = SinglePointDFTCalculator(md_atoms, energy=md_e * Hartree, free_energy=md_pot * Hartree,
-                                                     forces=forces_all[i], stress=stress_all[i], efermi=fermi_all[i], ibzkpts=ibzkpts)
-            md_atoms.calc.name = 'Abacus'
-            images.append(md_atoms)
-            # return requested images, code borrowed from ase/io/trajectory.py
-        if isinstance(index, int):
-            return images[index]
-        else:
-            step = index.step or 1
-            if step > 0:
-                start = index.start or 0
-                if start < 0:
-                    start += len(images)
-                stop = index.stop or len(images)
-                if stop < 0:
-                    stop += len(images)
-            else:
-                if index.start is None:
-                    start = len(images) - 1
-                else:
-                    start = index.start
-                    if start < 0:
-                        start += len(images)
-                if index.stop is None:
-                    stop = -1
-                else:
-                    stop = index.stop
-                    if stop < 0:
-                        stop += len(images)
-            return [images[i] for i in range(start, stop, step)]
-    else:
-        if coord_class == 'CARTESIAN':
-            atoms = Atoms(symbols=labels, positions=positions,
-                          cell=cell, pbc=True, velocities=vel)
-        elif coord_class == 'DIRECT':
-            atoms = Atoms(symbols=labels, scaled_positions=scaled_positions,
-                          cell=cell, pbc=True, velocities=vel)
-
-        calc = SinglePointDFTCalculator(atoms, energy=energy, free_energy=energy,
-                                        forces=forces, stress=stress, efermi=efermi, ibzkpts=ibzkpts)
-        if kpts:
-            calc.kpts = kpts
-        calc.name = 'Abacus'
-        atoms.calc = calc
-        return [atoms]
+    return AbacusOutCalcChunk(contents, header_chunk, index).atoms
 
 
-def remove_empty(a: list):
+@reader
+def read_abacus_results(fd, index=-1, non_convergence_ok=False):
+    """Import ABACUS output files and summarize all relevant information
+    into a dictionary"""
+    contents = fd.read()
+    header_chunk = AbacusOutHeaderChunk(contents)
+    final_chunk = AbacusOutCalcChunk(contents, header_chunk, -1)
+    if not non_convergence_ok and not final_chunk.converged:
+        raise ValueError("The calculation did not complete successfully")
+
+    return AbacusOutCalcChunk(contents, header_chunk, index).results
+
+
+def _remove_empty(a: list):
     """Remove '' and [] in `a`"""
     while '' in a:
         a.remove('')
@@ -1404,13 +1148,3 @@ def remove_empty(a: list):
         a.remove([])
     while None in a:
         a.remove(None)
-
-
-def handle_data(data):
-    data.remove('')
-
-    def handle_elem(elem):
-        elist = elem.split(' ')
-        remove_empty(elist)  # `list` will be modified in function
-        return elist
-    return list(map(handle_elem, data))

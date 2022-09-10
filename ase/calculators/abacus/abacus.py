@@ -11,7 +11,7 @@ Modified on Wed Jun 03 23:00:00 2022
 import os
 import numpy as np
 
-from ase.io import write
+from ase.io import write, read
 from ase.calculators.abacus.create_input import AbacusInput
 from ase.calculators.genericfileio import (GenericFileIOCalculator,
                                            CalculatorTemplate)
@@ -129,7 +129,6 @@ class AbacusTemplate(CalculatorTemplate):
         profile.run(directory, self.outputname)
 
     def read_results(self, directory):
-        from ase.io import read
         path = directory / ('OUT.' + self.out_suffix)
         atoms = read(path / f'running_{self.cal_name}.log', format='abacus-out')
         return dict(atoms.calc.properties())
