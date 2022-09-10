@@ -677,10 +677,8 @@ class AbacusOutChunk:
 
         try:
             return str_to_energy_occupation(self._parse_eigenvalues()['scf'][index])
-        except KeyError:
-            return str_to_bandstructure(self._parse_eigenvalues()['nscf'][index])
         except:
-            return
+            return str_to_bandstructure(self._parse_eigenvalues()['nscf'][index])
 
     @lazymethod
     def _parse_energy(self):
@@ -761,7 +759,7 @@ class AbacusOutHeaderChunk(AbacusOutChunk):
         sub_contents = k_pattern.search(self.contents).group(1)
         k_points, k_point_weights = str_to_kpoints(sub_contents)
 
-        return k_points, k_point_weights
+        return k_points[:int(self.n_k_points)], k_point_weights[:int(self.n_k_points)]
 
     @lazyproperty
     def n_atoms(self):
