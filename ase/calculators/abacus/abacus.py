@@ -11,7 +11,6 @@ Modified on Wed Jun 03 23:00:00 2022
 import os
 import numpy as np
 
-from ase.io import write, read
 from ase.calculators.abacus.create_input import AbacusInput
 from ase.calculators.genericfileio import (GenericFileIOCalculator,
                                            CalculatorTemplate)
@@ -123,16 +122,18 @@ class AbacusTemplate(CalculatorTemplate):
             abacus_input.write_abfs(offsite_basis=parameters['offsite_basis'], directory=directory, offsite_basis_dir=parameters.get(
                 'offsite_basis_dir', None))
 
-        write(os.path.join(directory, 'STRU'), atoms, format='abacus', pp=parameters['pp'], basis=parameters.get('basis', None),
-              offsite_basis=parameters.get('offsite_basis', None), scaled=parameters.get("scaled", True), init_vel=parameters.get("init_vel", True))
+        from ase.io.abacus import write_abacus
+        write_abacus(open(directory / 'STRU', 'w'), atoms, pp=parameters['pp'], basis=parameters.get('basis', None),
+                     offsite_basis=parameters.get('offsite_basis', None), scaled=parameters.get("scaled", True), init_vel=parameters.get("init_vel", True))
 
     def execute(self, directory, profile):
         profile.run(directory, self.outputname)
 
     def read_results(self, directory):
+        from ase.io.abacus import read_abacus_results
+
         path = directory / ('OUT.' + self.out_suffix)
-        atoms = read(path / f'running_{self.cal_name}.log', format='abacus-out')
-        return dict(atoms.calc.properties())
+        return read_abacus_results(open(path / f'running_{self.cal_name}.log', 'r'), index=-1)
 
 
 class Abacus(GenericFileIOCalculator):
