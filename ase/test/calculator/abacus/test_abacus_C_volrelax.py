@@ -10,7 +10,7 @@ calc = pytest.mark.calculator
 
 
 @calc('abacus')
-def test_abacus_Al_volrelax(factory):
+def test_abacus_C_volrelax(factory):
     """
     Run ABACUS tests to ensure that relaxation with the ABACUS calculator works.
 
@@ -19,56 +19,56 @@ def test_abacus_Al_volrelax(factory):
     kpts = [4, 4, 4]
     input_param = {'ntype': 1, 'ecutwfc': 20, 'scf_nmax': 50, 'smearing_method': 'gaussian',
                    'smearing_sigma': 0.01, 'basis_type': 'lcao', 'ks_solver': 'genelpa',
-                   'mixing_type': 'pulay', 'mixing_beta': 0.7, 'scf_thr': 1e-8, 'out_chg': 1,
+                   'mixing_type': 'pulay', 'mixing_beta': 0.7, 'scf_thr': 1e-6, 'out_chg': 1,
                    'xc': 'pbe'}
 
     # -- Perform Volume relaxation within Vasp
     def abacus_vol_relax():
-        Al = bulk('Al', 'fcc', a=4.5, cubic=True)
+        C = bulk('C')
         calc = factory.calc(calculation='cell-relax', force_thr_ev=0.01,
                             stress_thr=10, cal_force=1, cal_stress=1, out_stru=1,
                             kpts=kpts, **input_param)
-        Al.calc = calc
-        Al.get_potential_energy()  # Execute
+        C.calc = calc
+        C.get_potential_energy()  # Execute
 
         # Explicitly parse atomic position output file from Abacus
         out_files = glob('OUT.ABACUS/STRU_ION*_D')
-        STRU_Al = io.read(out_files[-1], format='abacus')
+        STRU_C = io.read(out_files[-1], format='abacus')
 
-        print('Al cell post relaxation from calc:\n',
+        print('C cell post relaxation from calc:\n',
               calc.get_atoms().get_cell())
-        print('Al cell post relaxation from atoms:\n', Al.get_cell())
-        print('Al cell post relaxation from OUT.ABACUS:\n', STRU_Al.get_cell())
+        print('C cell post relaxation from atoms:\n', C.get_cell())
+        print('C cell post relaxation from OUT.ABACUS:\n', STRU_C.get_cell())
 
-        # All the cells should be the same.
-        assert (calc.get_atoms().get_cell() == STRU_Al.get_cell()).all()
-        assert (Al.get_cell() == STRU_Al.get_cell()).all()
+        # Cl the cells should be the same.
+        assert (calc.get_atoms().get_cell() == STRU_C.get_cell()).all()
+        assert (C.get_cell() == STRU_C.get_cell()).all()
 
-        return Al
+        return C
 
     # -- Volume relaxation using ASE with Abacus as force/stress calculator
     def ase_vol_relax():
-        Al = bulk('Al', 'fcc', a=4.5, cubic=True)
+        C = bulk('C', 'fcc', a=4.5, cubic=True)
         calc = factory.calc(calculation='scf', cal_force=1, cal_stress=1, out_stru=1,
                             kpts=kpts, **input_param)
-        Al.calc = calc
+        C.calc = calc
 
-        with PreconLBFGS(Al, logfile='relaxation.log') as qn:
+        with PreconLBFGS(C, logfile='relaxation.log') as qn:
             qn.run(fmax=0.1, smax=GPa)
 
         print('Stress:\n', calc.read_stress())
-        print('Al post ASE volume relaxation\n', calc.get_atoms().get_cell())
+        print('C post ASE volume relaxation\n', calc.get_atoms().get_cell())
 
-        return Al
+        return C
 
     # Test function for comparing two cells
     def cells_almost_equal(cellA, cellB, tol=0.01):
         return (np.abs(cellA - cellB) < tol).all()
 
-    Al_abacus = abacus_vol_relax()
-    Al_ase = ase_vol_relax()
+    C_abacus = abacus_vol_relax()
+    C_ase = ase_vol_relax()
 
-    assert cells_almost_equal(Al_ase.get_cell(), Al_abacus.get_cell())
+    assert cells_almost_equal(C_ase.get_cell(), C_abacus.get_cell())
 
     # Cleanup
-    Al_ase.calc.clean()
+    C_ase.calc.clean()

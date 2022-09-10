@@ -966,7 +966,7 @@ class AbacusOutCalcChunk(AbacusOutChunk):
     @lazyproperty
     def free_energy(self):
         """The free energy for the chunk"""
-        if self._header(["is_md"]):
+        if self._header["is_md"]:
             return self.get_md_potential(self.index)
         else:
             return self.get_energy(self.index)
