@@ -16,7 +16,7 @@ from ase import Atoms
 from ase.cell import Cell
 from ase.units import Bohr, Hartree, GPa
 from ase.utils import lazymethod, lazyproperty, reader, writer
-from ase.calculators.singlepoint import SinglePointDFTCalculator, SinglePointKPoint
+from ase.calculators.singlepoint import SinglePointDFTCalculator, arrays_to_kpoints
 _re_float = r'[-+]?\d+\.*\d*(?:[Ee][-+]\d+)?'
 
 
@@ -485,8 +485,8 @@ class AbacusOutChunk:
         else:
             return None
 
-    @lazyproperty
-    def _cells(self):
+    @lazymethod
+    def _parse_cells(self):
         """Parse all the cells from the output file"""
         a0_pattern_str = rf'lattice constant \(Angstrom\)\s*=\s*({_re_float})'
         cell_pattern = re.compile(
@@ -495,7 +495,11 @@ class AbacusOutChunk:
         _lattice = np.reshape(cell_pattern.findall(
             self.contents), (-1, 3, 3)).astype(float)
 
-        return [i for i in _lattice * alat]
+        return _lattice * alat
+
+    def get_cells(self, index):
+        """Get cell from the output file according to index"""
+        return self._parse_cells()[index]
 
     @lazyproperty
     def coordinate_system(self):
@@ -510,7 +514,14 @@ class AbacusOutChunk:
 
     @lazymethod
     def _parse_site(self):
-        """Create site information for all the structures in the output file"""
+        """Parse sites for all the structures in the output file"""
+        pos_pattern = re.compile(
+            rf'(CARTESIAN COORDINATES \( UNIT = {_re_float} Bohr \)\.+\n\s*atom\s*x\s*y\s*z\s*mag(\s*vx\s*vy\s*vz\s*|\s*)\n[\s\S]+?)\n\n|(DIRECT COORDINATES\n\s*atom\s*x\s*y\s*z\s*mag(\s*vx\s*vy\s*vz\s*|\s*)\n[\s\S]+?)\n\n')
+
+        return pos_pattern.findall(self.contents)
+
+    def get_site(self, index):
+        """Get site information from the output file according to index"""
         def str_to_sites(val_in):
             val = np.array(val_in)
             labels = val[:, 0]
@@ -536,17 +547,22 @@ class AbacusOutChunk:
                 positions = pos
             return labels, positions, mag, vel
 
-        pos_pattern = re.compile(
-            rf'(CARTESIAN COORDINATES \( UNIT = {_re_float} Bohr \)\.+\n\s*atom\s*x\s*y\s*z\s*mag(\s*vx\s*vy\s*vz\s*|\s*)\n[\s\S]+?)\n\n|(DIRECT COORDINATES\n\s*atom\s*x\s*y\s*z\s*mag(\s*vx\s*vy\s*vz\s*|\s*)\n[\s\S]+?)\n\n')
         site_pattern = re.compile(
             rf'tau[cd]_([a-zA-Z]+)\d+\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})|tau[cd]_([a-zA-Z]+)\d+\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})')
         unit_pattern = re.compile(rf'UNIT = ({_re_float}) Bohr')
 
-        return list(map(parse_block, pos_pattern.findall(self.contents)))
+        return parse_block(self._parse_site()[index])
 
-    @lazyproperty
-    def _forces(self):
+    @lazymethod
+    def _parse_forces(self):
         """Parse all the forces from the output file"""
+        force_pattern = re.compile(
+            r'TOTAL\-FORCE\s*\(eV/Angstrom\)\n\n.*\s*atom\s*x\s*y\s*z\n([\s\S]+?)\n\n')
+
+        return force_pattern.findall(self.contents)
+
+    def get_forces(self, index):
+        """Get forces from the output file according to index"""
         def str_to_force(val_in):
             data = []
             val = [v.strip().split() for v in val_in.split('\n')]
@@ -554,39 +570,130 @@ class AbacusOutChunk:
                 data.append(np.array(v[1:], dtype=float))
             return np.array(data)
 
-        force_pattern = re.compile(
-            r'TOTAL\-FORCE\s*\(eV/Angstrom\)\n\n.*\s*atom\s*x\s*y\s*z\n([\s\S]+?)\n\n')
-        forces_all = force_pattern.findall(self.contents)
-
-        if forces_all:
-            return list(map(str_to_force, forces_all))
-        else:
+        try:
+            forces = self._parse_forces()[index]
+            return str_to_force(forces)
+        except:
             return
 
-    @lazyproperty
-    def _stress(self):
+    @lazymethod
+    def _parse_stress(self):
         """Parse the stress from the output file"""
-        from ase.stress import full_3x3_to_voigt_6_stress
         stress_pattern = re.compile(
             rf'(?:TOTAL\-|MD\s*)STRESS\s*\(KBAR\)\n\n.*\n\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n')
-        stress_all = stress_pattern.findall(self.contents)
 
-        if stress_all:
-            stress_all = -0.1 * GPa * \
-                np.array(stress_all).reshape((-1, 3, 3)).astype(float)
-            return list(map(full_3x3_to_voigt_6_stress, stress_all))
-        else:
+        return stress_pattern.findall(self.contents)
+
+    def get_stress(self, index):
+        """Get the stress from the output file according to index"""
+        from ase.stress import full_3x3_to_voigt_6_stress
+        [index]
+
+        try:
+            stress = -0.1 * GPa * \
+                np.array(self._parse_stress()[index]).reshape(
+                    (3, 3)).astype(float)
+            return full_3x3_to_voigt_6_stress(stress)
+        except:
             return
 
-    @lazyproperty
-    def _energy(self):
-        """Parse the energy from the output file"""
-        energy_pattern = re.compile(rf'\s*final etot is\s*({_re_float})\s*eV')
-        energy_all = energy_pattern.findall(self.contents)
+    @lazymethod
+    def _parse_eigenvalues(self):
+        """Parse the eigenvalues and occupations of the system."""
+        scf_eig_pattern = re.compile(
+            r'(STATE ENERGY\(eV\) AND OCCUPATIONS\s*NSPIN\s*==\s*\d+[\s\S]+?(?:\n\n\s*EFERMI|\n\n\n))')
+        scf_eig_all = scf_eig_pattern.findall(self.contents)
 
-        if energy_all:
-            return list(map(float, energy_all))
-        else:
+        nscf_eig_pattern = re.compile(
+            r'(band eigenvalue in this processor \(eV\)\s*:\n[\s\S]+?\n\n\n)')
+        nscf_eig_all = nscf_eig_pattern.findall(self.contents)
+
+        return {'scf': scf_eig_all, 'nscf': nscf_eig_all}
+
+    def get_eigenvalues(self, index):
+        """Get the eigenvalues and occupations of the system according to index."""
+        # SCF
+        def str_to_energy_occupation(val_in):
+            def extract_data(val):
+                def func(i):
+                    res = np.array(list(map(lambda x: x.strip().split(), re.search(
+                        rf'{i+1}/{nks} kpoint \(Cartesian\)\s*=.*\n([\s\S]+?)\n\n', val).group(1).split('\n'))), dtype=float)
+                    return res[:, 1].astype(float), res[:, 2].astype(float)
+
+                return np.asarray(list(map(func, [i for i in range(nks)])))
+
+            nspin = int(re.search(
+                r'STATE ENERGY\(eV\) AND OCCUPATIONS\s*NSPIN\s*==\s*(\d+)', val_in).group(1))
+            nks = int(
+                re.search(r'\d+/(\d+) kpoint \(Cartesian\)', val_in).group(1))
+            eigenvalues, occupations = [], []
+            if nspin in [1, 4]:
+                energies, occs = extract_data(
+                    val_in)[:, 0, :], extract_data(val_in)[:, 1, :]
+                eigenvalues.append(energies)
+                occupations.append(occs)
+            elif nspin == 2:
+                val_up = re.search(
+                    r'SPIN UP :([\s\S]+?)\n\nSPIN', val_in).group()
+                energies, occs = extract_data(
+                    val_in)[:, 0, :], extract_data(val_up)[:, 1, :]
+                eigenvalues.append(energies)
+                occupations.append(occs)
+
+                val_dw = re.search(
+                    r'SPIN DOWN :([\s\S]+?)(?:\n\n\s*EFERMI|\n\n\n)', val_in).group()
+                energies, occs = extract_data(
+                    val_in)[:, 0, :], extract_data(val_dw)[:, 1, :]
+                eigenvalues.append(energies)
+                occupations.append(occs)
+            return np.array(eigenvalues), np.array(occupations)
+
+        # NSCF
+        def str_to_bandstructure(val_in):
+            def extract_data(val):
+                def func(i):
+                    res = np.array(list(map(lambda x: x.strip().split(), re.search(
+                        rf'k\-points{i+1}\(\d+\):.*\n([\s\S]+?)\n\n', val).group(1).split('\n'))))
+                    return res[:, 2].astype(float), res[:, 3].astype(float)
+
+                return np.asarray(list(map(func, [i for i in range(nks)])))
+
+            nks = int(re.search(r'k\-points\d+\((\d+)\)', val_in).group(1))
+            eigenvalues, occupations = [], []
+            if re.search('spin up', val_in) and re.search('spin down', val_in):
+                val = re.search(r'spin up :\n([\s\S]+?)\n\n\n', val_in).group()
+                energies, occs = extract_data(
+                    val)[:, 0, :], extract_data(val_in)[:, 1, :]
+                eigenvalues.append(energies[:int(nks / 2)])
+                eigenvalues.append(energies[int(nks / 2):])
+                occupations.append(occs[:int(nks / 2)])
+                occupations.append(occs[int(nks / 2):])
+            else:
+                energies, occs = extract_data(
+                    val_in)[:, 0, :], extract_data(val_in)[:, 1, :]
+                eigenvalues.append(energies)
+                occupations.append(occs)
+            return np.array(eigenvalues), np.array(occupations)
+
+        try:
+            return str_to_energy_occupation(self._parse_eigenvalues()['scf'][index])
+        except KeyError:
+            return str_to_bandstructure(self._parse_eigenvalues()['nscf'][index])
+        except:
+            return
+
+    @lazymethod
+    def _parse_energy(self):
+        """Parse the energy from the output file."""
+        energy_pattern = re.compile(rf'\s*final etot is\s*({_re_float})\s*eV')
+
+        return energy_pattern.findall(self.contents)
+
+    def get_energy(self, index):
+        """Get the energy from the output file according to index."""
+        try:
+            return float(self._parse_energy()[index])
+        except:
             return
 
 
@@ -606,13 +713,13 @@ class AbacusOutHeaderChunk(AbacusOutChunk):
     @lazyproperty
     def initial_cell(self):
         """The initial cell from the header of the running_*.log file"""
-        return self._cells[0]
+        return self.get_cells(0)
 
     @lazyproperty
     def initial_atoms(self):
         """Create an atoms object for the initial structure from the 
         header of the running_*.log file"""
-        labels, positions, mag, vel = self._parse_site()[0]
+        labels, positions, mag, vel = self.get_site(0)
         if self.coordinate_system == 'CARTESIAN':
             return Atoms(symbols=labels, positions=positions,
                          cell=self.initial_cell, pbc=True, velocities=vel, magmoms=mag)
@@ -682,7 +789,7 @@ class AbacusOutHeaderChunk(AbacusOutChunk):
         """The number of spin channels for the chunk"""
         pattern_str = r'nspin = (\d+)'
 
-        return int(self.parse_scalar(pattern_str))
+        return 1 if int(self.parse_scalar(pattern_str)) in [1, 4] else 2
 
     @lazyproperty
     def n_k_points(self):
@@ -744,7 +851,7 @@ class AbacusOutCalcChunk(AbacusOutChunk):
     def forces(self):
         """Parse the forces from the running_*.log file"""
         try:
-            return self._forces[self.index]
+            return self.get_forces(self.index)
         except:
             return
 
@@ -752,7 +859,7 @@ class AbacusOutCalcChunk(AbacusOutChunk):
     def stress(self):
         """Parse the stress from the running_*.log file"""
         try:
-            return self._stress[self.index]
+            return self.get_stress(self.index)
         except:
             return
 
@@ -760,9 +867,32 @@ class AbacusOutCalcChunk(AbacusOutChunk):
     def energy(self):
         """Parse the energy from the running_*.log file"""
         try:
-            return self._energy[self.index]
+            return self.get_energy(self.index)
         except:
             return
+
+    @lazyproperty
+    def eigenvalues(self):
+        """All outputted eigenvalues for the system"""
+        try:
+            return self.get_eigenvalues(self.index)[0]
+        except:
+            return np.full(
+                (self._header["n_spins"], self._header["n_k_points"], self._header["n_bands"]), np.nan)
+
+    @lazyproperty
+    def occupations(self):
+        """All outputted occupations for the system"""
+        try:
+            return self.get_eigenvalues(self.index)[1]
+        except:
+            return np.full(
+                (self._header["n_spins"], self._header["n_k_points"], self._header["n_bands"]), np.nan)
+
+    @lazyproperty
+    def kpts(self):
+        """SinglePointKPoint objects"""
+        return arrays_to_kpoints(self.eigenvalues, self.occupations, self._header["k_point_weights"])
 
 
 @reader
