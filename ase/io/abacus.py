@@ -741,6 +741,39 @@ class AbacusOutChunk:
 
         return self._parse_cell_relaxation_convergency()[index]
 
+    @lazymethod
+    def _parse_md(self):
+        """Parse the molecular dynamics information from the output file"""
+        md_pattern = re.compile(
+            rf'Energy\s*Potential\s*Kinetic\s*Temperature\s*(?:Pressure \(KBAR\)\s*\n|\n)\s*({_re_float})\s*({_re_float})')
+
+        return md_pattern.findall(self.contents)
+
+    def get_md_energy(self, index):
+        """Get the total energy of each md step"""
+
+        try:
+            return float(self._parse_md()[index][0]) * Hartree
+        except:
+            return
+
+    def get_md_potential(self, index):
+        """Get the potential energy of each md step"""
+
+        try:
+            return float(self._parse_md()[index][1]) * Hartree
+        except:
+            return
+
+    def get_md_steps(self):
+        """Get steps of molecular dynamics"""
+        step_pattern = re.compile(r"STEP OF MOLECULAR DYNAMICS\s*:\s*\d+")
+
+        try:
+            return list(map(step_pattern.findall()))
+        except:
+            return
+
 
 class AbacusOutHeaderChunk(AbacusOutChunk):
     """General information that the header of the running_*.log file contains"""
@@ -912,7 +945,21 @@ class AbacusOutCalcChunk(AbacusOutChunk):
     def energy(self):
         """The energy for the chunk"""
         try:
-            return self.get_energy(self.index)
+            if self._header["is_md"]:
+                return self.get_md_energy(self.index)
+            else:
+                return self.get_energy(self.index)
+        except:
+            return
+
+    @lazyproperty
+    def free_energy(self):
+        """The free energy for the chunk"""
+        try:
+            if self._header(["is_md"]):
+                return self.get_md_potential(self.index)
+            else:
+                return self.get_energy(self.index)
         except:
             return
 
@@ -984,6 +1031,71 @@ class AbacusOutCalcChunk(AbacusOutChunk):
             return
         else:
             return "charge density convergence is achieved" in self.contents
+
+    @lazyproperty
+    def initial_atoms(self):
+        """The initial structure defined in the running_*.log file"""
+        return self._header["initial_atoms"]
+
+    @lazyproperty
+    def initial_cell(self):
+        """The initial lattice vectors defined in the running_*.log file"""
+        return self._header["initial_cell"]
+
+    @lazyproperty
+    def n_atoms(self):
+        """The number of atoms for the material"""
+        return self._header["n_atoms"]
+
+    @lazyproperty
+    def n_bands(self):
+        """The number of Kohn-Sham states for the chunk"""
+        return self._header["n_bands"]
+
+    @lazyproperty
+    def n_occupied_bands(self):
+        """The number of occupied Kohn-Sham states for the chunk"""
+        return self._header["n_occupied_bands"]
+
+    @lazyproperty
+    def n_spins(self):
+        """The number of spin channels for the chunk"""
+        return self._header["n_spins"]
+
+    @lazyproperty
+    def n_k_points(self):
+        """The number of k_points for the chunk"""
+        return self._header["n_k_points"]
+
+    @lazyproperty
+    def k_points(self):
+        """k_points for the chunk"""
+        return self._header["k_points"]
+
+    @lazyproperty
+    def k_point_weights(self):
+        """k_point_weights for the chunk"""
+        return self._header["k_point_weights"]
+
+    @property
+    def results(self):
+        """Convert an AimsOutChunk to a Results Dictionary"""
+        results = {
+            "energy": self.energy,
+            "free_energy": self.free_energy,
+            "forces": self.forces,
+            "stress": self.stress,
+            "magmom": self.magmom,
+            "fermi_energy": self.E_f,
+            "n_iter": self.n_iter,
+            "eigenvalues": self.eigenvalues,
+            "occupations": self.occupations,
+            "kpts": self.kpts,
+        }
+
+        return {
+            key: value for key,
+            value in results.items() if value is not None}
 
 
 @reader
