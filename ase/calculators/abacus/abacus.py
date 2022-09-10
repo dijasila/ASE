@@ -44,6 +44,7 @@ class AbacusTemplate(CalculatorTemplate):
                 "forces",
                 "stress",
                 "free_energy",
+                "magmom"
             ],
         )
 
