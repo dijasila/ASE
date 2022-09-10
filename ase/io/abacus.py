@@ -774,18 +774,37 @@ class AbacusOutChunk:
         except:
             return
 
-    def get_atoms(self, index):
+    def get_atoms(self, index, is_md=False):
         """Create an atoms object for the subsequent structures
         calculated in the output file"""
-        labels, positions, mag, vel = self.get_site(index)
-        if self.coordinate_system == 'CARTESIAN':
-            atoms = Atoms(symbols=labels, positions=positions,
-                          cell=self.get_cells(index), pbc=True, velocities=vel)
-        elif self.coordinate_system == 'DIRECT':
-            atoms = Atoms(symbols=labels, scaled_positions=positions,
-                          cell=self.get_cells(index), pbc=True, velocities=vel)
-        if index == 0:
-            atoms.set_initial_magnetic_moments(mag)
+        if is_md:
+            import os
+            from glob2 import glob
+
+            # md_stru_file = os.path.join(
+            #     os.path.dirname(self.contents.name), f'STRU_MD_*')
+            # md_stru_dir = os.path.join(
+            #     os.path.dirname(self.contents.name), f'STRU')
+            # md_stru_dir_file = os.path.join(md_stru_dir, f'STRU_MD_*')
+            # if glob(md_stru_dir):
+            #     files = glob(md_stru_dir)
+            # elif glob(md_stru_file):
+            #     files = glob(md_stru_file)
+            # else:
+            #     raise FileNotFoundError(
+            #         f"Can't find {md_stru_file} or {md_stru_dir_file}")
+            # for i, file in enumerate(files):
+            #     md_atoms = read_abacus(open(file, 'r'))
+        else:
+            labels, positions, mag, vel = self.get_site(index)
+            if self.coordinate_system == 'CARTESIAN':
+                atoms = Atoms(symbols=labels, positions=positions,
+                              cell=self.get_cells(index), pbc=True, velocities=vel)
+            elif self.coordinate_system == 'DIRECT':
+                atoms = Atoms(symbols=labels, scaled_positions=positions,
+                              cell=self.get_cells(index), pbc=True, velocities=vel)
+            if index == 0:
+                atoms.set_initial_magnetic_moments(mag)
 
         return atoms
 
