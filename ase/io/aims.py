@@ -1265,7 +1265,7 @@ class AimsOutCalcChunk(AimsOutChunk):
         line_start = self.reverse_search_for(["Cartesian Polarization"])
         if line_start == LINE_NOT_FOUND:
             return
-        line = self.lines[line_start]  
+        line = self.lines[line_start]
         return np.array([float(s) for s in line.split()[-3:]])
 
     @lazymethod
