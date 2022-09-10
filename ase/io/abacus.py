@@ -774,6 +774,21 @@ class AbacusOutChunk:
         except:
             return
 
+    def get_atoms(self, index):
+        """Create an atoms object for the subsequent structures
+        calculated in the output file"""
+        labels, positions, mag, vel = self.get_site(index)
+        if self.coordinate_system == 'CARTESIAN':
+            atoms = Atoms(symbols=labels, positions=positions,
+                          cell=self.get_cells(index), pbc=True, velocities=vel)
+        elif self.coordinate_system == 'DIRECT':
+            atoms = Atoms(symbols=labels, scaled_positions=positions,
+                          cell=self.get_cells(index), pbc=True, velocities=vel)
+        if index == 0:
+            atoms.set_initial_magnetic_moments(mag)
+
+        return atoms
+
 
 class AbacusOutHeaderChunk(AbacusOutChunk):
     """General information that the header of the running_*.log file contains"""
@@ -797,13 +812,7 @@ class AbacusOutHeaderChunk(AbacusOutChunk):
     def initial_atoms(self):
         """Create an atoms object for the initial structure from the 
         header of the running_*.log file"""
-        labels, positions, mag, vel = self.get_site(0)
-        if self.coordinate_system == 'CARTESIAN':
-            return Atoms(symbols=labels, positions=positions,
-                         cell=self.initial_cell, pbc=True, velocities=vel, magmoms=mag)
-        elif self.coordinate_system == 'DIRECT':
-            return Atoms(symbols=labels, scaled_positions=positions,
-                         cell=self.initial_cell, pbc=True, velocities=vel, magmoms=mag)
+        return self.get_atoms(0)
 
     @lazyproperty
     def is_relaxation(self):
@@ -1096,6 +1105,27 @@ class AbacusOutCalcChunk(AbacusOutChunk):
         return {
             key: value for key,
             value in results.items() if value is not None}
+
+    @lazyproperty
+    def atoms(self):
+        """Convert AimsOutChunk to Atoms object and add all non-standard outputs to atoms.info"""
+        atoms = self.get_atoms(self.index)
+
+        calc = SinglePointDFTCalculator(
+            atoms,
+            energy=self.energy,
+            energy=self.energy,
+            free_energy=self.free_energy,
+            forces=self.forces,
+            stress=self.stress,
+            magmom=self.magmom,
+            ibzkpts=self.k_points,
+            kpts=self.kpts)
+
+        calc.name = 'Abacus'
+        atoms.calc = calc
+
+        return atoms
 
 
 @reader
