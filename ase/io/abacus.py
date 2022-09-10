@@ -587,7 +587,6 @@ class AbacusOutChunk:
     def get_stress(self, index):
         """Get the stress from the output file according to index"""
         from ase.stress import full_3x3_to_voigt_6_stress
-        [index]
 
         try:
             stress = -0.1 * GPa * \
@@ -693,6 +692,54 @@ class AbacusOutChunk:
             return float(self._parse_energy()[index])
         except:
             return
+
+    @lazymethod
+    def _parse_efermi(self):
+        """Parse the Fermi energy from the output file."""
+        fermi_pattern = re.compile(rf'EFERMI\s*=\s*({_re_float})\s*eV')
+
+        return fermi_pattern.findall(self.contents)
+
+    def get_efermi(self, index):
+        """Get the Fermi energy from the output file according to index."""
+        try:
+            return float(self._parse_efermi()[index])
+        except:
+            return
+
+    @lazymethod
+    def _parse_ionic_block(self):
+        """Parse the ionic block from the output file"""
+        step_pattern = re.compile(
+            rf"(?:[NON]*SELF-|STEP OF|RELAX CELL)([\s\S]+?)charge density convergence is achieved")
+
+        return step_pattern.findall(self.contents)
+
+    @lazymethod
+    def _parse_relaxation_convergency(self):
+        """Parse the convergency of atomic position optimization from the output file"""
+        pattern = re.compile(
+            r"Ion relaxation is converged!|Ion relaxation is not converged yet")
+
+        return np.array(pattern.findall(self.contents)) == "Ion relaxation is converged!"
+
+    def get_relaxation_convergency(self, index):
+        """Get the convergency of atomic position optimization from the output file"""
+
+        return self._parse_relaxation_convergency()[index]
+
+    @lazymethod
+    def _parse_cell_relaxation_convergency(self):
+        """Parse the convergency of variable cell optimization from the output file"""
+        pattern = re.compile(
+            r"Lattice relaxation is converged!|Lattice relaxation is not converged yet")
+
+        return np.array(pattern.findall(self.contents)) == "Lattice relaxation is converged!"
+
+    def get_cell_relaxation_convergency(self, index):
+        """Get the convergency of variable cell optimization from the output file"""
+
+        return self._parse_cell_relaxation_convergency()[index]
 
 
 class AbacusOutHeaderChunk(AbacusOutChunk):
@@ -847,7 +894,7 @@ class AbacusOutCalcChunk(AbacusOutChunk):
 
     @lazyproperty
     def forces(self):
-        """Parse the forces from the running_*.log file"""
+        """The forces for the chunk"""
         try:
             return self.get_forces(self.index)
         except:
@@ -855,7 +902,7 @@ class AbacusOutCalcChunk(AbacusOutChunk):
 
     @lazyproperty
     def stress(self):
-        """Parse the stress from the running_*.log file"""
+        """The stress for the chunk"""
         try:
             return self.get_stress(self.index)
         except:
@@ -863,7 +910,7 @@ class AbacusOutCalcChunk(AbacusOutChunk):
 
     @lazyproperty
     def energy(self):
-        """Parse the energy from the running_*.log file"""
+        """The energy for the chunk"""
         try:
             return self.get_energy(self.index)
         except:
@@ -871,7 +918,7 @@ class AbacusOutCalcChunk(AbacusOutChunk):
 
     @lazyproperty
     def eigenvalues(self):
-        """All outputted eigenvalues for the system"""
+        """The eigenvalues for the chunk"""
         try:
             return self.get_eigenvalues(self.index)[0]
         except:
@@ -880,7 +927,7 @@ class AbacusOutCalcChunk(AbacusOutChunk):
 
     @lazyproperty
     def occupations(self):
-        """All outputted occupations for the system"""
+        """The occupations for the chunk"""
         try:
             return self.get_eigenvalues(self.index)[1]
         except:
@@ -889,8 +936,54 @@ class AbacusOutCalcChunk(AbacusOutChunk):
 
     @lazyproperty
     def kpts(self):
-        """SinglePointKPoint objects"""
+        """The SinglePointKPoint objects for the chunk"""
         return arrays_to_kpoints(self.eigenvalues, self.occupations, self._header["k_point_weights"])
+
+    @lazyproperty
+    def E_f(self):
+        """The Fermi energy for the chunk"""
+        try:
+            return self.get_efermi(self.index)
+        except:
+            return
+
+    @lazyproperty
+    def _ionic_block(self):
+        """The ionic block for the chunk"""
+        return self._parse_ionic_block()[self.index]
+
+    @lazyproperty
+    def magmom(self):
+        """The Fermi energy for the chunk"""
+        magmom_pattern = re.compile(
+            rf"total magnetism \(Bohr mag/cell\)\s*=\s*({_re_float})")
+
+        try:
+            return float(magmom_pattern.findall(self._ionic_block)[-1])
+        except:
+            return
+
+    @lazyproperty
+    def n_iter(self):
+        """The number of SCF iterations needed to converge the SCF cycle for the chunk"""
+        step_pattern = re.compile(rf"ELEC\s*=\s*[+]?(\d+)")
+
+        try:
+            return step_pattern.findall(self._ionic_block)[-1]
+        except:
+            return
+
+    @lazyproperty
+    def converged(self):
+        """True if the chunk is a fully converged final structure"""
+        if self._header["is_cell_relaxation"]:
+            return self.get_cell_relaxation_convergency(self.index)
+        elif self._header["is_relaxation"]:
+            return self.get_relaxation_convergency(self.index)
+        elif self._header["is_md"]:
+            return
+        else:
+            return "charge density convergence is achieved" in self.contents
 
 
 @reader
