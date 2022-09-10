@@ -378,7 +378,7 @@ def read_abacus(fd, latname=None, verbose=False):
         if m_index:
             atom_magnetism = atom_block[:,
                                         m_index + 1:m_index + 4].astype(float)
-    except:  # colinear
+    except IndexError:  # colinear
         if m_index:
             atom_magnetism = mags
 
@@ -573,7 +573,7 @@ class AbacusOutChunk:
         try:
             forces = self._parse_forces()[index]
             return str_to_force(forces)
-        except:
+        except IndexError:
             return
 
     @lazymethod
@@ -593,7 +593,7 @@ class AbacusOutChunk:
                 np.array(self._parse_stress()[index]).reshape(
                     (3, 3)).astype(float)
             return full_3x3_to_voigt_6_stress(stress)
-        except:
+        except IndexError:
             return
 
     @lazymethod
@@ -676,8 +676,10 @@ class AbacusOutChunk:
 
         try:
             return str_to_energy_occupation(self._parse_eigenvalues()['scf'][index])
-        except:
+        except KeyError:
             return str_to_bandstructure(self._parse_eigenvalues()['nscf'][index])
+        except IndexError:
+            return
 
     @lazymethod
     def _parse_energy(self):
@@ -690,7 +692,7 @@ class AbacusOutChunk:
         """Get the energy from the output file according to index."""
         try:
             return float(self._parse_energy()[index])
-        except:
+        except IndexError:
             return
 
     @lazymethod
@@ -704,7 +706,7 @@ class AbacusOutChunk:
         """Get the Fermi energy from the output file according to index."""
         try:
             return float(self._parse_efermi()[index])
-        except:
+        except IndexError:
             return
 
     @lazymethod
@@ -754,7 +756,7 @@ class AbacusOutChunk:
 
         try:
             return float(self._parse_md()[index][0]) * Hartree
-        except:
+        except IndexError:
             return
 
     def get_md_potential(self, index):
@@ -762,17 +764,14 @@ class AbacusOutChunk:
 
         try:
             return float(self._parse_md()[index][1]) * Hartree
-        except:
+        except IndexError:
             return
 
     def get_md_steps(self):
         """Get steps of molecular dynamics"""
         step_pattern = re.compile(r"STEP OF MOLECULAR DYNAMICS\s*:\s*(\d+)")
 
-        try:
-            return list(map(int, step_pattern.findall(self.contents)))
-        except:
-            return
+        return list(map(int, step_pattern.findall(self.contents)))
 
     def get_atoms(self, index, is_md=False):
         """Create an atoms object for the subsequent structures
@@ -948,58 +947,38 @@ class AbacusOutCalcChunk(AbacusOutChunk):
     @lazyproperty
     def forces(self):
         """The forces for the chunk"""
-        try:
-            return self.get_forces(self.index)
-        except:
-            return
+        return self.get_forces(self.index)
 
     @lazyproperty
     def stress(self):
         """The stress for the chunk"""
-        try:
-            return self.get_stress(self.index)
-        except:
-            return
+        return self.get_stress(self.index)
 
     @lazyproperty
     def energy(self):
         """The energy for the chunk"""
-        try:
-            if self._header["is_md"]:
-                return self.get_md_energy(self.index)
-            else:
-                return self.get_energy(self.index)
-        except:
-            return
+        if self._header["is_md"]:
+            return self.get_md_energy(self.index)
+        else:
+            return self.get_energy(self.index)
 
     @lazyproperty
     def free_energy(self):
         """The free energy for the chunk"""
-        try:
-            if self._header(["is_md"]):
-                return self.get_md_potential(self.index)
-            else:
-                return self.get_energy(self.index)
-        except:
-            return
+        if self._header(["is_md"]):
+            return self.get_md_potential(self.index)
+        else:
+            return self.get_energy(self.index)
 
     @lazyproperty
     def eigenvalues(self):
         """The eigenvalues for the chunk"""
-        try:
-            return self.get_eigenvalues(self.index)[0]
-        except:
-            return np.full(
-                (self._header["n_spins"], self._header["n_k_points"], self._header["n_bands"]), np.nan)
+        return self.get_eigenvalues(self.index)[0]
 
     @lazyproperty
     def occupations(self):
         """The occupations for the chunk"""
-        try:
-            return self.get_eigenvalues(self.index)[1]
-        except:
-            return np.full(
-                (self._header["n_spins"], self._header["n_k_points"], self._header["n_bands"]), np.nan)
+        return self.get_eigenvalues(self.index)[1]
 
     @lazyproperty
     def kpts(self):
@@ -1009,10 +988,7 @@ class AbacusOutCalcChunk(AbacusOutChunk):
     @lazyproperty
     def E_f(self):
         """The Fermi energy for the chunk"""
-        try:
-            return self.get_efermi(self.index)
-        except:
-            return
+        return self.get_efermi(self.index)
 
     @lazyproperty
     def _ionic_block(self):
@@ -1027,7 +1003,7 @@ class AbacusOutCalcChunk(AbacusOutChunk):
 
         try:
             return float(magmom_pattern.findall(self._ionic_block)[-1])
-        except:
+        except IndexError:
             return
 
     @lazyproperty
@@ -1037,7 +1013,7 @@ class AbacusOutCalcChunk(AbacusOutChunk):
 
         try:
             return step_pattern.findall(self._ionic_block)[-1]
-        except:
+        except IndexError:
             return
 
     @lazyproperty
