@@ -767,10 +767,10 @@ class AbacusOutChunk:
 
     def get_md_steps(self):
         """Get steps of molecular dynamics"""
-        step_pattern = re.compile(r"STEP OF MOLECULAR DYNAMICS\s*:\s*\d+")
+        step_pattern = re.compile(r"STEP OF MOLECULAR DYNAMICS\s*:\s*(\d+)")
 
         try:
-            return list(map(step_pattern.findall()))
+            return list(map(int, step_pattern.findall(self.contents)))
         except:
             return
 
@@ -778,23 +778,15 @@ class AbacusOutChunk:
         """Create an atoms object for the subsequent structures
         calculated in the output file"""
         if is_md:
-            import os
-            from glob2 import glob
+            from pathlib import Path
 
-            # md_stru_file = os.path.join(
-            #     os.path.dirname(self.contents.name), f'STRU_MD_*')
-            # md_stru_dir = os.path.join(
-            #     os.path.dirname(self.contents.name), f'STRU')
-            # md_stru_dir_file = os.path.join(md_stru_dir, f'STRU_MD_*')
-            # if glob(md_stru_dir):
-            #     files = glob(md_stru_dir)
-            # elif glob(md_stru_file):
-            #     files = glob(md_stru_file)
-            # else:
-            #     raise FileNotFoundError(
-            #         f"Can't find {md_stru_file} or {md_stru_dir_file}")
-            # for i, file in enumerate(files):
-            #     md_atoms = read_abacus(open(file, 'r'))
+            out_pattern = re.compile(r"global_out_dir\s*=\s*([\s\S]+?)/")
+            out_dir = Path(out_pattern.search(self.contents).group(1))
+            _stru_dir = out_dir / 'STRU'
+            md_stru_dir = _stru_dir if _stru_dir.exists() else out_dir
+            atoms = read_abacus(
+                open(md_stru_dir / f'STRU_MD_{self.get_md_steps()[index]}', 'r'))
+
         else:
             labels, positions, mag, vel = self.get_site(index)
             if self.coordinate_system == 'CARTESIAN':
@@ -1127,7 +1119,7 @@ class AbacusOutCalcChunk(AbacusOutChunk):
     @lazyproperty
     def atoms(self):
         """Convert AimsOutChunk to Atoms object and add all non-standard outputs to atoms.info"""
-        atoms = self.get_atoms(self.index)
+        atoms = self.get_atoms(self.index, self._header['is_md'])
 
         calc = SinglePointDFTCalculator(
             atoms,
