@@ -495,7 +495,17 @@ class AbacusOutChunk:
             self.contents), (-1, 3, 3)).astype(float)
 
         if _lattice.shape[0] != self.ion_steps:
-            lattice = np.block(_lattice.tolist() * (self.ion_steps + 1))
+            lattice = np.zeros((self.ion_steps + 1, 3, 3), dtype=float)
+            _indices = np.where(self._parse_relaxation_convergency())[0]
+            for i in range(len(_indices)):
+                if i == 0:
+                    lattice[:_indices[i] + 1] = _lattice[i]
+                else:
+                    lattice[_indices[i - 1] + 1:_indices[i] + 1] = _lattice[i]
+            lattice[_indices[i] + 1] = _lattice[i]
+        else:
+            lattice = _lattice
+
         return lattice * alat
 
     @lazyproperty
