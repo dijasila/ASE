@@ -231,7 +231,7 @@ def write_abacus(fd,
 def read_abacus(fd, latname=None, verbose=False):
     """Read structure information from abacus structure file.
 
-    If `latname` is not None, 'LATTICE_VECTORS' should be removed in structure files of ABACUS. 
+    If `latname` is not None, 'LATTICE_VECTORS' should be removed in structure files of ABACUS.
     Allowed values: 'sc', 'fcc', 'bcc', 'hexagonal', 'trigonal', 'st', 'bct', 'so', 'baco', 'fco', 'bco', 'sm', 'bacm', 'triclinic'
 
     If `verbose` is True, pseudo-potential and basis will be output along with the Atoms object.
@@ -460,7 +460,7 @@ class AbacusOutChunk:
         Parameters
         ----------
         contents: str
-            The contents of the output file 
+            The contents of the output file
         """
         self.contents = contents
 
@@ -641,7 +641,7 @@ class AbacusOutHeaderChunk(AbacusOutChunk):
         Parameters
         ----------
         contents: str
-            The contents of the output file 
+            The contents of the output file
         """
         super().__init__(contents)
 
@@ -652,7 +652,7 @@ class AbacusOutHeaderChunk(AbacusOutChunk):
 
     @lazyproperty
     def initial_atoms(self):
-        """Create an atoms object for the initial structure from the 
+        """Create an atoms object for the initial structure from the
         header of the running_*.log file"""
         labels, positions, mag, vel = self._parse_site()[0]
         if self.coordinate_system == 'CARTESIAN':
@@ -831,27 +831,30 @@ class AbacusOutCalcChunk(AbacusOutChunk):
                 r'STATE ENERGY\(eV\) AND OCCUPATIONS\s*NSPIN\s*==\s*(\d+)', val_in).group(1))
             nks = int(
                 re.search(r'\d+/(\d+) kpoint \(Cartesian\)', val_in).group(1))
-            eigenvalues, occupations = [], []
+            eigenvalues = np.full(
+                (self._header['n_spins'], self._header['n_k_points'], self._header['n_bands']), np.nan)
+            occupations = np.full(
+                (self._header['n_spins'], self._header['n_k_points'], self._header['n_bands']), np.nan)
             if nspin in [1, 4]:
                 energies, occs = extract_data(
                     val_in)[:, 0, :], extract_data(val_in)[:, 1, :]
-                eigenvalues.append(energies)
-                occupations.append(occs)
+                eigenvalues[0] = energies
+                occupations[0] = occs
             elif nspin == 2:
                 val_up = re.search(
                     r'SPIN UP :([\s\S]+?)\n\nSPIN', val_in).group()
                 energies, occs = extract_data(
                     val_in)[:, 0, :], extract_data(val_up)[:, 1, :]
-                eigenvalues.append(energies)
-                occupations.append(occs)
+                eigenvalues[0] = energies
+                occupations[0] = occs
 
                 val_dw = re.search(
                     r'SPIN DOWN :([\s\S]+?)(?:\n\n\s*EFERMI|\n\n\n)', val_in).group()
                 energies, occs = extract_data(
                     val_in)[:, 0, :], extract_data(val_dw)[:, 1, :]
-                eigenvalues.append(energies)
-                occupations.append(occs)
-            return np.array(eigenvalues), np.array(occupations)
+                eigenvalues[1] = energies
+                occupations[1] = occs
+            return eigenvalues, occupations
 
         # NSCF
         def str_to_bandstructure(val_in):
@@ -864,28 +867,33 @@ class AbacusOutCalcChunk(AbacusOutChunk):
                 return np.asarray(list(map(func, [i for i in range(nks)])))
 
             nks = int(re.search(r'k\-points\d+\((\d+)\)', val_in).group(1))
-            eigenvalues, occupations = [], []
+            eigenvalues = np.full(
+                (self._header['n_spins'], self._header['n_k_points'], self._header['n_bands']), np.nan)
+            occupations = np.full(
+                (self._header['n_spins'], self._header['n_k_points'], self._header['n_bands']), np.nan)
             if re.search('spin up', val_in) and re.search('spin down', val_in):
                 val = re.search(r'spin up :\n([\s\S]+?)\n\n\n', val_in).group()
                 energies, occs = extract_data(
                     val)[:, 0, :], extract_data(val_in)[:, 1, :]
-                eigenvalues.append(energies[:int(nks / 2)])
-                eigenvalues.append(energies[int(nks / 2):])
-                occupations.append(occs[:int(nks / 2)])
-                occupations.append(occs[int(nks / 2):])
+                eigenvalues[0] = energies[:int(nks / 2)]
+                eigenvalues[1] = energies[int(nks / 2):]
+                occupations[0] = occs[:int(nks / 2)]
+                occupations[1] = occs[int(nks / 2):]
             else:
                 energies, occs = extract_data(
                     val_in)[:, 0, :], extract_data(val_in)[:, 1, :]
-                eigenvalues.append(energies)
-                occupations.append(occs)
-            return np.array(eigenvalues), np.array(occupations)
+                eigenvalues[0] = energies
+                occupations[0] = occs
+            return eigenvalues, occupations
 
         try:
             return str_to_energy_occupation(self._parse_eigenvalues()['scf'][self.index])
         except KeyError:
             return str_to_bandstructure(self._parse_eigenvalues()['nscf'][self.index])
         except IndexError:
-            return
+            return np.full(
+                (self._header['n_spins'], self._header['n_k_points'], self._header['n_bands']), np.nan), np.full(
+                (self._header['n_spins'], self._header['n_k_points'], self._header['n_bands']), np.nan)
 
     @lazymethod
     def get_energy(self):
@@ -1019,8 +1027,6 @@ class AbacusOutCalcChunk(AbacusOutChunk):
             return self.get_cell_relaxation_convergency()
         elif self._header["is_relaxation"]:
             return self.get_relaxation_convergency()
-        elif self._header["is_md"]:
-            return
         else:
             return "charge density convergence is achieved" in self.contents
 
@@ -1152,7 +1158,8 @@ def read_abacus_out(fd, index=-1, non_convergence_ok=False):
     relaxations, MD information, force information ..."""
     contents = fd.read()
     header_chunk = AbacusOutHeaderChunk(contents)
-    indices = _slice2indices(index, header_chunk.ion_steps)
+    _steps = header_chunk.ion_steps if header_chunk.ion_steps else 1
+    indices = _slice2indices(index, _steps)
     chunks = [AbacusOutCalcChunk(contents, header_chunk, i)
               for i in indices]
     if not non_convergence_ok and not chunks[-1].converged:
@@ -1167,7 +1174,8 @@ def read_abacus_results(fd, index=-1, non_convergence_ok=False):
     into a dictionary"""
     contents = fd.read()
     header_chunk = AbacusOutHeaderChunk(contents)
-    indices = _slice2indices(index, header_chunk.ion_steps)
+    _steps = header_chunk.ion_steps if header_chunk.ion_steps else 1
+    indices = _slice2indices(index, _steps)
     chunks = [AbacusOutCalcChunk(contents, header_chunk, i)
               for i in indices]
     if not non_convergence_ok and not chunks[-1].converged:
