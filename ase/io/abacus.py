@@ -494,7 +494,7 @@ class AbacusOutChunk:
         _lattice = np.reshape(cell_pattern.findall(
             self.contents), (-1, 3, 3)).astype(float)
 
-        if _lattice.shape[0] != self.ion_steps:
+        if self.ion_steps and _lattice.shape[0] != self.ion_steps:
             lattice = np.zeros((self.ion_steps + 1, 3, 3), dtype=float)
             _indices = np.where(self._parse_relaxation_convergency())[0]
             for i in range(len(_indices)):
