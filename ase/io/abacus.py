@@ -593,7 +593,9 @@ class AbacusOutChunk:
     @lazymethod
     def _parse_energy(self):
         """Parse the energy from the output file."""
-        energy_pattern = re.compile(rf'\s*final etot is\s*({_re_float})\s*eV')
+        _out_dir = self.out_dir.strip('/')
+        energy_pattern = re.compile(
+            rf'{_out_dir}\/\s*final etot is\s*({_re_float})\s*eV') if 'RELAX CELL' in self.contents else re.compile(rf'\s*final etot is\s*({_re_float})\s*eV')
 
         return energy_pattern.findall(self.contents)
 
@@ -640,6 +642,11 @@ class AbacusOutChunk:
             rf'Energy\s*Potential\s*Kinetic\s*Temperature\s*(?:Pressure \(KBAR\)\s*\n|\n)\s*({_re_float})\s*({_re_float})')
 
         return md_pattern.findall(self.contents)
+
+    @lazyproperty
+    def out_dir(self):
+        out_pattern = re.compile(r"global_out_dir\s*=\s*([\s\S]+?)/")
+        return out_pattern.search(self.contents).group(1)
 
 
 class AbacusOutHeaderChunk(AbacusOutChunk):
@@ -1113,9 +1120,7 @@ class AbacusOutCalcChunk(AbacusOutChunk):
         if self._header['is_md']:
             from pathlib import Path
 
-            out_pattern = re.compile(r"global_out_dir\s*=\s*([\s\S]+?)/")
-            out_dir = Path(out_pattern.search(self.contents).group(1))
-            _stru_dir = out_dir / 'STRU'
+            _stru_dir = Path(self.out_dir) / 'STRU'
             md_stru_dir = _stru_dir if _stru_dir.exists() else out_dir
             atoms = read_abacus(
                 open(md_stru_dir / f'STRU_MD_{self.get_md_steps()[self.index]}', 'r'))
