@@ -35,16 +35,12 @@ def test_abacus_C_volrelax(factory):
         out_files = glob('OUT.ABACUS/STRU_ION*_D')
         STRU_C = io.read(out_files[-1], format='abacus')
 
-        print('C cell post relaxation from calc:\n',
-              calc.get_atoms().get_cell())
-        print('C cell post relaxation from atoms:\n', C.get_cell())
-        print('C cell post relaxation from OUT.ABACUS:\n', STRU_C.get_cell())
+        r_C = io.read('OUT.ABACUS/running_cell-relax.log',
+                      format='abacus-out')
 
-        # Cl the cells should be the same.
-        assert (calc.get_atoms().get_cell() == STRU_C.get_cell()).all()
-        assert (C.get_cell() == STRU_C.get_cell()).all()
+        assert cells_almost_equal(r_C.get_cell(), STRU_C.get_cell())
 
-        return C
+        return r_C
 
     # -- Volume relaxation using ASE with Abacus as force/stress calculator
     def ase_vol_relax():
@@ -56,13 +52,10 @@ def test_abacus_C_volrelax(factory):
         with PreconLBFGS(C, logfile='relaxation.log') as qn:
             qn.run(fmax=0.1, smax=GPa)
 
-        print('Stress:\n', calc.read_stress())
-        print('C post ASE volume relaxation\n', calc.get_atoms().get_cell())
-
         return C
 
     # Test function for comparing two cells
-    def cells_almost_equal(cellA, cellB, tol=0.01):
+    def cells_almost_equal(cellA, cellB, tol=0.001):
         return (np.abs(cellA - cellB) < tol).all()
 
     C_abacus = abacus_vol_relax()
