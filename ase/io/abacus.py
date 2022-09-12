@@ -1224,7 +1224,7 @@ class AbacusOutCalcChunk(AbacusOutChunk):
             from pathlib import Path
 
             _stru_dir = Path(self.out_dir) / 'STRU'
-            md_stru_dir = _stru_dir if _stru_dir.exists() else self.out_dir
+            md_stru_dir = _stru_dir if _stru_dir.exists() else Path(self.out_dir)
             atoms = read_abacus(
                 open(md_stru_dir / f'STRU_MD_{self.get_md_steps()[self.index]}', 'r'))
 
