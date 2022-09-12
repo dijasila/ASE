@@ -10,7 +10,7 @@ calc = pytest.mark.calculator
 
 
 @calc('abacus')
-def test_abacus_C_volrelax(factory):
+def test_abacus_Al_volrelax(factory):
     """
     Run ABACUS tests to ensure that relaxation with the ABACUS calculator works.
 
@@ -24,44 +24,44 @@ def test_abacus_C_volrelax(factory):
 
     # -- Perform Volume relaxation within Vasp
     def abacus_vol_relax():
-        C = bulk('C')
+        Al = bulk('Al', 'fcc', a=4.5, cubic=True)
         calc = factory.calc(calculation='cell-relax', force_thr_ev=0.01,
                             stress_thr=10, cal_force=1, cal_stress=1, out_stru=1,
                             kpts=kpts, **input_param)
-        C.calc = calc
-        C.get_potential_energy()  # Execute
+        Al.calc = calc
+        Al.get_potential_energy()  # Execute
 
         # Explicitly parse atomic position output file from Abacus
         out_files = glob('OUT.ABACUS/STRU_ION*_D')
-        STRU_C = io.read(out_files[-1], format='abacus')
+        STRU_Al = io.read(out_files[-1], format='abacus')
 
-        r_C = io.read('OUT.ABACUS/running_cell-relax.log',
-                      format='abacus-out')
+        r_Al = io.read('OUT.ABACUS/running_cell-relax.log',
+                       format='abacus-out')
 
-        assert cells_almost_equal(r_C.get_cell(), STRU_C.get_cell())
+        assert cells_almost_equal(r_Al.get_cell(), STRU_Al.get_cell())
 
-        return r_C
+        return r_Al
 
     # -- Volume relaxation using ASE with Abacus as force/stress calculator
     def ase_vol_relax():
-        C = bulk('C', 'fcc', a=4.5, cubic=True)
+        Al = bulk('Al', 'fcc', a=4.5, cubic=True)
         calc = factory.calc(calculation='scf', cal_force=1, cal_stress=1, out_stru=1,
                             kpts=kpts, **input_param)
-        C.calc = calc
+        Al.calc = calc
 
-        with PreconLBFGS(C, logfile='relaxation.log') as qn:
+        with PreconLBFGS(Al, logfile='relaxation.log') as qn:
             qn.run(fmax=0.1, smax=GPa)
 
-        return C
+        return Al
 
     # Test function for comparing two cells
     def cells_almost_equal(cellA, cellB, tol=0.001):
         return (np.abs(cellA - cellB) < tol).all()
 
-    C_abacus = abacus_vol_relax()
-    C_ase = ase_vol_relax()
+    Al_abacus = abacus_vol_relax()
+    Al_ase = ase_vol_relax()
 
-    assert cells_almost_equal(C_ase.get_cell(), C_abacus.get_cell())
+    assert cells_almost_equal(Al_ase.get_cell(), Al_abacus.get_cell())
 
     # Cleanup
-    C_ase.calc.clean()
+    Al_ase.calc.clean()
