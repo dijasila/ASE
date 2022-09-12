@@ -49,8 +49,8 @@ def test_abacus_Al_volrelax(factory):
                             kpts=kpts, **input_param)
         Al.calc = calc
 
-        with PreconLBFGS(Al, logfile='relaxation.log') as qn:
-            qn.run(fmax=0.1, smax=GPa)
+        with PreconLBFGS(Al, logfile='relaxation.log', variable_cell=True, precon="Exp") as qn:
+            qn.run(fmax=0.1, smax=0.05)
 
         return Al
 
