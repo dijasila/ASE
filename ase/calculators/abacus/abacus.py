@@ -133,7 +133,7 @@ class AbacusTemplate(CalculatorTemplate):
         from ase.io.abacus import read_abacus_results
 
         path = directory / ('OUT.' + self.out_suffix)
-        return read_abacus_results(open(path / f'running_{self.cal_name}.log', 'r'), index=-1)
+        return read_abacus_results(open(path / f'running_{self.cal_name}.log', 'r'), index=-1)[0]
 
 
 class Abacus(GenericFileIOCalculator):
