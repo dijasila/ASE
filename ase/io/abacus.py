@@ -713,10 +713,8 @@ class AbacusOutCalcChunk(AbacusOutChunk):
         if self._header['is_relaxation']:
             return [self.initial_cell for i in range(self.ion_steps)]
         elif self._header['is_cell_relaxation']:
-            a0_pattern_str = rf'lattice constant \(Angstrom\)\s*=\s*({_re_float})'
             cell_pattern = re.compile(
                 rf'Lattice vectors: \(Cartesian coordinate: in unit of a_0\)\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n\s*({_re_float})\s*({_re_float})\s*({_re_float})\n')
-            alat = self.parse_scalar(a0_pattern_str)
             _lattice = np.reshape(cell_pattern.findall(
                 self.contents), (-1, 3, 3)).astype(float)
             if self.ion_steps and _lattice.shape[0] != self.ion_steps:
