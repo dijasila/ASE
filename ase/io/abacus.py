@@ -7,6 +7,8 @@ Modified on Wed Aug 01 11:44:51 2022
 @author: Ji Yu-yang
 """
 
+from importlib.resources import contents
+from operator import index
 import re
 import warnings
 import numpy as np
@@ -530,36 +532,8 @@ class AbacusOutChunk:
         pos_pattern = re.compile(
             rf'(CARTESIAN COORDINATES \( UNIT = {_re_float} Bohr \)\.+\n\s*atom\s*x\s*y\s*z\s*mag(\s*vx\s*vy\s*vz\s*|\s*)\n[\s\S]+?)\n\n|(DIRECT COORDINATES\n\s*atom\s*x\s*y\s*z\s*mag(\s*vx\s*vy\s*vz\s*|\s*)\n[\s\S]+?)\n\n')
 
-        def str_to_sites(val_in):
-            val = np.array(val_in)
-            labels = val[:, 0]
-            pos = val[:, 1:4].astype(float)
-            if val.shape[1] == 5:
-                mag = val[:, 4].astype(float)
-                vel = np.zeros((3, ), dtype=float)
-            elif val.shape[1] == 8:
-                mag = val[:, 4].astype(float)
-                vel = val[:, 5:8].astype(float)
-            return labels, pos, mag, vel
-
-        def parse_block(pos_block):
-            data = list(pos_block)
-            _remove_empty(data)
-            site = list(map(list, site_pattern.findall(data[0])))
-            list(map(_remove_empty, site))
-            labels, pos, mag, vel = str_to_sites(site)
-            if self.coordinate_system == 'CARTESIAN':
-                unit = float(unit_pattern.search(self.contents).group(1)) * Bohr
-                positions = pos * unit
-            elif self.coordinate_system == 'DIRECT':
-                positions = pos
-            return labels, positions, mag, vel
-
-        site_pattern = re.compile(
-            rf'tau[cd]_([a-zA-Z]+)\d+\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})|tau[cd]_([a-zA-Z]+)\d+\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})')
-        unit_pattern = re.compile(rf'UNIT = ({_re_float}) Bohr')
-
-        return list(map(parse_block, pos_pattern.findall(self.contents)))
+        return pos_pattern.findall(self.contents)
+        # return list(map(parse_block, pos_pattern.findall(self.contents)))
 
     @lazymethod
     def _parse_forces(self):
@@ -595,7 +569,7 @@ class AbacusOutChunk:
         """Parse the energy from the output file."""
         _out_dir = self.out_dir.strip('/')
         energy_pattern = re.compile(
-            rf'{_out_dir}\/\s*final etot is\s*({_re_float})\s*eV') if 'RELAX CELL' in self.contents else re.compile(rf'\s*final etot is\s*({_re_float})\s*eV')
+            rf'{_out_dir}\/\s*final etot is\s*({_re_float})\s*eV') if 'STEP OF ION RELAXATION' in self.contents or 'RELAX CELL' in self.contents else re.compile(rf'\s*final etot is\s*({_re_float})\s*eV')
 
         return energy_pattern.findall(self.contents)
 
@@ -668,10 +642,43 @@ class AbacusOutHeaderChunk(AbacusOutChunk):
         return self._parse_cells()[0]
 
     @lazyproperty
+    def initial_site(self):
+        def str_to_sites(val_in):
+            val = np.array(val_in)
+            labels = val[:, 0]
+            pos = val[:, 1:4].astype(float)
+            if val.shape[1] == 5:
+                mag = val[:, 4].astype(float)
+                vel = np.zeros((3, ), dtype=float)
+            elif val.shape[1] == 8:
+                mag = val[:, 4].astype(float)
+                vel = val[:, 5:8].astype(float)
+            return labels, pos, mag, vel
+
+        def parse_block(pos_block):
+            data = list(pos_block)
+            _remove_empty(data)
+            site = list(map(list, site_pattern.findall(data[0])))
+            list(map(_remove_empty, site))
+            labels, pos, mag, vel = str_to_sites(site)
+            if self.coordinate_system == 'CARTESIAN':
+                unit = float(unit_pattern.search(self.contents).group(1)) * Bohr
+                positions = pos * unit
+            elif self.coordinate_system == 'DIRECT':
+                positions = pos
+            return labels, positions, mag, vel
+
+        site_pattern = re.compile(
+            rf'tau[cd]_([a-zA-Z]+)\d+\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})|tau[cd]_([a-zA-Z]+)\d+\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})')
+        unit_pattern = re.compile(rf'UNIT = ({_re_float}) Bohr')
+
+        return parse_block(self._parse_site()[0])
+
+    @lazyproperty
     def initial_atoms(self):
         """Create an atoms object for the initial structure from the
         header of the running_*.log file"""
-        labels, positions, mag, vel = self._parse_site()[0]
+        labels, positions, mag, vel = self.initial_site
         if self.coordinate_system == 'CARTESIAN':
             atoms = Atoms(symbols=labels, positions=positions,
                           cell=self.initial_cell, pbc=True, velocities=vel)
@@ -803,6 +810,40 @@ class AbacusOutCalcChunk(AbacusOutChunk):
         self.index = index
 
     @lazymethod
+    def get_site(self):
+        """Get site from the output file according to index"""
+        def str_to_sites(val_in):
+            val = np.array(val_in)
+            labels = val[:, 0]
+            pos = val[:, 1:4].astype(float)
+            if val.shape[1] == 5:
+                mag = val[:, 4].astype(float)
+                vel = np.zeros((3, ), dtype=float)
+            elif val.shape[1] == 8:
+                mag = val[:, 4].astype(float)
+                vel = val[:, 5:8].astype(float)
+            return labels, pos, mag, vel
+
+        def parse_block(pos_block):
+            data = list(pos_block)
+            _remove_empty(data)
+            site = list(map(list, site_pattern.findall(data[0])))
+            list(map(_remove_empty, site))
+            labels, pos, mag, vel = str_to_sites(site)
+            if self.coordinate_system == 'CARTESIAN':
+                unit = float(unit_pattern.search(self.contents).group(1)) * Bohr
+                positions = pos * unit
+            elif self.coordinate_system == 'DIRECT':
+                positions = pos
+            return labels, positions, mag, vel
+
+        site_pattern = re.compile(
+            rf'tau[cd]_([a-zA-Z]+)\d+\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})|tau[cd]_([a-zA-Z]+)\d+\s+({_re_float})\s+({_re_float})\s+({_re_float})\s+({_re_float})')
+        unit_pattern = re.compile(rf'UNIT = ({_re_float}) Bohr')
+
+        return parse_block(self._parse_site()[self.index])
+
+    @lazymethod
     def get_forces(self):
         """Get forces from the output file according to index"""
         def str_to_force(val_in):
@@ -812,8 +853,15 @@ class AbacusOutCalcChunk(AbacusOutChunk):
                 data.append(np.array(v[1:], dtype=float))
             return np.array(data)
 
+        _index = self.index
+        if self._header['is_relaxation'] or self._header['is_cell_relaxation']:
+            if self.index == 0 or self.index == -(self.ion_steps + 1):
+                return
+            elif self.index > 0:
+                _index = self.index - 1
+
         try:
-            forces = self._parse_forces()[self.index]
+            forces = self._parse_forces()[_index]
             return str_to_force(forces)
         except IndexError:
             return
@@ -823,9 +871,16 @@ class AbacusOutCalcChunk(AbacusOutChunk):
         """Get the stress from the output file according to index"""
         from ase.stress import full_3x3_to_voigt_6_stress
 
+        _index = self.index
+        if self._header['is_relaxation'] or self._header['is_cell_relaxation']:
+            if self.index == 0 or self.index == -(self.ion_steps + 1):
+                return
+            elif self.index > 0:
+                _index = self.index - 1
+
         try:
             stress = -0.1 * GPa * \
-                np.array(self._parse_stress()[self.index]).reshape(
+                np.array(self._parse_stress()[_index]).reshape(
                     (3, 3)).astype(float)
             return full_3x3_to_voigt_6_stress(stress)
         except IndexError:
@@ -903,10 +958,19 @@ class AbacusOutCalcChunk(AbacusOutChunk):
                 occupations[0] = occs
             return eigenvalues, occupations
 
+        _index = self.index
+        if self._header['is_relaxation'] or self._header['is_cell_relaxation']:
+            if self.index == 0 or self.index == -(self.ion_steps + 1):
+                return np.full(
+                    (self._header['n_spins'], self._header['n_k_points'], self._header['n_bands']), np.nan), np.full(
+                    (self._header['n_spins'], self._header['n_k_points'], self._header['n_bands']), np.nan)
+            elif self.index > 0:
+                _index = self.index - 1
+
         try:
-            return str_to_energy_occupation(self._parse_eigenvalues()['scf'][self.index])
+            return str_to_energy_occupation(self._parse_eigenvalues()['scf'][_index])
         except KeyError:
-            return str_to_bandstructure(self._parse_eigenvalues()['nscf'][self.index])
+            return str_to_bandstructure(self._parse_eigenvalues()['nscf'][_index])
         except IndexError:
             return np.full(
                 (self._header['n_spins'], self._header['n_k_points'], self._header['n_bands']), np.nan), np.full(
@@ -915,30 +979,54 @@ class AbacusOutCalcChunk(AbacusOutChunk):
     @lazymethod
     def get_energy(self):
         """Get the energy from the output file according to index."""
+        _index = self.index
+        if self._header['is_relaxation'] or self._header['is_cell_relaxation']:
+            if self.index == 0 or self.index == -(self.ion_steps + 1):
+                return
+            elif self.index > 0:
+                _index = self.index - 1
+
         try:
-            return float(self._parse_energy()[self.index])
+            return float(self._parse_energy()[_index])
         except IndexError:
             return
 
     @lazymethod
     def get_efermi(self):
         """Get the Fermi energy from the output file according to index."""
+        _index = self.index
+        if self._header['is_relaxation'] or self._header['is_cell_relaxation']:
+            if self.index == 0 or self.index == -(self.ion_steps + 1):
+                return
+            elif self.index > 0:
+                _index = self.index - 1
+
         try:
-            return float(self._parse_efermi()[self.index])
+            return float(self._parse_efermi()[_index])
         except IndexError:
             return
 
     @lazymethod
     def get_relaxation_convergency(self):
         """Get the convergency of atomic position optimization from the output file"""
-
-        return self._parse_relaxation_convergency()[self.index]
+        _index = self.index
+        if self._header['is_relaxation']:
+            if self.index == 0 or self.index == -(self.ion_steps + 1):
+                return
+            elif self.index > 0:
+                _index = self.index - 1
+        return self._parse_relaxation_convergency()[_index]
 
     @lazymethod
     def get_cell_relaxation_convergency(self):
         """Get the convergency of variable cell optimization from the output file"""
-
-        return self._parse_cell_relaxation_convergency()[self.index]
+        _index = self.index
+        if self._header['is_cell_relaxation']:
+            if self.index == 0 or self.index == -(self.ion_steps + 1):
+                return
+            elif self.index > 0:
+                _index = self.index - 1
+        return self._parse_cell_relaxation_convergency()[_index]
 
     @lazymethod
     def get_md_energy(self):
@@ -1014,13 +1102,24 @@ class AbacusOutCalcChunk(AbacusOutChunk):
     @lazyproperty
     def _ionic_block(self):
         """The ionic block for the chunk"""
-        return self._parse_ionic_block()[self.index]
+        _index = self.index
+        if self._header['is_relaxation'] or self._header['is_cell_relaxation']:
+            if self.index == 0 or self.index == -(self.ion_steps + 1):
+                return
+            elif self.index > 0:
+                _index = self.index - 1
+
+        return self._parse_ionic_block()[_index]
 
     @lazyproperty
     def magmom(self):
         """The Fermi energy for the chunk"""
         magmom_pattern = re.compile(
             rf"total magnetism \(Bohr mag/cell\)\s*=\s*({_re_float})")
+
+        if self._header['is_relaxation'] or self._header['is_cell_relaxation']:
+            if self.index == 0 or self.index == -(self.ion_steps + 1):
+                return
 
         try:
             return float(magmom_pattern.findall(self._ionic_block)[-1])
@@ -1031,6 +1130,10 @@ class AbacusOutCalcChunk(AbacusOutChunk):
     def n_iter(self):
         """The number of SCF iterations needed to converge the SCF cycle for the chunk"""
         step_pattern = re.compile(rf"ELEC\s*=\s*[+]?(\d+)")
+
+        if self._header['is_relaxation'] or self._header['is_cell_relaxation']:
+            if self.index == 0 or self.index == -(self.ion_steps + 1):
+                return
 
         try:
             return step_pattern.findall(self._ionic_block)[-1]
@@ -1121,22 +1224,23 @@ class AbacusOutCalcChunk(AbacusOutChunk):
             from pathlib import Path
 
             _stru_dir = Path(self.out_dir) / 'STRU'
-            md_stru_dir = _stru_dir if _stru_dir.exists() else out_dir
+            md_stru_dir = _stru_dir if _stru_dir.exists() else self.out_dir
             atoms = read_abacus(
                 open(md_stru_dir / f'STRU_MD_{self.get_md_steps()[self.index]}', 'r'))
 
         else:
             # for (cell) relaxation n_sites / n_cells = n_properties(force, energy, ...) + 1
-            start_index = 1 if self._header['is_relaxation'] or self._header['is_cell_relaxation'] else 0
-
-            labels, positions, mag, vel = self._parse_site()[
-                start_index:][self.index]
+            labels, positions, mag, vel = self.get_site()
             if self.coordinate_system == 'CARTESIAN':
                 atoms = Atoms(symbols=labels, positions=positions,
-                              cell=self._parse_cells()[start_index:][self.index], pbc=True, velocities=vel)
+                              cell=self._parse_cells()[self.index], pbc=True, velocities=vel)
             elif self.coordinate_system == 'DIRECT':
                 atoms = Atoms(symbols=labels, scaled_positions=positions,
-                              cell=self._parse_cells()[start_index:][self.index], pbc=True, velocities=vel)
+                              cell=self._parse_cells()[self.index], pbc=True, velocities=vel)
+
+        if self._header['is_relaxation'] or self._header['is_cell_relaxation']:
+            if self.index == 0 or self.index == -(self.ion_steps + 1):
+                return atoms
 
         calc = SinglePointDFTCalculator(
             atoms,
@@ -1173,7 +1277,7 @@ def read_abacus_out(fd, index=-1, non_convergence_ok=False):
     relaxations, MD information, force information ..."""
     contents = fd.read()
     header_chunk = AbacusOutHeaderChunk(contents)
-    _steps = header_chunk.ion_steps if header_chunk.ion_steps else 1
+    _steps = header_chunk.ion_steps + 1 if header_chunk.ion_steps else 1
     indices = _slice2indices(index, _steps)
     chunks = [AbacusOutCalcChunk(contents, header_chunk, i)
               for i in indices]
@@ -1189,7 +1293,7 @@ def read_abacus_results(fd, index=-1, non_convergence_ok=False):
     into a dictionary"""
     contents = fd.read()
     header_chunk = AbacusOutHeaderChunk(contents)
-    _steps = header_chunk.ion_steps if header_chunk.ion_steps else 1
+    _steps = header_chunk.ion_steps + 1 if header_chunk.ion_steps else 1
     indices = _slice2indices(index, _steps)
     chunks = [AbacusOutCalcChunk(contents, header_chunk, i)
               for i in indices]
