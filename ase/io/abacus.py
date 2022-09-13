@@ -50,6 +50,7 @@ def read_ase_stru(stru=None, coordinates_type="Cartesian"):
             atoms_magnetism.append(0)
 
         # get position, masses, magnetism from ase atoms
+        # TODO: property 'magmoms' is not implemented in ABACUS
         if coordinates_type == 'Cartesian':
             for i in range(len(atoms_list)):
                 for j in range(len(atoms_all)):
@@ -57,8 +58,7 @@ def read_ase_stru(stru=None, coordinates_type="Cartesian"):
                         atoms_position[i].append(list(
                             stru.get_positions()[j]))
                         atoms_masses[i] = stru.get_masses()[j]
-                        atoms_magnetism[i] += np.linalg.norm(
-                            stru.get_initial_magnetic_moments()[j])
+                        atoms_magnetism[i] += np.linalg.norm(stru[j].magmom)
 
         elif coordinates_type == 'Direct':
             for i in range(len(atoms_list)):
@@ -67,8 +67,7 @@ def read_ase_stru(stru=None, coordinates_type="Cartesian"):
                         atoms_position[i].append(list(
                             stru.get_scaled_positions()[j]))
                         atoms_masses[i] = stru.get_masses()[j]
-                        atoms_magnetism[i] += np.linalg.norm(
-                            stru.get_initial_magnetic_moments()[j])
+                        atoms_magnetism[i] += np.linalg.norm(stru[j].magmom)
 
         else:
             raise ValueError("'coordinates_type' is ERROR,"
@@ -148,8 +147,6 @@ def write_input_stru_core(fd,
         fd.write(coordinates_type)
         fd.write('\n')
         fd.write('\n')
-        vel = stru.get_velocities()   # velocity in unit A/fs ?
-        # mag = stru.get_magnetic_moments()
         for i in range(len(atoms_list)):
             fd.write(atoms_list[i])
             fd.write('\n')
@@ -167,13 +164,13 @@ def write_input_stru_core(fd,
                     atoms_position[i][j][2])) + ' '
                 sym_pos = temp4 + temp5 + temp6 + \
                     f'{fix[j][0]:.0f} {fix[j][1]:.0f} {fix[j][2]:.0f} '
-                if init_vel:
-                    sym_pos += f'v {vel[j][0]} {vel[j][1]} {vel[j][2]} '
-                # if set_mag:
-                #     if isinstance(mag[j], list):
-                #         sym_pos += f'mag {mag[j][0]} {mag[j][1]} {mag[j][2]} '
-                #     else:
-                #         sym_pos += f'mag {mag[j]} '
+                if init_vel:   # velocity in unit A/fs ?
+                    sym_pos += f'v {stru.get_velocities()[j][0]} {stru.get_velocities()[j][1]} {stru.get_velocities()[j][2]} '
+                if stru[j].magmom:
+                    if isinstance(stru[j].magmom, list):
+                        sym_pos += f'mag {stru[j].magmom[0]} {stru[j].magmom[1]} {stru[j].magmom[2]} '
+                    else:
+                        sym_pos += f'mag {stru[j].magmom} '
                 fd.write(sym_pos)
                 fd.write('\n')
             fd.write('\n')
