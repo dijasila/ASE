@@ -102,7 +102,10 @@ def write_input_stru_core(fd,
     else:
         fd.write('ATOMIC_SPECIES\n')
         for i, elem in enumerate(atoms_list):
-            pseudofile = pp[elem]
+            if pp:
+                pseudofile = pp.get(elem, '')
+            else:
+                pseudofile = ''
             temp1 = ' ' * (4 - len(atoms_list[i]))
             temp2 = ' ' * (14 - len(str(atoms_masses[i])))
             atomic_species = (atoms_list[i] + temp1
@@ -112,7 +115,7 @@ def write_input_stru_core(fd,
             fd.write(atomic_species)
             fd.write('\n')
 
-        if basis is not None:
+        if basis:
             fd.write('\n')
             fd.write('NUMERICAL_ORBITAL\n')
             for i, elem in enumerate(atoms_list):
@@ -120,7 +123,7 @@ def write_input_stru_core(fd,
                 fd.write(orbitalfile)
                 fd.write('\n')
 
-        if offsite_basis is not None:
+        if offsite_basis:
             fd.write('\n')
             fd.write('ABFS_ORBITAL\n')
             for i, elem in enumerate(atoms_list):
@@ -248,9 +251,12 @@ def read_abacus(fd, latname=None, verbose=False):
     specie_lines = np.array(
         [line.split() for line in specie_pattern.search(contents).group(1).split('\n')])
     symbols = specie_lines[:, 0]
-    atom_mass = specie_lines[:, 1].astype(float)
-    atom_potential = specie_lines[:, 2]
     ntype = len(symbols)
+    atom_mass = specie_lines[:, 1].astype(float)
+    try:
+        atom_potential = specie_lines[:, 2]
+    except IndexError:
+        atom_potential = [''] * ntype
 
     # basis
     aim_title = 'NUMERICAL_ORBITAL'
