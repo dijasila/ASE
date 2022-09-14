@@ -170,10 +170,10 @@ def write_input_stru_core(fd,
                 if init_vel:   # velocity in unit A/fs ?
                     sym_pos += f'v {stru.get_velocities()[j][0]} {stru.get_velocities()[j][1]} {stru.get_velocities()[j][2]} '
                 if stru[j].magmom:
-                    if isinstance(stru[j].magmom, list):
+                    if len(stru[j].magmom) == 3:
                         sym_pos += f'mag {stru[j].magmom[0]} {stru[j].magmom[1]} {stru[j].magmom[2]} '
-                    else:
-                        sym_pos += f'mag {stru[j].magmom} '
+                    elif stru[j].magmom == 1:
+                        sym_pos += f'mag {stru[j].magmom[0]} '
                 fd.write(sym_pos)
                 fd.write('\n')
             fd.write('\n')
