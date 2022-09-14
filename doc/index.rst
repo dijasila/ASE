@@ -37,7 +37,7 @@ BFGS:   3  19:10:51    -31.492848     0.0023
 Supported :mod:`Calculators <ase.calculators>`
 ==============================================
 
-|abinit| |Asap| |Atomistica| |BigDFT| |CASTEP| |CP2K| |CRYSTAL| |deMon| |dftb|
+|abacus| |abinit| |Asap| |Atomistica| |BigDFT| |CASTEP| |CP2K| |CRYSTAL| |deMon| |dftb|
 |dftd4| |DFTK| |elk| |exciting| |EMT|
 |fhi-aims| |fleur| |gamess_us| |gpaw| |gromacs|
 |hotbit| |jdftx| |kim| |lammps| |nwchem|
@@ -194,6 +194,9 @@ Contents
     faq
     ASE Workshop 2019 <workshop/workshop>
 
+.. |abacus| image:: static/abacus.png
+   :target: ase/calculators/abacus.html
+   :align: middle
 .. |abinit| image:: static/abinit.png
    :target: ase/calculators/abinit.html
    :align: middle
