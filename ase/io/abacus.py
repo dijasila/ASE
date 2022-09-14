@@ -170,7 +170,13 @@ def write_input_stru_core(fd,
                 if init_vel:   # velocity in unit A/fs ?
                     sym_pos += f'v {stru.get_velocities()[j][0]} {stru.get_velocities()[j][1]} {stru.get_velocities()[j][2]} '
                 if stru[j].magmom:
-                    if len(stru[j].magmom) == 3:
+                    if isinstance(stru[j].magmom, float):
+                        if len(stru) == 1:
+                            sym_pos += f'mag {stru[j].magmom} '
+                        else:
+                            raise ValueError(
+                                "If the number of Atom objects is larger than one, magnetic moment of each atom can not be obtained by ABACUS at present.")
+                    elif len(stru[j].magmom) == 3:
                         sym_pos += f'mag {stru[j].magmom[0]} {stru[j].magmom[1]} {stru[j].magmom[2]} '
                     elif stru[j].magmom == 1:
                         sym_pos += f'mag {stru[j].magmom[0]} '
