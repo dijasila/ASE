@@ -175,7 +175,7 @@ def write_input_stru_core(fd,
                             sym_pos += f'mag {stru[j].magmom} '
                         else:
                             raise ValueError(
-                                "If the number of Atom objects is larger than one, magnetic moment of each atom can not be obtained by ABACUS at present.")
+                                "If the number of Atom objects is larger than one, magnetic moment of each atom can not be obtained by ABACUS at present. One should set `mag` flags in ABACUS 'STRU' file.")
                     elif len(stru[j].magmom) == 3:
                         sym_pos += f'mag {stru[j].magmom[0]} {stru[j].magmom[1]} {stru[j].magmom[2]} '
                     elif stru[j].magmom == 1:
