@@ -37,7 +37,7 @@ The input parameters can be set like::
 
 in which ``pp`` is a dict of pseudopotentials for involved elememts, such as ``pp={'Al':'Al_ONCV_PBE-1.0.upf',...}``; ``basis`` is a dict of orbital files, such as ``basis={'Al':'Al_gga_10au_100Ry_4s4p1d.orb'}``; ``kpts`` is a parameter used to set k-grids.
 
-The command to run jobs can set by specifying ``AbacusProfile``::
+The command to run jobs can be set by specifying ``AbacusProfile``::
 
   from ase.calculators.abacus import AbacusProfile
   abacus = '/usr/local/bin/abacus'
