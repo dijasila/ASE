@@ -55,7 +55,11 @@ keyword          description
                   functional
 ``kpts``          a tuple (or list) of 3 integers ``kpts=(int, int, int)``, 
                   it is interpreted as the dimensions of a Monkhorst-Pack 
-                  grid. Some other parameters for k-grid settings
+                  grid, when ``kmode`` is ``Gamma`` or ``MP``. It is 
+                  interpreted as k-points, when ``kmode`` is ``Direct``,
+                  ``Cartesian`` or ``Line``, and ``knumber`` should also
+                  be set in these modes to denote the number of k-points.
+                  Some other parameters for k-grid settings:
                   including ``koffset`` and ``kspacing``.
 ===============  ====================================================
 
