@@ -27,6 +27,10 @@ For pw calculations, only ``ABACUS_PP_PATH`` is needed. For LCAO and LCAO-in-pw 
 ABACUS Calculator
 =================
 
+The default initialization command for the ABACUS calculator is
+
+.. autoclass:: Abacus
+
 The ABACUS calculator can be imported through::
 
   from ase.calculators.abacus import Abacus
@@ -35,7 +39,11 @@ The input parameters can be set like::
 
   calc = Abacus(profile=profile, ntype=1, ecutwfc=50, scf_nmax=50, smearing_method='gaussian', smearing_sigma=0.01, basis_type='pw', ks_solver='cg', calculation='scf' pp=pp, basis=basis, kpts=kpts)
 
-in which ``pp`` is a dict of pseudopotentials for involved elememts, such as ``pp={'Al':'Al_ONCV_PBE-1.0.upf',...}``; ``basis`` is a dict of orbital files, such as ``basis={'Al':'Al_gga_10au_100Ry_4s4p1d.orb'}``; ``kpts`` is a parameter used to set k-grids.
+in which ``pp`` is a dict of pseudopotentials for involved elememts, such as ``pp={'Al':'Al_ONCV_PBE-1.0.upf',...}``; ``basis`` is a dict of orbital files, such as ``basis={'Al':'Al_gga_10au_100Ry_4s4p1d.orb'}``; 
+``kpts`` is a parameter used to set k-grids: 
+ * If ``kpts`` is a tuple (or list) of 3 integers ``kpts=(int, int, int)``, it is interpreted  as the dimensions of a Monkhorst-Pack grid.
+ * ``koffset=(0, 0, 0)`` shift of the k-grids.
+ * ``kspacing=0.1`` set the smallest allowed spacing between k points, unit in 1/bohr.
 
 The command to run jobs can be set by specifying ``AbacusProfile``::
 
@@ -48,5 +56,3 @@ in which ``abacus`` sets the absolute path of the ``abacus`` executable.
 For more information on pseudopotentials and numperical orbitals, please visit ABACUS_. The elaboration of input parameters can be found here_.
 
 .. _here: https://github.com/deepmodeling/abacus-develop/blob/develop/docs/input-main.md
-
-
