@@ -59,7 +59,7 @@ keyword          description
                   including ``koffset`` and ``kspacing``.
 ===============  ====================================================
 
-For more information on pseudopotentials and numperical orbitals, please visit ABACUS_. The elaboration of input parameters can be found here_.
+For more information on pseudopotentials and numerical orbitals, please visit ABACUS_. The elaboration of input parameters can be found here_.
 
 .. _here: https://github.com/deepmodeling/abacus-develop/blob/develop/docs/input-main.md
 
