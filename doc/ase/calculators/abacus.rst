@@ -32,6 +32,7 @@ The default initialization command for the ABACUS calculator is
 .. autoclass:: ase.calculators.abacus.Abacus
 
 In order to run a calculation, you have to ensure that at least the following parameters are specified, either in the initialization or as environment variables:
+
 ===============  ====================================================
 keyword          description
 ===============  ====================================================
