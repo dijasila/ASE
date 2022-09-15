@@ -29,21 +29,42 @@ ABACUS Calculator
 
 The default initialization command for the ABACUS calculator is
 
-.. autoclass:: Abacus
+.. autoclass:: ase.calculators.abacus.Abacus
 
-The ABACUS calculator can be imported through::
+In order to run a calculation, you have to ensure that at least the following parameters are specified, either in the initialization or as environment variables:
+===============  ====================================================
+keyword          description
+===============  ====================================================
+``pp``            dict of pseudopotentials for involved elememts, 
+                  such as ``pp={'Al':'Al_ONCV_PBE-1.0.upf',...}``.
+``pseudo_dir``    directory where the pseudopotential are located, 
+                  Can also be specified with the ``ABACUS_PP_PATH``
+                  environment variable. Default: ``pseudo_dir=./``.
+``basis``         dict of orbital files for involved elememts, such as 
+                  ``basis={'Al':'Al_gga_10au_100Ry_4s4p1d.orb'}``.
+                  It must be set if you want to do LCAO and LCAO-in-pw 
+                  calculations. But for pw calculations, it can be omitted.
+``basis_dir``     directory where the orbital files are located, 
+                  Can also be specified with the ``ABACUS_ORBITAL_PATH``
+                  environment variable. Default: ``basis_dir=./``.
+``xc``            which exchange-correlation functional is used.
+                  An alternative way to set this parameter is via
+                  seting ``dft_functional`` which is an ABACUS
+                  parameter used to specify exchange-correlation 
+                  functional
+``kpts``          a tuple (or list) of 3 integers ``kpts=(int, int, int)``, 
+                  it is interpreted as the dimensions of a Monkhorst-Pack 
+                  grid. Some other parameters for k-grid settings
+                  including ``koffset`` and ``kspacing``.
+===============  ====================================================
 
-  from ase.calculators.abacus import Abacus
+For more information on pseudopotentials and numperical orbitals, please visit ABACUS_. The elaboration of input parameters can be found here_.
+
+.. _here: https://github.com/deepmodeling/abacus-develop/blob/develop/docs/input-main.md
 
 The input parameters can be set like::
 
   calc = Abacus(profile=profile, ntype=1, ecutwfc=50, scf_nmax=50, smearing_method='gaussian', smearing_sigma=0.01, basis_type='pw', ks_solver='cg', calculation='scf' pp=pp, basis=basis, kpts=kpts)
-
-in which ``pp`` is a dict of pseudopotentials for involved elememts, such as ``pp={'Al':'Al_ONCV_PBE-1.0.upf',...}``; ``basis`` is a dict of orbital files, such as ``basis={'Al':'Al_gga_10au_100Ry_4s4p1d.orb'}``; 
-``kpts`` is a parameter used to set k-grids: 
- * If ``kpts`` is a tuple (or list) of 3 integers ``kpts=(int, int, int)``, it is interpreted  as the dimensions of a Monkhorst-Pack grid.
- * ``koffset=(0, 0, 0)`` shift of the k-grids.
- * ``kspacing=0.1`` set the smallest allowed spacing between k points, unit in 1/bohr.
 
 The command to run jobs can be set by specifying ``AbacusProfile``::
 
@@ -52,7 +73,3 @@ The command to run jobs can be set by specifying ``AbacusProfile``::
   profile = AbacusProfile(argv=['mpirun','-n','2',abacus])
 
 in which ``abacus`` sets the absolute path of the ``abacus`` executable.
-
-For more information on pseudopotentials and numperical orbitals, please visit ABACUS_. The elaboration of input parameters can be found here_.
-
-.. _here: https://github.com/deepmodeling/abacus-develop/blob/develop/docs/input-main.md
