@@ -9,7 +9,7 @@ from ase.units import GPa
 
 import pytest
 
-eps_hp = 1e-15  # The espsilon value used to compare numbers that are high-precision
+eps_hp = 1e-10  # The espsilon value used to compare numbers that are high-precision
 eps_lp = 1e-7  # The espsilon value used to compare numbers that are low-precision
 
 
@@ -40,8 +40,8 @@ def default_chunk():
 
 
 def test_search_parse_scalar(default_chunk):
-    assert default_chunk.parse_scalar(r"TOTAL ATOM NUMBER = (\d+)") == 200
-    assert default_chunk.parse_scalar(r"ntype = (\d+)") is None
+    assert default_chunk.parse_scalar(r"TOTAL ATOM NUMBER = (\d+)") == 2
+    assert int(default_chunk.parse_scalar(r"ntype = (\d+)")) == 1
 
 
 def test_coordinate_system(default_chunk):
@@ -54,7 +54,7 @@ def initial_cell():
         [
             [4.12959, -0.005768, -0.002402],
             [0.00403, 3.87003, -0.001863],
-            [-0.000266, -0.001379, 4.1403],
+            [-0.000266, -0.001379, 4.14035],
         ]
     )
 
@@ -71,7 +71,7 @@ def initial_positions():
 
 @pytest.fixture
 def initial_velocities():
-    return np.array([[0.000, 0.000, 0.000] * 4])
+    return np.zeros((4, 3))
 
 
 @pytest.fixture
@@ -544,15 +544,16 @@ def test_header_n_spins(header_chunk):
     assert header_chunk.n_spins == 1
 
 
-def test_header_initial_atoms(header_chunk, initial_cell, initial_positions):
+def test_header_initial_atoms(header_chunk, initial_cell, initial_positions, initial_velocities):
     assert len(header_chunk.initial_atoms) == 4
     assert np.allclose(
-        header_chunk.initial_atoms.cell,
+        header_chunk.initial_atoms.cell.array,
         initial_cell,
     )
-    assert np.allclose(header_chunk.initial_atoms.positions, initial_positions)
+    assert np.allclose(
+        header_chunk.initial_atoms.get_scaled_positions(), initial_positions)
     assert np.all(["Al"] * 4 == header_chunk.initial_atoms.symbols)
-    assert np.allclose(header_chunk.initial_atoms.velocities,
+    assert np.allclose(header_chunk.initial_atoms.get_velocities(),
                        initial_velocities)
 
 
@@ -622,7 +623,12 @@ def k_points():
 
 @pytest.fixture
 def k_point_weights():
-    return np.full((36), 0.03125)
+    return np.array([0.03125, 0.0625, 0.03125, 0.0625, 0.0625, 0.0625,
+                     0.0625, 0.03125, 0.0625, 0.03125, 0.0625, 0.0625,
+                     0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625,
+                     0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625,
+                     0.0625, 0.0625, 0.03125, 0.0625, 0.03125, 0.0625,
+                     0.0625, 0.0625, 0.0625, 0.03125, 0.0625, 0.03125, ])
 
 
 def test_header_k_point_weights(header_chunk, k_point_weights):
@@ -634,7 +640,7 @@ def test_header_k_points(header_chunk, k_points):
 
 
 def test_header_out_dir(header_chunk):
-    assert header_chunk.out_dir == 'OUT.ABACUS/'
+    assert header_chunk.out_dir == 'OUT.ABACUS'
 
 
 def test_header_header_summary(header_chunk, k_points, k_point_weights):
@@ -652,6 +658,7 @@ def test_header_header_summary(header_chunk, k_points, k_point_weights):
         "n_k_points": 36,
         "k_points": k_points,
         "k_point_weights": k_point_weights,
+        "out_dir": 'OUT.ABACUS'
     }
     for key, val in header_chunk.header_summary.items():
         if isinstance(val, np.ndarray):
@@ -1568,7 +1575,8 @@ def calc_chunk(header_chunk):
 def test_calc_atoms(calc_chunk, initial_cell, initial_positions):
     assert len(calc_chunk.atoms) == 4
     assert np.allclose(calc_chunk.atoms.cell, initial_cell)
-    assert np.allclose(calc_chunk.atoms.positions, initial_positions)
+    assert np.allclose(
+        calc_chunk.atoms.get_scaled_positions(), initial_positions)
     assert np.all(["Al"] * 4 == calc_chunk.atoms.symbols)
 
 
@@ -1606,7 +1614,7 @@ def test_calc_converged(calc_chunk):
 
 
 @pytest.fixture
-def eigenvalues_occupancies():
+def eigenvalues_occupations():
     eigenvalues_occupancies = np.array([
         [3.35129, 0.0312500],
         [3.35310, 0.0312500],
@@ -1629,19 +1637,19 @@ def eigenvalues_occupancies():
     return eigenvalues_occupancies
 
 
-def test_calc_eigenvalues(calc_chunk, eigenvalues_occupancies):
+def test_calc_eigenvalues(calc_chunk, eigenvalues_occupations):
     assert np.allclose(calc_chunk.eigenvalues[0][-1],
-                       eigenvalues_occupancies[:, 0])
+                       eigenvalues_occupations[:, 0])
     assert np.allclose(
-        calc_chunk.results["eigenvalues"], eigenvalues_occupancies[:, 0]
+        calc_chunk.results["eigenvalues"][0][-1], eigenvalues_occupations[:, 0]
     )
 
 
-def test_calc_occupancies(calc_chunk, eigenvalues_occupancies):
-    assert np.allclose(calc_chunk.occupancies[0][-1],
-                       eigenvalues_occupancies[:, 1])
+def test_calc_ooccupations(calc_chunk, eigenvalues_occupations):
+    assert np.allclose(calc_chunk.occupations[0][-1],
+                       eigenvalues_occupations[:, 1])
     assert np.allclose(
-        calc_chunk.results["occupancies"], eigenvalues_occupancies[:, 1]
+        calc_chunk.results["occupations"][0][-1], eigenvalues_occupations[:, 1]
     )
 
 

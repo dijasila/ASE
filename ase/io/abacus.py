@@ -1090,7 +1090,7 @@ class AbacusOutCalcChunk(AbacusOutChunk):
         step_pattern = re.compile(rf"ELEC\s*=\s*[+]?(\d+)")
 
         try:
-            return step_pattern.findall(self._ionic_block)[-1]
+            return int(step_pattern.findall(self._ionic_block)[-1])
         except IndexError:
             return
 
