@@ -415,7 +415,8 @@ def read_abacus(fd, latname=None, verbose=False):
 def get_lattice_from_latname(lines, latname=None):
 
     from math import sqrt
-    lines = lines.group(1).split(' ')
+    if lines:
+        lines = lines.group(1).split(' ')
 
     if latname == 'sc':
         return np.eye(3)

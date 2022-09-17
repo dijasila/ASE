@@ -35,7 +35,7 @@ def test_scaled_Si(Si):
 
 def test_constraints_Si(Si):
     """Test that non-parmetric constraints are written and read in properly"""
-    Si.set_constraint([FixAtoms(indices=[0]), FixCartesian(1, [1, 0, 1])])
+    Si.set_constraint([FixCartesian(0, [1, 0, 1]), FixCartesian(1, [1, 0, 1])])
     Si.write(file, format=format, scaled=True)
     new_atoms = read(file)
     assert np.allclose(Si.positions, new_atoms.positions)
@@ -53,9 +53,9 @@ def test_pp_basis_Si(Si):
         file, verbose=True)
     assert len(atom_potential) == 1
     assert len(atom_basis) == 1
-    assert atom_potential['Si'] == 'Si_ONCV_PBE-1.0.upf'
-    assert atom_basis['Si'] == 'dpsi_Si.dat'
-    assert atom_offsite_basis is None
+    assert atom_potential[0] == 'Si_ONCV_PBE-1.0.upf'
+    assert atom_basis[0] == 'dpsi_Si.dat'
+    assert not atom_offsite_basis
 
 
 stru_lines = """
@@ -65,7 +65,7 @@ Si 1.000 Si.pz-vbc.UPF  #Element, Mass, Pseudopotential
 NUMERICAL_ORBITAL
 ./Si_lda_8.0au_50Ry_2s2p1d
 
-LATTICE_PARAMETERS
+LATTICE_CONSTANT
 10.2
 
 ATOMIC_POSITIONS
@@ -81,7 +81,7 @@ expected_cell = np.array([[-0.5, 0, 0.5], [0, 0.5, 0.5],
                           [-0.5, 0.5, 0]]) * 10.2 * Bohr
 
 
-def test_latname_Si(stru_lines):
+def test_latname_Si():
     latname = 'fcc'
     with open(file, 'w') as fd:
         fd.write(stru_lines)
