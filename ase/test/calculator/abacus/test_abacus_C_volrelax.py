@@ -22,7 +22,7 @@ version_string = """\
 """
 
 
-def test_get_aims_version():
+def test_get_abacus_version():
     assert get_abacus_version(version_string) == 'Parallel, in development'
 
 
