@@ -18,6 +18,7 @@ calc = pytest.mark.calculator
 @calc('gpaw', mode={'name': 'pw', 'ecut': 350}, txt=None)
 @calc('abinit', chksymtnons=0, ecut=350)
 @calc('espresso', tprnfor=True, tstress=True, ecutwfc=350 / u.Ry)
+@calc('abacus', cal_stress=True, ecutwfc=350 / u.Ry)
 @calc('siesta')
 def test_si_stress(factory):
     atoms = bulk('Si')
