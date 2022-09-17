@@ -4,8 +4,26 @@ from glob import glob
 from ase import io
 from ase.optimize import BFGS
 from ase.build import bulk
+from ase.calculators.abacus import get_abacus_version
 
 calc = pytest.mark.calculator
+
+version_string = """\
+
+                             WELCOME TO ABACUS
+
+               'Atomic-orbital Based Ab-initio Computation at UStc'
+
+                     Website: http://abacus.ustc.edu.cn/
+
+    Version: Parallel, in development
+    Processor Number is 8
+    Start Time is Sat Jun  4 18:01:24 2022
+"""
+
+
+def test_get_aims_version():
+    assert get_abacus_version(version_string) == 'Parallel, in development'
 
 
 @calc('abacus')
