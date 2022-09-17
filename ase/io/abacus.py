@@ -1151,7 +1151,7 @@ class AbacusOutCalcChunk(AbacusOutChunk):
 
     @property
     def results(self):
-        """Convert an AimsOutChunk to a Results Dictionary"""
+        """Convert an AbacusOutChunk to a Results Dictionary"""
         results = {
             "energy": self.energy,
             "free_energy": self.free_energy,
@@ -1170,7 +1170,7 @@ class AbacusOutCalcChunk(AbacusOutChunk):
 
     @lazyproperty
     def atoms(self):
-        """Convert AimsOutChunk to Atoms object and add all non-standard outputs to atoms.info"""
+        """Convert AbacusOutChunk to Atoms object and add all non-standard outputs to atoms.info"""
         """Create an atoms object for the subsequent structures
         calculated in the output file"""
         atoms = None
