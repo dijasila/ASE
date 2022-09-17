@@ -44,8 +44,14 @@ def atoms():
 
 
 def check(a, ref_atoms, format):
-    assert abs(a.positions - ref_atoms.positions).max() < 1e-6, \
-        (a.positions - ref_atoms.positions)
+    if format in ['abacus']:
+        # atoms.symbols read from Abacus is 'Au2H2', while ref_atoms.symbols is 'AuHAuH',
+        # so we swap the second and third positions, here.
+        assert abs(a.positions[[0, 2, 1, 3], :] - ref_atoms.positions).max() < 1e-6, \
+            (a.positions - ref_atoms.positions)
+    else:
+        assert abs(a.positions - ref_atoms.positions).max() < 1e-6, \
+            (a.positions - ref_atoms.positions)
     if format in ['traj', 'cube', 'cfg', 'struct', 'gen', 'extxyz',
                   'db', 'json', 'trj']:
         assert abs(a.cell - ref_atoms.cell).max() < 1e-6
