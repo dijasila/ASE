@@ -239,13 +239,13 @@ def read_abacus(fd, latname=None, verbose=False):
     If `latname` is not None, 'LATTICE_VECTORS' should be removed in structure files of ABACUS.
     Allowed values: 'sc', 'fcc', 'bcc', 'hexagonal', 'trigonal', 'st', 'bct', 'so', 'baco', 'fco', 'bco', 'sm', 'bacm', 'triclinic'
 
-    If `verbose` is True, pseudo-potential and basis will be output along with the Atoms object.
+    If `verbose` is True, pseudo-potential, basis and other information along with the Atoms object will be output as a dict.
     """
 
     from ase.constraints import FixCartesian
 
     contents = fd.read()
-    title_str = r'(?:LATTICE_CONSTANT|NUMERICAL_ORBITAL|ABFS_ORBITAL|LATTICE_VECTORS|LATTICE_PARAMETERS|ATOMIC_POSITIONS)'
+    title_str = r'(?:LATTICE_CONSTANT|NUMERICAL_DESCRIPTOR|NUMERICAL_ORBITAL|ABFS_ORBITAL|LATTICE_VECTORS|LATTICE_PARAMETERS|ATOMIC_POSITIONS)'
 
     # remove comments and empty lines
     contents = re.compile(r"#.*|//.*").sub('', contents)
@@ -283,6 +283,17 @@ def read_abacus(fd, latname=None, verbose=False):
         atom_offsite_basis = abf_lines.group(1).split('\n')
     else:
         atom_offsite_basis = []
+
+    # deepks for ABACUS
+    aim_title = 'NUMERICAL_DESCRIPTOR'
+    aim_title_sub = title_str.replace('|' + aim_title, '')
+    deep_pattern = re.compile(
+        rf'{aim_title}\s*\n([\s\S]+?)\s*\n{aim_title_sub}')
+    deep_lines = deep_pattern.search(contents)
+    if deep_lines:
+        atom_descriptor = deep_lines.group(1)
+    else:
+        atom_descriptor = ''
 
     # lattice constant
     aim_title = 'LATTICE_CONSTANT'
@@ -407,7 +418,13 @@ def read_abacus(fd, latname=None, verbose=False):
     atoms.set_constraint(fix_cart)
 
     if verbose:
-        return atoms, atom_potential, atom_basis, atom_offsite_basis
+        return {
+            "atoms": atoms,
+            "pp": atom_potential,
+            "basis": atom_basis,
+            "offsite_basis": atom_offsite_basis,
+            "descriptor": atom_descriptor
+        }
     else:
         return atoms
 
