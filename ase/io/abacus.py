@@ -260,9 +260,9 @@ def read_abacus(fd, latname=None, verbose=False):
     ntype = len(symbols)
     atom_mass = specie_lines[:, 1].astype(float)
     try:
-        atom_potential = specie_lines[:, 2]
+        atom_potential = specie_lines[:, 2].tolist()
     except IndexError:
-        atom_potential = [''] * ntype
+        atom_potential = []
 
     # basis
     aim_title = 'NUMERICAL_ORBITAL'
