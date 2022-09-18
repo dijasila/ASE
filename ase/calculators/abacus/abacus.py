@@ -145,8 +145,8 @@ class Abacus(GenericFileIOCalculator):
         native keywords.
 
 
-        Arguments:
-
+        Parameters
+        ----------
         pp: dict
             A filename for each atomic species, e.g.
             ``{'O': 'O.UPF', 'H': 'H.UPF'}``.
@@ -159,7 +159,6 @@ class Abacus(GenericFileIOCalculator):
 
         kwargs : dict
             Any of the base class arguments.
-
         """
 
         if profile is None:
