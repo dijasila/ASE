@@ -29,7 +29,7 @@ ABACUS Calculator
 
 The default initialization command for the ABACUS calculator is
 
-.. autoclass:: ase.calculators.abacus.Abacus
+.. autoclass:: Abacus
 
 In order to run a calculation, you have to ensure that at least the following parameters are specified, either in the initialization or as environment variables:
 
@@ -78,3 +78,18 @@ The command to run jobs can be set by specifying ``AbacusProfile``::
   profile = AbacusProfile(argv=['mpirun','-n','2',abacus])
 
 in which ``abacus`` sets the absolute path of the ``abacus`` executable.
+
+
+SPAP Analysis
+=================
+
+SPAP_ (Structure Prototype Analysis Package) is written by Dr. Chuanxun Su to analyze symmetry and compare similarity of large amount of atomic structures. The coordination characterization function (CCF) is used to 
+measure structural similarity. An unique and advanced clustering method is developed to automatically classify structures into groups. 
+
+.. _SPAP: https://github.com/chuanxun/StructurePrototypeAnalysisPackage
+
+If you use this program and method in your research, please read and cite the publication:
+
+:doi:`Su C, Lv J, Li Q, Wang H, Zhang L, Wang Y, Ma Y. Construction of crystal structure prototype database: methods and applications. J Phys Condens Matter. 2017 Apr 26;29(16):165901 <10.1088/1361-648X/aa63cd>`.
+
+.. autofunction:: spap_analysis
