@@ -1,20 +1,3 @@
-from ase.io import read
-
-
-def get_structure_list(filelist=[], format=None):
-    """Get a list of Atoms objects
-
-    Arguments:
-
-    filelist: list
-        A list of files
-
-    format: str 
-        Used to specify the file-format. Same argument of ase.io.read.
-    """
-    return [read(file, index=-1, format=format) for file in filelist]
-
-
 def spap_analysis(atoms_list, i_mode=4, symprec=0.1, **kwargs):
     """Structure Prototype Analysis Package used here to analyze symmetry and compare similarity of large amount of atomic structures.
 
@@ -33,7 +16,6 @@ def spap_analysis(atoms_list, i_mode=4, symprec=0.1, **kwargs):
 
         1. Use command: `pip install spap`
         2. Download the source code from https://github.com/chuanxun/StructurePrototypeAnalysisPackage, then install with command `python3 setup.py install`
-        3. We also include module `ccf` and `spap` in ase.calculators.abacus, but these can't be updated quickly with github 
 
     Parameters
     ----------
@@ -48,11 +30,29 @@ def spap_analysis(atoms_list, i_mode=4, symprec=0.1, **kwargs):
 
     **kwargs:
         More parameters can be found in ase.calculators.abacus.spap
+
+
+    .. note::
+           SPAP can be used as follows:
+
+
+           1. Suppose the `directory` contains many ABACUS STRU files,
+              you can use `ase.io.read` to get a list of `Atoms` objects:
+
+              >>> path = {< directory >}
+              >>> atoms_list = [read(os.path.join(path, file), index=-1, format='abacus') for file in os.listdir(path)]
+
+           2. Perform `spap_analysis` and some files will be output, such as 'Analysis_Output.dat', 'structure_info.csv' and so on:
+
+              >>> spap_analysis(atoms_list)
+
     """
     try:
         from spap import run_spap
     except ImportError:
-        raise ImportError("If you want to use SPAP to analyze symmetry and compare similarity of atomic structures, Please install it first!")
+        raise ImportError(
+            "If you want to use SPAP to analyze symmetry and compare similarity of atomic structures, Please install it first!")
 
-    kwargs.pop('structure_list')
-    run_spap(symprec=symprec, structure_list=atoms_list, i_mode=i_mode, **kwargs)
+    kwargs.pop('structure_list', None)
+    run_spap(symprec=symprec, structure_list=atoms_list,
+             i_mode=i_mode, **kwargs)
