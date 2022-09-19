@@ -14,7 +14,7 @@ ABACUS_ (Atomic-orbital Based Ab-initio Computation at UStc) is an open-source c
 Environment variables
 =================
 
-ABACUS_ supports three types of basis sets: PW, LCAO. The path of pseudopotential and numerical orbital files can be set throught the environment variables ``ABACUS_PP_PATH`` and ``ABACUS_ORBITAL_PATH``, respectively, e.g.::
+ABACUS_ supports two types of basis sets: PW, LCAO. The path of pseudopotential and numerical orbital files can be set throught the environment variables ``ABACUS_PP_PATH`` and ``ABACUS_ORBITAL_PATH``, respectively, e.g.::
 
   PP=${HOME}/pseudopotentials
   ORB=${HOME}/orbitals
