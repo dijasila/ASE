@@ -15,7 +15,7 @@ def get_structure_list(filelist=[], format=None):
     return [read(file, index=-1, format=format) for file in filelist]
 
 
-def spap_analysis(filelist=[], format=None, symprec=0.1, **kwargs):
+def spap_analysis(atoms_list, i_mode=4, symprec=0.1, **kwargs):
     """Structure Prototype Analysis Package used here to analyze symmetry and compare similarity of large amount of atomic structures.
 
     Description:
@@ -26,7 +26,7 @@ def spap_analysis(filelist=[], format=None, symprec=0.1, **kwargs):
     automatically classify structures into groups. If you use this program and method in your research, please read and cite the publication: 
 
         Su C, Lv J, Li Q, Wang H, Zhang L, Wang Y, Ma Y. Construction of crystal structure prototype database: methods and applications. 
-        J Phys Condens Matter. 2017 Apr 26;29(16):165901. doi: 10.1088/1361-648X/aa63cd
+        J Phys Condens Matter. 2017 Apr 26;29(16):165901. doi: 10.1088/1361-648X/aa63cd 
 
 
     Installation:
@@ -37,11 +37,11 @@ def spap_analysis(filelist=[], format=None, symprec=0.1, **kwargs):
 
     Parameters
     ----------
-    filelist: list
-        A list of files
+    atoms_list: list
+        A list of Atoms objects
 
-    format: str 
-        Used to specify the file-format. Same argument of ase.io.read.
+    i_mode: int
+        Different functionality of SPAP.
 
     symprec: float
         This precision is used to analyze symmetry of atomic structures.
@@ -52,10 +52,7 @@ def spap_analysis(filelist=[], format=None, symprec=0.1, **kwargs):
     try:
         from spap import run_spap
     except ImportError:
-        from .spap import run_spap
+        raise ImportError("If you want to use SPAP to analyze symmetry and compare similarity of atomic structures, Please install it first!")
 
     kwargs.pop('structure_list')
-    kwargs.pop('imode')
-    structure_list = get_structure_list(filelist, format)
-    imode = 4
-    run_spap(symprec=symprec, structure_list=structure_list, i_mode=imode)
+    run_spap(symprec=symprec, structure_list=atoms_list, i_mode=i_mode, **kwargs)
