@@ -14,14 +14,14 @@ ABACUS_ (Atomic-orbital Based Ab-initio Computation at UStc) is an open-source c
 Environment variables
 =================
 
-ABACUS_ supports three types of basis sets: pw, LCAO, and LCAO-in-pw. The path of pseudopotential and numerical orbital files can be set throught the environment variables ``ABACUS_PP_PATH`` and ``ABACUS_ORBITAL_PATH``, respectively, e.g.::
+ABACUS_ supports two types of basis sets: PW, LCAO. The path of pseudopotential and numerical orbital files can be set throught the environment variables ``ABACUS_PP_PATH`` and ``ABACUS_ORBITAL_PATH``, respectively, e.g.::
 
   PP=${HOME}/pseudopotentials
   ORB=${HOME}/orbitals
   export ABACUS_PP_PATH=${PP}
   export ABACUS_ORBITAL_PATH=${ORB}
  
-For pw calculations, only ``ABACUS_PP_PATH`` is needed. For LCAO and LCAO-in-pw calculations, both ``ABACUS_PP_PATH`` and ``ABACUS_ORBITAL_PATH`` should be set.
+For PW calculations, only ``ABACUS_PP_PATH`` is needed. For LCAO calculations, both ``ABACUS_PP_PATH`` and ``ABACUS_ORBITAL_PATH`` should be set.
 
 
 ABACUS Calculator
@@ -43,7 +43,7 @@ keyword          description
                   environment variable. Default: ``pseudo_dir=./``.
 ``basis``         dict of orbital files for involved elememts, such as 
                   ``basis={'Al':'Al_gga_10au_100Ry_4s4p1d.orb'}``.
-                  It must be set if you want to do LCAO and LCAO-in-pw 
+                  It must be set if you want to do LCAO 
                   calculations. But for pw calculations, it can be omitted.
 ``basis_dir``     directory where the orbital files are located, 
                   Can also be specified with the ``ABACUS_ORBITAL_PATH``
@@ -91,5 +91,7 @@ measure structural similarity. An unique and advanced clustering method is devel
 If you use this program and method in your research, please read and cite the publication:
 
 :doi:`Su C, Lv J, Li Q, Wang H, Zhang L, Wang Y, Ma Y. Construction of crystal structure prototype database: methods and applications. J Phys Condens Matter. 2017 Apr 26;29(16):165901 <10.1088/1361-648X/aa63cd>`.
+
+and you should install it first with command ``pip install spap``.
 
 .. autofunction:: spap_analysis
