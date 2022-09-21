@@ -260,9 +260,9 @@ def read_abacus(fd, latname=None, verbose=False):
     ntype = len(symbols)
     atom_mass = specie_lines[:, 1].astype(float)
     try:
-        atom_potential = specie_lines[:, 2].tolist()
+        atom_potential = dict(zip(symbols, specie_lines[:, 2].tolist()))
     except IndexError:
-        atom_potential = []
+        atom_potential = None
 
     # basis
     aim_title = 'NUMERICAL_ORBITAL'
@@ -270,9 +270,9 @@ def read_abacus(fd, latname=None, verbose=False):
     orb_pattern = re.compile(rf'{aim_title}\s*\n([\s\S]+?)\s*\n{aim_title_sub}')
     orb_lines = orb_pattern.search(contents)
     if orb_lines:
-        atom_basis = orb_lines.group(1).split('\n')
+        atom_basis = dict(zip(symbols, orb_lines.group(1).split('\n')))
     else:
-        atom_basis = []
+        atom_basis = None
 
     # ABFs basis
     aim_title = 'ABFS_ORBITAL'
@@ -280,9 +280,9 @@ def read_abacus(fd, latname=None, verbose=False):
     abf_pattern = re.compile(rf'{aim_title}\s*\n([\s\S]+?)\s*\n{aim_title_sub}')
     abf_lines = abf_pattern.search(contents)
     if abf_lines:
-        atom_offsite_basis = abf_lines.group(1).split('\n')
+        atom_offsite_basis = dict(zip(symbols, abf_lines.group(1).split('\n')))
     else:
-        atom_offsite_basis = []
+        atom_offsite_basis = None
 
     # deepks for ABACUS
     aim_title = 'NUMERICAL_DESCRIPTOR'
@@ -293,7 +293,7 @@ def read_abacus(fd, latname=None, verbose=False):
     if deep_lines:
         atom_descriptor = deep_lines.group(1)
     else:
-        atom_descriptor = ''
+        atom_descriptor = None
 
     # lattice constant
     aim_title = 'LATTICE_CONSTANT'
