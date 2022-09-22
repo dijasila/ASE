@@ -252,7 +252,6 @@ def write_input_stru_core(fd,
                           atoms_magnetism=None,
                           fix=None,
                           init_vel=False):
-    lines = []
     if not judge_exist_stru(stru):
         return "No input structure!"
 
@@ -265,7 +264,7 @@ def write_input_stru_core(fd,
     elif(atoms_magnetism is None):
         return "Please set right atoms magnetism"
     else:
-        lines.append('ATOMIC_SPECIES')
+        fd.write('ATOMIC_SPECIES\n')
         for i, elem in enumerate(atoms_list):
             if pp:
                 pseudofile = pp.get(elem, '')
@@ -277,40 +276,51 @@ def write_input_stru_core(fd,
                               + str(atoms_masses[i]) + temp2
                               + pseudofile)
 
-            lines.append(atomic_species)
+            fd.write(atomic_species)
+            fd.write('\n')
 
         if basis:
-            lines.append('')
-            lines.append('NUMERICAL_ORBITAL')
+            fd.write('\n')
+            fd.write('NUMERICAL_ORBITAL\n')
             for i, elem in enumerate(atoms_list):
                 orbitalfile = basis[elem]
-                lines.append(orbitalfile)
+                fd.write(orbitalfile)
+                fd.write('\n')
 
         if offsite_basis:
-            lines.append('')
-            lines.append('ABFS_ORBITAL')
+            fd.write('\n')
+            fd.write('ABFS_ORBITAL\n')
             for i, elem in enumerate(atoms_list):
                 orbitalfile = offsite_basis[elem]
-            lines.append(orbitalfile)
+            fd.write(orbitalfile)
+            fd.write('\n')
 
-        lines.append('')
-        lines.append('LATTICE_CONSTANT')
-        lines.append(f'{1/Bohr}')
+        fd.write('\n')
+        fd.write('LATTICE_CONSTANT\n')
+        fd.write(f'{1/Bohr} \n')
+        fd.write('\n')
 
-        lines.append('')
-        lines.append('LATTICE_VECTORS')
+        fd.write('LATTICE_VECTORS\n')
         for i in range(3):
-            temp3 = f'{stru.get_cell()[i][0]:0<12f} {stru.get_cell()[i][1]:0<12f} {stru.get_cell()[i][1]:0<12f} '
-            lines.append(temp3)
+            for j in range(3):
+                temp3 = str("{:0<12f}".format(
+                    stru.get_cell()[i][j])) + ' ' * 3
+                fd.write(temp3)
+                fd.write('   ')
+            fd.write('\n')
+        fd.write('\n')
 
-        lines.append('')
-        lines.append('ATOMIC_POSITIONS')
-        lines.append(coordinates_type)
+        fd.write('ATOMIC_POSITIONS\n')
+        fd.write(coordinates_type)
+        fd.write('\n')
+        fd.write('\n')
         for i in range(len(atoms_list)):
-            lines.append('')
-            lines.append(atoms_list[i])
-            lines.append(str("{:0<12f}".format(float(atoms_magnetism[i]))))
-            lines.append(str(len(atoms_position[i])))
+            fd.write(atoms_list[i])
+            fd.write('\n')
+            fd.write(str("{:0<12f}".format(float(atoms_magnetism[i]))))
+            fd.write('\n')
+            fd.write(str(len(atoms_position[i])))
+            fd.write('\n')
 
             for j in range(len(atoms_position[i])):
                 temp4 = str("{:0<12f}".format(
@@ -334,9 +344,9 @@ def write_input_stru_core(fd,
                         sym_pos += f'mag {stru[j].magmom[0]} {stru[j].magmom[1]} {stru[j].magmom[2]} '
                     elif stru[j].magmom == 1:
                         sym_pos += f'mag {stru[j].magmom[0]} '
-                lines.append(sym_pos)
-    lines.append('')
-    fd.write('\n'.join(lines))
+                fd.write(sym_pos)
+                fd.write('\n')
+            fd.write('\n')
 
 
 @writer
