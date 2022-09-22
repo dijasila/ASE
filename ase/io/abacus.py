@@ -45,7 +45,7 @@ def write_input(fd, parameters=None):
     lines.append('# Created by Atomic Simulation Enviroment')
     for key, val in params.items():
         if val is not None:
-            lines.append(str(key) + ' ' * (20 - len(key)) + str(val))
+            lines.append(str(key) + ' ' * (40 - len(key)) + str(val))
     lines.append('')
     fd.write('\n'.join(lines))
 # WRITE ABACUS INPUT -END-
