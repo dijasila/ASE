@@ -46,6 +46,7 @@ def write_input(fd, parameters=None):
     for key, val in params.items():
         if val is not None:
             lines.append(str(key) + ' ' * (20 - len(key)) + str(val))
+    lines.append('')
     fd.write('\n'.join(lines))
 # WRITE ABACUS INPUT -END-
 
@@ -90,6 +91,7 @@ def write_kpt(fd=None, parameters=None):
         else:
             raise ValueError("The value of kmode is not right, set to "
                              "Gamma, MP, Direct, Cartesian, or Line.")
+        lines.append('')
         fd.write('\n'.join(lines))
 # WRITE ABACUS KPT -END-
 
@@ -333,6 +335,7 @@ def write_input_stru_core(fd,
                     elif stru[j].magmom == 1:
                         sym_pos += f'mag {stru[j].magmom[0]} '
                 lines.append(sym_pos)
+    lines.append('')
     fd.write('\n'.join(lines))
 
 
