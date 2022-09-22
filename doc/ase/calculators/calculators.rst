@@ -65,7 +65,6 @@ The calculators can be divided in four groups:
 ========================================= ===========================================
 name                                      description
 ========================================= ===========================================
-Abacus_                                   DFT supporting both pw and lcao basis
 Asap_                                     Highly efficient EMT code
 BigDFT_                                   Wavelet based code for DFT
 DeePMD-kit_                               A deep learning package for many-body potential energy representation
@@ -79,6 +78,7 @@ TBLite_                                   Light-weight tight-binding framework
 XTB_                                      Semiemprical extended tight-binding program package
 :mod:`~ase.calculators.abinit`            Plane-wave pseudopotential code
 :mod:`~ase.calculators.amber`             Classical molecular dynamics code
+:mod:`~ase.calculators.abacus`            DFT supporting both pw and lcao basis
 :mod:`~ase.calculators.castep`            Plane-wave pseudopotential code
 :mod:`~ase.calculators.cp2k`              DFT and classical potentials
 :mod:`~ase.calculators.demon`             Gaussian based DFT code
@@ -137,7 +137,6 @@ The calculators included in ASE are used like this:
 
 where ``abc`` is the module name and ``ABC`` is the class name.
 
-.. _Abacus: https://gitlab.com/1041176461/ase-abacus
 .. _Asap: https://wiki.fysik.dtu.dk/asap
 .. _BigDFT: https://l_sim.gitlab.io/bigdft-suite/tutorials/Interoperability-Simulation.html#ASE-Interoperability
 .. _GPAW: https://wiki.fysik.dtu.dk/gpaw
