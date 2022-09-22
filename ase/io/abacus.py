@@ -10,12 +10,174 @@ Modified on Wed Aug 01 11:44:51 2022
 import re
 import warnings
 import numpy as np
+import os
+import shutil
 
 from ase import Atoms
 from ase.units import Bohr, Hartree, GPa
 from ase.utils import lazymethod, lazyproperty, reader, writer
 from ase.calculators.singlepoint import SinglePointDFTCalculator, arrays_to_kpoints
 _re_float = r'[-+]?\d+\.*\d*(?:[Ee][-+]\d+)?'
+
+# --------WRITE---------
+
+# WRITE ABACUS INPUT -START-
+@writer
+def write_input(fd, parameters=None):
+    """Write the INPUT file for ABACUS
+
+    Parameters
+    ----------
+    fd: str
+        The file object to write to
+    parameters: dict
+        The dictionary of all paramters for the calculation. 
+    """
+    from copy import deepcopy
+    params = deepcopy(parameters)
+    params['dft_functional'] = params.pop('xc') if params.get(
+        'xc') else params.get('dft_functional', 'pbe')
+    for key in ['pp', 'basis', 'pseudo_dir', 'basis_dir', 'offsite_basis_dir', 'kpts']:
+        params.pop(key, None)
+
+    lines = []
+    lines.append('INPUT_PARAMETERS')
+    lines.append('# Created by Atomic Simulation Enviroment')
+    for key, val in params.items():
+        if val is not None:
+            lines.append(str(key) + ' ' * (20 - len(key)) + str(val))
+    fd.write('\n'.join(lines))
+# WRITE ABACUS INPUT -END-
+
+# WRITE ABACUS KPT -START-
+
+
+@writer
+def write_kpt(fd=None, parameters=None):
+    """Write the KPT file for ABACUS
+
+    Parameters
+    ----------
+    fd: str
+        The file object to write to
+    parameters: dict
+        The dictionary of all paramters for the calculation. 
+        If `gamma_only` or `kspacing` in `parameters`, it will not output any files by ase
+    """
+
+    gamma_only = parameters.get('gamma_only', 0)
+    kspacing = parameters.get('kspacing', 0.0)
+    if gamma_only is not None and gamma_only == 1:
+        return
+    if kspacing is not None and kspacing > 0.0:
+        return
+    else:
+        lines = []
+        knumber = parameters.get('knumber', 0)
+        kmode = parameters.get('kmode', 'Gamma')
+        kpts = parameters.get('kpts', [1, 1, 1])
+        koffset = parameters.get('koffset', [0, 0, 0])
+        lines.append('K_POINTS')
+        lines.append(f'{knumber}')
+        lines.append(f'{kmode}')
+        if kmode in ['Gamma', 'MP']:
+            lines.append(
+                ' '.join(map(str, kpts)) + ' ' + ' '.join(map(str, koffset)))
+        elif kmode in ['Direct', 'Cartesian', 'Line']:
+            for n in range(len(kpts)):
+                lines.append(
+                    f'{kpts[n][0]:0<12f} {kpts[n][1]:0<12f} {kpts[n][2]:0<12f}')
+        else:
+            raise ValueError("The value of kmode is not right, set to "
+                             "Gamma, MP, Direct, Cartesian, or Line.")
+        fd.write('\n'.join(lines))
+# WRITE ABACUS KPT -END-
+
+
+def _copy_files(file_list, src, dst, env, name):
+    if not src:
+        # environment variable for PP paths
+        if env in os.environ:
+            src = os.environ[env]
+        else:
+            src = './'
+            # raise NotFoundErr(
+            #     f"Can not set directory of {name} according to environment variable {env}")
+
+    for val in file_list:
+        src_file = os.path.join(src, val.strip())
+        dst_file = os.path.join(dst, val.strip())
+        if os.path.exists(dst_file):
+            continue
+        elif os.path.exists(src_file):
+            shutil.copyfile(src_file, dst_file)
+        else:
+            raise FileNotFoundError(
+                f"Can't find {name} for ABACUS calculation")
+
+
+# WRITE ABACUS PP -START-
+def copy_pp(pp_list, pseudo_dir=None, directory='./'):
+    """Copy pseudo-potential files from `pseudo_dir` to `directory`
+
+    Parameters
+    ----------
+    pp_list: list
+        List of pseudo-potential files, e.g. ['Si.UPF', 'C.UPF']
+    pseudo_dir: str
+        The src directory includes pseudo-potential files. If None, 
+        it will get directory from environment variable `ABACUS_PP_PATH`
+    directory: str
+        The dst directory
+    """
+    _copy_files(pp_list, pseudo_dir, directory,
+                'ABACUS_PP_PATH', 'pseudo-potential files')
+
+# WRITE ABACUS PP -END-
+
+
+# WRITE ABACUS basis -START-
+def copy_basis(basis_list, basis_dir=None, directory='./'):
+    """Copy LCAO basis files from `basis_dir` to `directory`
+
+    Parameters
+    ----------
+    basis_list: list
+        List of LCAO basis files, e.g. ['Si.orb', 'C.orb']
+    basis_dir: str
+        The src directory includes LCAO basis files. If None, 
+        it will get directory from environment variable `ABACUS_ORBITAL_PATH`
+    directory: str
+        The dst directory
+    """
+    _copy_files(basis_list, basis_dir, directory,
+                'ABACUS_ORBITAL_PATH', 'basis files')
+
+# WRITE ABACUS basis -END-
+
+# WRITE ABACUS basis -START-
+
+
+def copy_offsite_basis(offsite_basis_list, offsite_basis_dir=None, directory='./'):
+    """Copy off-site ABFs basis files from `basis_dir` to `directory`
+
+    Parameters
+    ----------
+    offsite_basis_list: list
+        List of off-site ABFs basis files, e.g. ['abfs_Si.dat', 'abfs_C.dat']
+    offsite_basis_dir: str
+        The src directory includes off-site ABFs basis files. If None, 
+        it will get directory from environment variable `ABACUS_ABFS_PATH`
+    directory: str
+        The dst directory
+    """
+    _copy_files(offsite_basis_list, offsite_basis_dir, directory,
+                'ABACUS_ABFS_PATH', 'off-site ABFs basis files')
+
+# WRITE ABACUS basis -END-
+
+
+# WRITE ABACUS STRU -START-
 
 
 def judge_exist_stru(stru=None):
@@ -88,6 +250,7 @@ def write_input_stru_core(fd,
                           atoms_magnetism=None,
                           fix=None,
                           init_vel=False):
+    lines = []
     if not judge_exist_stru(stru):
         return "No input structure!"
 
@@ -100,7 +263,7 @@ def write_input_stru_core(fd,
     elif(atoms_magnetism is None):
         return "Please set right atoms magnetism"
     else:
-        fd.write('ATOMIC_SPECIES\n')
+        lines.append('ATOMIC_SPECIES')
         for i, elem in enumerate(atoms_list):
             if pp:
                 pseudofile = pp.get(elem, '')
@@ -112,51 +275,40 @@ def write_input_stru_core(fd,
                               + str(atoms_masses[i]) + temp2
                               + pseudofile)
 
-            fd.write(atomic_species)
-            fd.write('\n')
+            lines.append(atomic_species)
 
         if basis:
-            fd.write('\n')
-            fd.write('NUMERICAL_ORBITAL\n')
+            lines.append('')
+            lines.append('NUMERICAL_ORBITAL')
             for i, elem in enumerate(atoms_list):
                 orbitalfile = basis[elem]
-                fd.write(orbitalfile)
-                fd.write('\n')
+                lines.append(orbitalfile)
 
         if offsite_basis:
-            fd.write('\n')
-            fd.write('ABFS_ORBITAL\n')
+            lines.append('')
+            lines.append('ABFS_ORBITAL')
             for i, elem in enumerate(atoms_list):
                 orbitalfile = offsite_basis[elem]
-            fd.write(orbitalfile)
-            fd.write('\n')
+            lines.append(orbitalfile)
 
-        fd.write('\n')
-        fd.write('LATTICE_CONSTANT\n')
-        fd.write(f'{1/Bohr} \n')
-        fd.write('\n')
+        lines.append('')
+        lines.append('LATTICE_CONSTANT')
+        lines.append(f'{1/Bohr}')
 
-        fd.write('LATTICE_VECTORS\n')
+        lines.append('')
+        lines.append('LATTICE_VECTORS')
         for i in range(3):
-            for j in range(3):
-                temp3 = str("{:0<12f}".format(
-                    stru.get_cell()[i][j])) + ' ' * 3
-                fd.write(temp3)
-                fd.write('   ')
-            fd.write('\n')
-        fd.write('\n')
+            temp3 = f'{stru.get_cell()[i][0]:0<12f} {stru.get_cell()[i][1]:0<12f} {stru.get_cell()[i][1]:0<12f} '
+            lines.append(temp3)
 
-        fd.write('ATOMIC_POSITIONS\n')
-        fd.write(coordinates_type)
-        fd.write('\n')
-        fd.write('\n')
+        lines.append('')
+        lines.append('ATOMIC_POSITIONS')
+        lines.append(coordinates_type)
         for i in range(len(atoms_list)):
-            fd.write(atoms_list[i])
-            fd.write('\n')
-            fd.write(str("{:0<12f}".format(float(atoms_magnetism[i]))))
-            fd.write('\n')
-            fd.write(str(len(atoms_position[i])))
-            fd.write('\n')
+            lines.append('')
+            lines.append(atoms_list[i])
+            lines.append(str("{:0<12f}".format(float(atoms_magnetism[i]))))
+            lines.append(str(len(atoms_position[i])))
 
             for j in range(len(atoms_position[i])):
                 temp4 = str("{:0<12f}".format(
@@ -180,9 +332,8 @@ def write_input_stru_core(fd,
                         sym_pos += f'mag {stru[j].magmom[0]} {stru[j].magmom[1]} {stru[j].magmom[2]} '
                     elif stru[j].magmom == 1:
                         sym_pos += f'mag {stru[j].magmom[0]} '
-                fd.write(sym_pos)
-                fd.write('\n')
-            fd.write('\n')
+                lines.append(sym_pos)
+    fd.write('\n'.join(lines))
 
 
 @writer
@@ -193,6 +344,25 @@ def write_abacus(fd,
                  offsite_basis=None,
                  scaled=True,
                  init_vel=False):
+    """Write the STRU file for ABACUS
+
+    Parameters
+    ----------
+    fd: str
+        The file object to write to
+    atoms: atoms.Atoms
+        The Atoms object for the requested calculation
+    pp: dict
+        The pseudo-potential file of each elements, e.g. for SiC, {'Si':'Si.UPF', 'C':'C.UPF'}
+    basis: dict
+        The basis file of each elements for LCAO calculations, e.g. for SiC, {'Si':'Si.orb', 'C':'C.orb'}
+    offsite_basis: dict
+        The offsite basis file of each elements for HSE calculations with off-site ABFs, e.g. for SiC, {'Si':'Si.orb', 'C':'C.orb'}
+    scaled: bool
+        If output STRU file with scaled positions
+    init_vel: bool
+        if initialize velocities in STRU file
+    """
 
     if scaled:
         coordinates_type = 'Direct'
@@ -230,8 +400,42 @@ def write_abacus(fd,
                               fix_cart,
                               init_vel,
                               )
+# WRITE ABACUS STRU -END-
 
+# --------READ---------
 
+# Read KPT file  -START-
+@reader
+def read_kpt(fd):
+    """Read ABACUS KPT file and return results dict"""
+    lines = fd.readlines()
+    kmode = None
+    knumber = None
+    kpts = None
+    koffset = None
+    if lines[2][-1] == '\n':
+        kmode = lines[2][:-1]
+    else:
+        kmode = lines[2]
+    if kmode in ['Gamma', 'MP']:
+        knumber = lines[1].split()[0]
+        kpts = np.array(lines[3].split()[:3])
+        koffset = np.array(lines[3].split()[3:])
+    elif kmode in ['Cartesian', 'Direct', 'Line']:
+        knumber = lines[1].split()[0]
+        kpts = np.array([list(map(float, line.split()[:3]))
+                         for line in lines[3:]])
+    else:
+        raise ValueError("The value of kmode is not right, set to "
+                         "Gamma, MP, Direct, Cartesian, or Line.")
+
+    return {'mode': kmode,
+            'number': knumber,
+            'kpts': kpts,
+            'offset': koffset}
+# Read KPT file  -END-
+
+# READ ABACUS STRU -START-
 @reader
 def read_abacus(fd, latname=None, verbose=False):
     """Read structure information from abacus structure file.
@@ -475,8 +679,10 @@ def get_lattice_from_latname(lines, latname=None):
         x, y, m, n, l = list(map(float, lines))
         fac = sqrt(1 + 2 * m * n * l - m**2 - n**2 - l**2) / sqrt(1 - m**2)
         return np.array([[1, 0, 0], [x * m, x * sqrt(1 - m**2), 0], [y * n, y * (l - n * m / sqrt(1 - m**2)), y * fac]])
+# READ ABACUS STRU -END-
 
 
+# READ ABACUS OUT -START-
 class AbacusOutChunk:
     """Base class for AbacusOutChunks"""
 
@@ -1293,3 +1499,4 @@ def _remove_empty(a: list):
         a.remove([])
     while None in a:
         a.remove(None)
+# READ ABACUS OUT -END-
