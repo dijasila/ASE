@@ -224,6 +224,14 @@ def write_lammps_in(lammps_in, parameters, atoms, prismobj,
             ).encode("utf-8")
         )
 
+    if "unfix" in parameters:
+        fileobj.write(
+            (
+                "\n".join(["unfix {0}".format(p) for p in parameters["unfix"]])
+                + "\n"
+            ).encode("utf-8")
+        )
+
     fileobj.write(
         "dump dump_all all custom {1} {0} id type x y z vx vy vz "
         "fx fy fz\n"
