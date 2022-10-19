@@ -37,7 +37,7 @@ def write_input(fd, parameters=None):
     params = deepcopy(parameters)
     params['dft_functional'] = params.pop('xc') if params.get(
         'xc') else params.get('dft_functional', 'pbe')
-    for key in ['pp', 'basis', 'pseudo_dir', 'basis_dir', 'offsite_basis_dir', 'kpts']:
+    for key in ['pp', 'basis', 'pseudo_dir', 'basis_dir', 'orbital_dir', 'offsite_basis_dir', 'kpts', 'knumber', 'kmode', 'knumbers']:
         params.pop(key, None)
 
     lines = []
@@ -77,17 +77,22 @@ def write_kpt(fd=None, parameters=None):
         knumber = parameters.get('knumber', 0)
         kmode = parameters.get('kmode', 'Gamma')
         kpts = parameters.get('kpts', [1, 1, 1])
-        koffset = parameters.get('koffset', [0, 0, 0])
         lines.append('K_POINTS')
         lines.append(f'{knumber}')
         lines.append(f'{kmode}')
         if kmode in ['Gamma', 'MP']:
+            koffset = parameters.get('koffset', [0, 0, 0])
             lines.append(
                 ' '.join(map(str, kpts)) + ' ' + ' '.join(map(str, koffset)))
-        elif kmode in ['Direct', 'Cartesian', 'Line']:
-            for n in range(len(kpts)):
+        elif kmode in ['Direct', 'Cartesian']:
+            for n in range(knumber):
                 lines.append(
                     f'{kpts[n][0]:0<12f} {kpts[n][1]:0<12f} {kpts[n][2]:0<12f}')
+        elif kmode in ['Line']:
+            knumbers = parameters.get('knumbers', [10] * (knumber - 1) + [1])
+            for n in range(knumber):
+                lines.append(
+                    f'{kpts[n][0]:0<12f} {kpts[n][1]:0<12f} {kpts[n][2]:0<12f} {knumbers[n]}')
         else:
             raise ValueError("The value of kmode is not right, set to "
                              "Gamma, MP, Direct, Cartesian, or Line.")
