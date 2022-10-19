@@ -842,6 +842,11 @@ class AbacusOutHeaderChunk(AbacusOutChunk):
         return 'STEP OF ION RELAXATION' in self.contents
 
     @lazyproperty
+    def is_nscf(self):
+        """Determine if the calculation is a NSCF calculation"""
+        return 'NONSELF-CONSISTENT' in self.contents
+
+    @lazyproperty
     def is_cell_relaxation(self):
         """Determine if the calculation is an variable cell optimization or not"""
         return 'RELAX CELL' in self.contents
@@ -925,6 +930,7 @@ class AbacusOutHeaderChunk(AbacusOutChunk):
             "lattice_constant": self.lattice_constant,
             "initial_atoms": self.initial_atoms,
             "initial_cell": self.initial_cell,
+            "is_nscf": self.is_nscf,
             "is_relaxation": self.is_relaxation,
             "is_cell_relaxation": self.is_cell_relaxation,
             "is_md": self.is_md,
@@ -1343,6 +1349,8 @@ class AbacusOutCalcChunk(AbacusOutChunk):
             return self.get_cell_relaxation_convergency()
         elif self._header["is_relaxation"]:
             return self.get_relaxation_convergency()
+        elif self._header["is_nscf"]:
+            return "Total  Time" in self.contents
         else:
             return "charge density convergence is achieved" in self.contents
 
@@ -1472,12 +1480,12 @@ def _get_abacus_chunks(fd, index=-1, non_convergence_ok=False):
     relaxations, MD information, force information ..."""
     contents = fd.read()
     header_pattern = re.compile(
-        r'READING GENERAL INFORMATION([\s\S]+?([NON]*SELF-|STEP OF|RELAX CELL))')
+        r'READING GENERAL INFORMATION([\s\S]+?([NON]*SELF-|STEP OF|RELAX CELL)\w+\n)')
     header_chunk = AbacusOutHeaderChunk(
         header_pattern.search(contents).group(1))
 
     calc_pattern = re.compile(
-        r'(([NON]*SELF-|STEP OF|RELAX CELL)[\s\S]+?)Total\s*Time')
+        r'(([NON]*SELF-|STEP OF|RELAX CELL)[\s\S]+?Total\s*Time)')
     calc_contents = calc_pattern.search(contents).group(1)
     final_chunk = AbacusOutCalcChunk(calc_contents, header_chunk, -1)
 
