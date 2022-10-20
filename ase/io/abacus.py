@@ -37,7 +37,7 @@ def write_input(fd, parameters=None):
     params = deepcopy(parameters)
     params['dft_functional'] = params.pop('xc') if params.get(
         'xc') else params.get('dft_functional', 'pbe')
-    for key in ['pp', 'basis', 'pseudo_dir', 'basis_dir', 'orbital_dir', 'offsite_basis_dir', 'kpts', 'knumber', 'kmode', 'knumbers']:
+    for key in ['pp', 'basis', 'pseudo_dir', 'basis_dir', 'orbital_dir', 'offsite_basis_dir', 'kpts', 'knumber', 'kmode', 'knumbers', 'scaled']:
         params.pop(key, None)
 
     lines = []
