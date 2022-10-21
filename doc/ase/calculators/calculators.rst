@@ -40,7 +40,7 @@ Supported calculators
 
 The calculators can be divided in four groups:
 
-1) Asap_, BigDFT_, DeePMD-kit_, DFTD3_, DFTD4_, DFTK_, FLEUR_, GPAW_, Hotbit_, TBLite_, and XTB_
+1) Abacus_, Asap_, BigDFT_, DeePMD-kit_, DFTD3_, DFTD4_, DFTK_, FLEUR_, GPAW_, Hotbit_, TBLite_, and XTB_
    have their own native or external ASE interfaces.
 
 2) ABINIT, AMBER, CP2K, CASTEP, deMon2k, DFTB+, ELK, EXCITING, FHI-aims, GAUSSIAN,
@@ -78,6 +78,7 @@ TBLite_                                   Light-weight tight-binding framework
 XTB_                                      Semiemprical extended tight-binding program package
 :mod:`~ase.calculators.abinit`            Plane-wave pseudopotential code
 :mod:`~ase.calculators.amber`             Classical molecular dynamics code
+:mod:`~ase.calculators.abacus`            DFT supporting both pw and lcao basis
 :mod:`~ase.calculators.castep`            Plane-wave pseudopotential code
 :mod:`~ase.calculators.cp2k`              DFT and classical potentials
 :mod:`~ase.calculators.demon`             Gaussian based DFT code
@@ -135,7 +136,6 @@ The calculators included in ASE are used like this:
 >>> calc = ABC(...)
 
 where ``abc`` is the module name and ``ABC`` is the class name.
-
 
 .. _Asap: https://wiki.fysik.dtu.dk/asap
 .. _BigDFT: https://l_sim.gitlab.io/bigdft-suite/tutorials/Interoperability-Simulation.html#ASE-Interoperability
@@ -223,6 +223,7 @@ the :meth:`set` method:
 
    eam
    emt
+   abacus
    abinit
    amber
    castep

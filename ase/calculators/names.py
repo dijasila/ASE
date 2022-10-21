@@ -1,5 +1,5 @@
 # Recognized names of calculators sorted alphabetically:
-names = ['abinit', 'ace', 'aims', 'amber', 'asap', 'castep', 'cp2k',
+names = ['abacus', 'abinit', 'ace', 'aims', 'amber', 'asap', 'castep', 'cp2k',
          'crystal', 'demon', 'demonnano', 'dftb', 'dftd3', 'dmol', 'eam',
          'elk', 'emt', 'espresso', 'exciting', 'ff', 'gamess_us',
          'gaussian', 'gpaw', 'gromacs', 'gulp', 'hotbit', 'kim',
