@@ -12,10 +12,8 @@ from math import exp, pi, sin, sqrt, cos, acos
 import numpy as np
 import matplotlib.pyplot as plt
 from timeit import default_timer as timer
-from ase.data import atomic_numbers
-
-
-from ase.data import atomic_numbers
+from ase.data import atomic_numbers, covalent_radii, colors
+from copy import deepcopy
 
 # Table (1) of
 # D. WAASMAIER AND A. KIRFEL, Acta Cryst. (1995). A51, 416-431
@@ -298,6 +296,14 @@ class XrDebye:
         self.atoms = atoms
         # TODO: setup atomic form factors if method != 'Iwasa'
         
+        #for indexing peaks
+        self.hkl = {}
+        self.cartesian_transform = None
+        self.miller_transform = None
+        self.unit_cell_atom_positions = None
+        self.atoms_unit_cell = None
+        self.atoms_extended_unit_cell = None
+        
         return None
 
     def set_damping(self, damping):
@@ -324,9 +330,9 @@ class XrDebye:
             
         return interatomic_distance
     
-    def get_symbols(self):
+    def get_symbols(self, atoms):
         symbols = []
-        for a in self.atoms:
+        for a in atoms:
             symbol_charge = a.symbol
             if(a.charge<0):
                 symbol_charge+=(str("{:1d}".format(int(abs(a.charge))))+'-')
@@ -505,7 +511,7 @@ class XrDebye:
             self.twotheta_list = []
             s = np.array([q / (2 * pi) for q in self.q_list])    
         
-        symbols_of_all_atoms = self.get_symbols()#get the array of symbols for all atoms
+        symbols_of_all_atoms = self.get_symbols(self.atoms)#get the array of symbols for all atoms
         #we may want histograms separated for each atomic pair  
         #according to the Theory 2.1 section of: https://doi.org/10.1107/S2052252521000324
         unique_symbols = list(set(symbols_of_all_atoms))#slim this down to the unique symbols
@@ -550,6 +556,9 @@ class XrDebye:
             #The auto-generated bin edges from the numpy library compute fast, but are too close together to properly capture the PDF; these require
             #correction to the mean of the values in each bin to fix truncation errors.
             histogram_bins = np.histogram_bin_edges(interatomic_distances,bins='auto')#bins=len(self.atoms)
+            if verbose:
+                end = timer() - start
+                print(end, ' sec elapsed: finished finding histogram bin edges. Now putting pairs into bins...')
             histogram_bin_indices = np.digitize(interatomic_distances, bins=histogram_bins) #find the bin index, another slow process
             if verbose:
                 end = timer() - start
@@ -661,3 +670,472 @@ class XrDebye:
             fig.savefig(filename)
 
         return ax
+    
+    def d_bragg(self, angle_2theta, n=1):
+        #calculate the d-spacing based on the angle and integer index
+        #use bragg's law to calculate d-spacing
+        #input 2-theta in degrees
+        #nL = 2dsin(th)
+        return n*self.wavelength/(2*np.sin((angle_2theta/2)*np.pi/180)) #in units of wavelength, which are usually angstrom
+    
+    def th_bragg(self, d_spacing, n=1):
+        #calculate the scattering angle (2-theta) based on d-spacing and integer index
+        #2-theta is returned in degrees
+        return np.arcsin(n*self.wavelength/(2*d_spacing)) * 2 * 180/np.pi #in units of degrees
+    
+    def calc_hkl(self, unit_cell_atoms, plot_planes=False):
+        self.atoms_unit_cell = unit_cell_atoms
+        self.cartesian_transform = self.calculate_cartesian_transform()
+        self.miller_transform = self.calculate_miller_transform()
+        self.unit_cell_atom_positions = self.atoms_unit_cell.get_positions()
+        self.atoms_extended_unit_cell = self.repeat_positions_on_unit_cell_edges()
+        
+        a,b,c = self.atoms_unit_cell.get_cell().lengths()
+        recip = self.atoms_unit_cell.get_cell().reciprocal()
+        a_,b_,c_ = recip.lengths()
+        al_,be_,ga_ = recip.angles()*np.pi/180
+        d_min = self.d_bragg(np.max(self.twotheta_list))#limited by the measurement
+        d_max = self.d_bragg(np.min(self.twotheta_list))
+        
+        h_min,k_min,l_min = np.round((-1/d_min)*np.array([a,b,c]),0)
+        h_max,k_max,l_max = np.abs(np.array([h_min,k_min,l_min]))
+        h_range = np.arange(h_max,h_min-1,-1,dtype=np.int)
+        k_range = np.arange(k_max,k_min-1,-1,dtype=np.int)
+        l_range = np.arange(l_max,l_min-1,-1,dtype=np.int)
+        hkl = {}
+        for h in h_range:
+            for k in k_range:
+                for l in l_range:
+                    
+                    index_string = str(h)+' '+str(k)+' ' +str(l)
+                    inv_d_sq = (h**2 * a_**2) + (k**2 * b_**2) + (l**2 * c_**2) + (2*k*l*b_*c_*np.cos(al_)) + (2*h*l*a_*c_*np.cos(be_)) + (2*h*k*a_*b_*np.cos(ga_))
+                    if(inv_d_sq != 0):
+                        d = 1/(np.sqrt(inv_d_sq))
+                        if((d >= d_min) & (d <= d_max)):
+                            plane_is_populated = self.plane_is_populated(h,k,l,d,plot_planes)#this allows one to distinguish between diffraction peaks that come from 'n' multiples and those that come from populated planes
+                            F_mag,F = self.structure_factor(h,k,l,d)#this takes care of systematic absences
+                            if(F_mag != 0):
+                                twoTh = self.th_bragg(d)
+                                hkl[index_string] = [d,twoTh,F,plane_is_populated,np.array([h,k,l]),[]]#d_spacing, 2theta, multiplicity/or/structure factor, flag_is_populated, (hkl), list of planes with same d-spacing
+                                #print(d,index_string,F)
+                                
+        #reduce indices with the same d-spacing
+        for key,item in list(hkl.items()):
+            d_spacings = np.array([item[0] for key,item in hkl.items()])
+            keys = np.array(list(hkl.keys()))
+            d_spacing_mask = np.array([np.isclose(item[0], d_spac) for d_spac in d_spacings])
+            keys_with_same_d_spacing = keys[d_spacing_mask]
+            
+            #prioritize key with smallest sum of abs() indices, and sum of number of negative indices
+            hkl_sums = np.array([np.sum(np.abs(hkl[selected_key][4])) for selected_key in keys_with_same_d_spacing])
+            hkl_neg = np.array([np.count_nonzero(hkl[selected_key][4]<0) for selected_key in keys_with_same_d_spacing])
+            
+            priority_key = keys_with_same_d_spacing[np.argmin(hkl_sums+hkl_neg)]
+            
+            #F_sum = np.absolute(np.sum(np.array([hkl[selected_key][2] for selected_key in keys_with_same_d_spacing])))
+            #print(item[0], priority_key, F_sum, keys_with_same_d_spacing, hkl_sums, hkl_neg)
+            for key_to_remove in keys_with_same_d_spacing:
+                if(key_to_remove != priority_key):
+                    hkl[priority_key][2] = len(keys_with_same_d_spacing)#include the multiplicity
+                    hkl[priority_key][5] = list(keys_with_same_d_spacing)#write all the keys we're deleting
+                    del hkl[key_to_remove]
+        
+        #print(len(hkl))
+        self.hkl = hkl
+        return None
+    
+    def get_hkl_string(self, hkl, index_type=None):
+        #take the h,k, and l numbers an return a string with bars over negative numbers
+        hkl_string = ''
+        if(index_type=='plane'):
+            hkl_string+='('
+        elif(index_string=='family'):
+            hkl_string+='{'
+        elif(index_string=='direction'):
+            hkl_string+='['
+            
+        def add_bar(num_string):
+            new_string = ''
+            for char in num_string:
+                new_string+=char+'\u0305'
+            return new_string
+        
+        h = hkl[0]
+        k = hkl[1]
+        l = hkl[2]
+        h_string = str(np.abs(h))
+        if(h<0):
+            h_string = add_bar(h_string)
+        k_string = str(np.abs(k))
+        if(k<0):
+            k_string = add_bar(k_string)
+        l_string = str(np.abs(l))
+        if(l<0):
+            l_string = add_bar(l_string)
+            
+        hkl_string += h_string+k_string+l_string
+        
+        if(index_type=='plane'):
+            hkl_string+=')'
+        elif(index_string=='family'):
+            hkl_string+='}'
+        elif(index_string=='direction'):
+            hkl_string+=']'
+            
+        return hkl_string
+    
+    def plot_indices(self,ax=None):
+        if(ax==None):
+            fig,ax = plt.subplots()
+        two_theta = [item[1] for key,item in self.hkl.items()]
+        bar_height = 0.95
+        ax.bar(two_theta, height=bar_height, width=0.2, color='k')
+        ax.set_xlabel('2\u03B8 [\N{Degree Sign}]')
+        for key,item in self.hkl.items():
+            x = item[1]
+            y = bar_height
+            is_populated = item[3]
+            c = 'k'
+            if(not is_populated):
+                c = 'r'
+            ax.annotate(self.get_hkl_string(item[4], index_type='plane'), xy=(x,y), xytext=(x, y+0.02), textcoords='data',fontsize=10,color=c,rotation=90)
+            
+        return ax
+    
+    def calculate_cartesian_transform(self):
+        #calculate a transformation matrix using cell properties
+        #use this matrix and miller - fractional coordinates to get cartesian coords.
+        a,b,c = self.atoms_unit_cell.get_cell().lengths()
+        alpha,beta,gamma = self.atoms_unit_cell.get_cell().angles()*np.pi/180
+        omega = a*b*c*np.sqrt(1-np.cos(alpha)**2 - np.cos(beta)**2 - np.cos(gamma)**2 + 2*np.cos(alpha)*np.cos(beta)*np.cos(gamma))
+        
+        #transform to cartesian coordinates
+        #https://en.wikipedia.org/wiki/Fractional_coordinates
+        return np.array([[a, b*np.cos(gamma), c*np.cos(beta)], [0, b*np.sin(gamma), c*(np.cos(alpha)-np.cos(beta)*np.cos(gamma))/(np.sin(gamma))], [0, 0, omega/(a*b*np.sin(gamma))]])
+    
+    def calculate_miller_transform(self):
+        #calculate a transform matrix using cell properties
+        #use this matrix and cartesian coordinates to get fractional-miller coords.
+        a,b,c = self.atoms_unit_cell.get_cell().lengths()
+        alpha,beta,gamma = self.atoms_unit_cell.get_cell().angles()*np.pi/180
+        omega = a*b*c*np.sqrt(1-np.cos(alpha)**2 - np.cos(beta)**2 - np.cos(gamma)**2 + 2*np.cos(alpha)*np.cos(beta)*np.cos(gamma))
+        
+        #transform to cartesian coordinates
+        #https://en.wikipedia.org/wiki/Fractional_coordinates
+        return np.array([[1/a, -np.cos(gamma)/(a*np.sin(gamma)), b*c*(np.cos(alpha)*np.cos(gamma)-np.cos(beta))/(omega*np.sin(gamma))], [0, 1/(b*np.sin(gamma)), a*c*(np.cos(beta)*np.cos(gamma)-np.cos(alpha))/(omega*np.sin(gamma))], [0, 0, a*b*np.sin(gamma)/omega]])
+    
+    def calculate_cartesian_indices(self,miller_indices):
+        #calculate the cartesian equivalent of miller indices
+        if(np.ndim(miller_indices) > 1):
+            return np.array([self.cartesian_transform@indices for indices in miller_indices])
+        else:
+            return self.cartesian_transform@miller_indices #x,y,z
+        
+    def calculate_miller_indices(self, cartesian_indices):
+        #calculate the miller-fractional equivalent of the cartesian indices
+        if(np.ndim(cartesian_indices) > 1):
+            return np.array([self.miller_transform@indices for indices in cartesian_indices])
+        else:
+            return self.miller_transform@cartesian_indices #(h,k,l)
+        
+    def calculate_cartesian_plane_norm(self, miller_indices):
+        #calculate the normal vector for a plane based on miller indices, in cartesian units
+        
+        zero_indices = np.argwhere(miller_indices==0)
+        
+        #find two vectors in the plane, in miller notation
+        qr = np.array([0,0,0])
+        rs = np.array([0,0,0])
+        if(len(zero_indices) >= 2):
+            #the plane is parallel to two axes
+            qr[zero_indices[0]] = 1
+            rs[zero_indices[1]] = 1
+        elif(len(zero_indices) == 1):
+            #the plane is parallel to one axis
+            qr[zero_indices[0]] = 1
+            #we need to get the axis intercepts for the other two
+            pts = np.array([[0,0,0],[0,0,0]],dtype=np.float64)
+            pts_index = 0
+            for i in range(len(miller_indices)):
+                if(miller_indices[i] != 0):
+                    pts[pts_index,i] = 1/miller_indices[i]
+                    pts_index += 1
+            rs = pts[0] - pts[1]
+        else:
+            #the plane is not parallel to any axis, so we will find the vectors from three points
+            pts = np.array([[0,0,0],[0,0,0],[0,0,0]],dtype=np.float64)
+            for i in range(len(miller_indices)):
+                if(miller_indices[i] != 0):
+                    pts[i,i] = 1/miller_indices[i]
+            rs = pts[0] - pts[1]
+            qr = pts[1] - pts[2]
+            
+        #print(miller_indices, zero_indices, qr, rs)
+        
+        #convert to cartesian coordinates
+        rs_cart = self.calculate_cartesian_indices(rs)
+        qr_cart = self.calculate_cartesian_indices(qr)
+        tol = 1e-10
+        rs_cart[np.abs(rs_cart) < tol] = 0
+        qr_cart[np.abs(qr_cart) < tol] = 0
+        
+        #take the cross product to find the norm
+        norm = np.cross(rs_cart,qr_cart)
+        norm = norm/sqrt(np.dot(norm,norm))
+        #print(rs_cart,qr_cart,norm,self.calculate_miller_indices(norm))
+        
+        return norm #unit vector in cartesian coords.
+    
+    def distance_to_plane(self, norm, delta_point_on_plane_point_off_plane):
+        #calculate the distance to the plane (defined by a point and normal vector) from a point off the plane
+        
+        #https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_plane
+        norm2 = (np.dot(norm,norm))
+        d = np.dot(delta_point_on_plane_point_off_plane,norm/norm2)#the dot product of the norm_vector and the difference between the two points is the origin-shifted distance projection
+        x_dist = norm[0]*d/norm2
+        y_dist = norm[1]*d/norm2
+        z_dist = norm[2]*d/norm2
+        
+        return np.sqrt(x_dist**2 + y_dist**2 + z_dist**2)
+    
+    def structure_factor(self, h,k,l, d):
+        #return the structure factor for the unit cell, based on the given miller indices
+        #https://en.wikipedia.org/wiki/Structure_factor
+        #this calculation should accommodate systematic absence indices based on symmetry
+        #http://goodwin.chem.ox.ac.uk/goodwin/TEACHING_files/l7_handout.pdf
+        #https://www.xtal.iqfr.csic.es/Cristalografia/parte_07_2_1-en.html
+        twotheta = self.th_bragg(d)
+        s = 2 * np.sin(twotheta * np.pi / 180 / 2.0) / self.wavelength
+        pos_miller = self.calculate_miller_indices(self.unit_cell_atom_positions)
+        symbols = self.get_symbols(self.atoms_unit_cell)
+        F = 0
+        for j in range(len(pos_miller)):
+            pos = pos_miller[j]
+            f = self.get_waasmaier(symbols[j], s)
+            F += f*np.exp(-2*np.pi*1j*(h*pos[0] + k*pos[1] + l*pos[2]))
+        F_mag = np.absolute(F)
+        #F_phase = np.arctan2(np.imag(F),np.real(F))
+        F_thresh = 1e-10
+        if(F_mag < F_thresh):
+            F_mag = 0
+        return F_mag,F
+    
+    def plane_is_populated(self, h,k,l,d, plot_planes=False):
+        #return a boolean indicating if the plane with index h,k,l is populated within the class set of atoms
+        hkl = np.array([h,k,l])
+        norm_vector = self.calculate_cartesian_plane_norm(hkl)#cartesian normal vector
+        populated = False
+        #loop over all atoms in the unit cell and check the distance to the plane
+        pos = self.atoms_extended_unit_cell.get_positions()#cartesian x,y, and z coordinates of the atoms
+        for i in range(len(pos)):
+            delta_pos = pos[i] - pos#cartesian difference
+            atom_distance_to_plane = self.distance_to_plane(norm_vector,delta_pos)
+            
+            if(np.any(np.isclose(atom_distance_to_plane, d))):
+                populated = True
+                
+                if(plot_planes):
+                    distance_match_index = np.argwhere(np.isclose(atom_distance_to_plane, d))[0]
+                    self.plot_plane(hkl, self.calculate_miller_indices(pos[distance_match_index]))
+                break
+            
+        return populated
+    
+    def repeat_positions_on_unit_cell_edges(self):
+        #add atom positions on unit cell edges based on symmetry
+        #all of this is done in cartesian coordinates
+        lattice_step_100 = self.calculate_cartesian_indices(np.array([1,0,0]))
+        lattice_step_010 = self.calculate_cartesian_indices(np.array([0,1,0]))
+        lattice_step_001 = self.calculate_cartesian_indices(np.array([0,0,1]))
+        lattice_step_110 = self.calculate_cartesian_indices(np.array([1,1,0]))
+        lattice_step_011 = self.calculate_cartesian_indices(np.array([0,1,1]))
+        lattice_step_101 = self.calculate_cartesian_indices(np.array([1,0,1]))
+        lattice_step_111 = self.calculate_cartesian_indices(np.array([1,1,1]))
+        
+        new_atoms = deepcopy(self.atoms_unit_cell)
+
+        for atom in new_atoms:
+            x,y,z = atom.position
+            
+            if(x==0):
+                new_pos = np.array([[x,y,z]+lattice_step_100])
+                if not np.any([np.all(new_pos==old_pos) for old_pos in new_atoms.get_positions()]):
+                    new_atom = deepcopy(atom)
+                    new_atom.position = new_pos
+                    new_atoms += new_atom
+                    
+            if(y==0):
+                new_pos = np.array([[x,y,z]+lattice_step_010])
+                if not np.any([np.all(new_pos==old_pos) for old_pos in new_atoms.get_positions()]):
+                    new_atom = deepcopy(atom)
+                    new_atom.position = new_pos
+                    new_atoms += new_atom
+                    
+            if(z==0):
+                new_pos = np.array([[x,y,z]+lattice_step_001])
+                if not np.any([np.all(new_pos==old_pos) for old_pos in new_atoms.get_positions()]):
+                    new_atom = deepcopy(atom)
+                    new_atom.position = new_pos
+                    new_atoms += new_atom
+                    
+            if((x==0) & (y==0)):
+                new_pos = np.array([[x,y,z]+lattice_step_110])
+                if not np.any([np.all(new_pos==old_pos) for old_pos in new_atoms.get_positions()]):
+                    new_atom = deepcopy(atom)
+                    new_atom.position = new_pos
+                    new_atoms += new_atom
+                    
+            if((x==0) & (z==0)):
+                new_pos = np.array([[x,y,z]+lattice_step_101])
+                if not np.any([np.all(new_pos==old_pos) for old_pos in new_atoms.get_positions()]):
+                    new_atom = deepcopy(atom)
+                    new_atom.position = new_pos
+                    new_atoms += new_atom
+                    
+            if((z==0) & (y==0)):
+                new_pos = np.array([[x,y,z]+lattice_step_011])
+                if not np.any([np.all(new_pos==old_pos) for old_pos in new_atoms.get_positions()]):
+                    new_atom = deepcopy(atom)
+                    new_atom.position = new_pos
+                    new_atoms += new_atom
+                    
+            if((x==0) & (y==0) & (z==0)):
+                new_pos = np.array([[x,y,z]+lattice_step_111])
+                if not np.any([np.all(new_pos==old_pos) for old_pos in new_atoms.get_positions()]):
+                    new_atom = deepcopy(atom)
+                    new_atom.position = new_pos
+                    new_atoms += new_atom
+           
+        return new_atoms
+    
+    def repeat_positions(self,repeat=np.array([1,1,1])):
+        #return an atoms object with repetition in the a,b, and c lattice vectors as defined in the repeat inupt array
+        new_atoms = deepcopy(self.atoms)
+        if(len(repeat)==1):
+            repeat = repeat*np.ones(3)
+        new_atoms = new_atoms*repeat
+        return new_atoms
+    
+    def plot_lattice(self, fig=None,ax=None):
+        #plot lines around the unit cell
+        if((fig==None) | (ax==None)):
+            fig = plt.figure()
+            ax = fig.add_subplot(projection='3d')
+            
+        p = [
+            np.array([0,0,0]),#0
+            self.calculate_cartesian_indices(np.array([1,0,0])),#1
+            self.calculate_cartesian_indices(np.array([0,1,0])),#2
+            self.calculate_cartesian_indices(np.array([0,0,1])),#3
+            self.calculate_cartesian_indices(np.array([1,1,0])),#4
+            self.calculate_cartesian_indices(np.array([0,1,1])),#5
+            self.calculate_cartesian_indices(np.array([1,0,1])),#6
+            self.calculate_cartesian_indices(np.array([1,1,1])),#7
+            ]
+        
+        p0_100 = np.array([p[0],p[1]])
+        p0_010 = np.array([p[0],p[2]])
+        p0_001 = np.array([p[0],p[3]])
+        p100_110 = np.array([p[1],p[4]])
+        p010_110 = np.array([p[2],p[4]])
+        p100_101 = np.array([p[1],p[6]])
+        p010_011 = np.array([p[2],p[5]])
+        p110_111 = np.array([p[4],p[7]])
+        p001_101 = np.array([p[3],p[6]])
+        p001_011 = np.array([p[3],p[5]])
+        p011_111 = np.array([p[5],p[7]])
+        p101_111 = np.array([p[6],p[7]])
+        
+        def plot_line(line):
+            ax.plot(line[:,0],line[:,1],zs=line[:,2],marker='None',linestyle='dashed',color='k',linewidth=1)
+            
+        plot_line(p0_100)
+        plot_line(p0_010)
+        plot_line(p100_110)
+        plot_line(p010_110)
+        plot_line(p0_001)
+        plot_line(p100_101)
+        plot_line(p010_011)
+        plot_line(p110_111)
+        plot_line(p001_101)
+        plot_line(p001_011)
+        plot_line(p101_111)
+        plot_line(p011_111)
+        
+        return fig,ax
+    
+    def plot_atoms(self, atoms=None, fig=None, ax=None, size_scale=0.5):
+        #plot the atoms of the object
+        if((fig==None) | (ax==None)):
+            fig = plt.figure()
+            ax = fig.add_subplot(projection='3d')
+        point_size = ax.transData.transform([(0,1),(1,0)]) - ax.transData.transform((0,0))
+        if(atoms==None):
+            atoms = self.atoms
+        #if drawn all together in groups, matplotlib cannot properly redraw top/hidden during rotation
+        # symbols_of_all_atoms = np.array([atom.symbol for atom in atoms])#get the array of symbols for all atoms, not including the charge state 
+        # unique_symbols = list(set(symbols_of_all_atoms))
+        # positions = atoms.get_positions()
+        # for i in range(len(unique_symbols)):
+            # atom_mask = np.array([symbol == unique_symbols[i] for symbol in symbols_of_all_atoms])
+            # number = atomic_numbers[unique_symbols[i]]
+            # xc = positions[atom_mask,0]
+            # yc = positions[atom_mask,1]
+            # zc = positions[atom_mask,2]
+            # size = np.pi*np.square(covalent_radii[number])*np.max(point_size[0])*size_scale
+            # ax.scatter(xc,yc,zc,color=colors.cpk_colors[number],s=size,edgecolors='k',alpha=1)
+        for atom in atoms:
+            xc = atom.position[0]
+            yc = atom.position[1]
+            zc = atom.position[2]
+            size = np.pi*np.square(covalent_radii[atom.number])*np.max(point_size[0])*size_scale
+            ax.scatter(xc,yc,zc,color=colors.cpk_colors[atom.number],s=size,edgecolors='k')
+            
+        return fig,ax
+    
+    def plot_plane(self, miller_indices=np.array([1,0,0]), point=np.array([0,0,0]), atoms=None, fig=None, ax=None, show_axes=False, size_scale=0.25):
+        #plot the plane defined by the miller indices and a point in fractional miller indices
+        #also plot the atoms and unit cell edges
+        
+        if((fig==None) | (ax==None)):
+            fig = plt.figure()
+            ax = fig.add_subplot(projection='3d')
+            
+        if(atoms==None):
+            atoms = self.atoms_extended_unit_cell
+        pos = atoms.get_positions() #the cartesian coordinates of the atoms in the object
+        xc = pos[:,0]
+        yc = pos[:,1]
+        zc = pos[:,2]
+        
+        self.plot_atoms(atoms=atoms, fig=fig, ax=ax, size_scale=size_scale)
+        self.plot_lattice(fig,ax)
+        
+        norm = self.calculate_cartesian_plane_norm(miller_indices)
+        pc = self.calculate_cartesian_indices(point)
+        d = -np.dot(pc,norm)
+        
+        #branch depending on whether the plane is parallel to an axis
+        if(norm[2] != 0):
+            #create x,y
+            x, y = np.meshgrid(np.linspace(np.min(xc),np.max(xc),num=2), np.linspace(np.min(yc),np.max(yc),num=2))
+            z = (-norm[0] * x - norm[1] * y - d) * 1./norm[2]
+        elif(norm[0] != 0):
+            y, z = np.meshgrid(np.linspace(np.min(yc),np.max(yc),num=2), np.linspace(np.min(zc),np.max(zc),num=2))
+            x = (-norm[2] * z - norm[1] * y - d) * 1./norm[0]
+        elif(norm[1] != 0):
+            x, z = np.meshgrid(np.linspace(np.min(xc),np.max(xc),num=2), np.linspace(np.min(zc),np.max(zc),num=2))
+            y = (-norm[2] * z - norm[0] * x - d) * 1./norm[1]
+            
+        ax.plot_surface(x,y,z, alpha=0.5)
+        
+        ax.set_box_aspect((np.ptp(xc),np.ptp(yc),np.ptp(zc)))
+        if(show_axes):
+            ax.set_xlabel('x [$\AA$]')
+            ax.set_ylabel('y [$\AA$]')
+        else:
+            plt.grid(None)
+            plt.axis('off')
+        plt.title(self.get_hkl_string(miller_indices, index_type='plane'))
+        
+        return fig,ax
