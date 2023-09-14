@@ -4,7 +4,6 @@ from ase.utils import reader, writer
 from ase.units import Hartree, Bohr
 from pathlib import Path
 import re
-import os
 import numpy as np
 # Made from NWChem interface
 
@@ -57,7 +56,7 @@ def write_orca(fd, atoms, params):
 
 
 @reader
-def read_orca_energy(fd):
+def read_orca_output(fd):
     """Read Energy from ORCA output file."""
     text = fd.read()
     re_energy = re.compile(r"FINAL SINGLE POINT ENERGY.*\n")
@@ -70,46 +69,56 @@ def read_orca_energy(fd):
             energy = float(match.group().split()[-1]) * Hartree
     if np.isnan(energy):
         raise RuntimeError('No energy')
-    else:
-        return energy
+
+    results = dict()
+    results['energy'] = energy
+    results['free_energy'] = energy
+    return results
 
 
 @reader
-def read_orca_forces(fd):
-    """Read Forces from ORCA output file."""
-    getgrad = False
-    gradients = []
-    tempgrad = []
-    for i, line in enumerate(fd):
-        if line.find('# The current gradient') >= 0:
-            getgrad = True
-            gradients = []
-            tempgrad = []
-            continue
-        if getgrad and "#" not in line:
-            grad = line.split()[-1]
-            tempgrad.append(float(grad))
-            if len(tempgrad) == 3:
-                gradients.append(tempgrad)
-                tempgrad = []
-        if '# The at' in line:
-            getgrad = False
+def read_orca_engrad(fd):
+    """Read Forces from ORCA engrad file."""
+    text = fd.read()
+    re_gradient = re.compile(r'# The current gradient.*\n#\n')
+    re_stop = re.compile(r'#\n# The at')
+    re_values = re.compile(r'^\s*(-?[0-9]+\.[0-9]+)', re.MULTILINE)
 
-    forces = -np.array(gradients) * Hartree / Bohr
-    return forces
+    # Search for beginning of block
+    match = re_gradient.search(text)
+    if match is None:
+        raise RuntimeError('No match for gradient')
+    # Discard everything before this block
+    text = text[match.end():]
+
+    # Search for end of block
+    match = re_stop.search(text)
+    if match is None:
+        raise RuntimeError('No match for atomic numbers and coordinates')
+    # Discard everything after this block
+    text = text[:match.start()]
+
+    # Parse the values
+    gradients = [float(match.group(0)) for match in re_values.finditer(text)]
+
+    # Reshape
+    gradients = np.array(gradients).reshape((-1, 3))
+
+    results = dict()
+    results['forces'] = -gradients * Hartree / Bohr
+    return results
 
 
 def read_orca_outputs(directory, stdout_path):
+    stdout_path = Path(stdout_path)
     results = {}
-    energy = read_orca_energy(Path(stdout_path))
-    results['energy'] = energy
-    results['free_energy'] = energy
+    results.update(read_orca_output(stdout_path))
 
     # Does engrad always exist? - No!
     # Will there be other files -No -> We should just take engrad
     # as a direct argument.  Or maybe this function does not even need to
     # exist.
-    engrad_path = Path(stdout_path).with_suffix('.engrad')
-    if os.path.isfile(engrad_path):
-        results['forces'] = read_orca_forces(engrad_path)
+    engrad_path = stdout_path.with_suffix('.engrad')
+    if engrad_path.is_file():
+        results.update(read_orca_engrad(engrad_path))
     return results
