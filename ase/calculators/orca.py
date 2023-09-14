@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 import ase.io.orca as io
 from ase.calculators.genericfileio import (CalculatorTemplate,
                                            GenericFileIOCalculator)
@@ -21,7 +22,7 @@ class OrcaProfile:
 
     def run(self, directory, inputfile, outputfile):
         from subprocess import check_call
-        with open(outputfile, 'w') as fd:
+        with open(Path(directory) / outputfile, 'w') as fd:
             check_call(self.argv + [str(inputfile)], stdout=fd, cwd=directory)
 
 
