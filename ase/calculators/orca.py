@@ -32,7 +32,7 @@ class OrcaTemplate(CalculatorTemplate):
     def __init__(self):
         super().__init__(name='orca',
                          implemented_properties=['energy', 'free_energy',
-                                                 'forces'])
+                                                 'forces', 'dipole'])
 
         self.input_file = f'{self._label}.inp'
         self.output_file = f'{self._label}.out'

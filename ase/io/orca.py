@@ -55,10 +55,7 @@ def write_orca(fd, atoms, params):
     fd.write('*\n')
 
 
-@reader
-def read_orca_output(fd):
-    """Read Energy from ORCA output file."""
-    text = fd.read()
+def read_energy(text):
     re_energy = re.compile(r"FINAL SINGLE POINT ENERGY.*\n")
     re_not_converged = re.compile(r"Wavefunction not fully converged")
 
@@ -70,9 +67,44 @@ def read_orca_output(fd):
     if np.isnan(energy):
         raise RuntimeError('No energy')
 
+    return energy
+
+
+def read_dipole(text):
+    # Example:
+    # 'Total Dipole Moment    :      3.15321      -0.00269       0.03656'
+    re_dipole = re.compile(r'Total Dipole Moment\s+:'
+                           r'\s+(-?[0-9]+\.[0-9]+)'
+                           r'\s+(-?[0-9]+\.[0-9]+)'
+                           r'\s+(-?[0-9]+\.[0-9]+)')
+
+    match = None
+    for match in re_dipole.finditer(text):
+        pass
+    if match is None:
+        # Nothing was found
+        return None
+
+    # Return the last match
+    dipole = np.array([float(s) for s in match.groups()]) * Bohr
+    return dipole
+
+
+@reader
+def read_orca_output(fd):
+    """Read Energy and dipole moment from ORCA output file."""
+    text = fd.read()
+
+    energy = read_energy(text)
+    dipole = read_dipole(text)
+
     results = dict()
     results['energy'] = energy
     results['free_energy'] = energy
+
+    if dipole is not None:
+        results['dipole'] = dipole
+
     return results
 
 
