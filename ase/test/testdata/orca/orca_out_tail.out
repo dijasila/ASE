@@ -1,0 +1,166 @@
+-------
+TIMINGS
+-------
+
+Total SCF time: 0 days 0 hours 0 min 1 sec 
+
+Total time                  ....       1.223 sec
+Sum of individual times     ....       1.093 sec  ( 89.4%)
+
+Fock matrix formation       ....       0.520 sec  ( 42.5%)
+  Split-RI-J                ....       0.181 sec  ( 34.9% of F)
+  XC integration            ....       0.340 sec  ( 65.3% of F)
+    Basis function eval.    ....       0.083 sec  ( 24.3% of XC)
+    Density eval.           ....       0.110 sec  ( 32.3% of XC)
+    XC-Functional eval.     ....       0.018 sec  (  5.3% of XC)
+    XC-Potential eval.      ....       0.087 sec  ( 25.6% of XC)
+Diagonalization             ....       0.024 sec  (  2.0%)
+Density matrix formation    ....       0.002 sec  (  0.1%)
+Population analysis         ....       0.032 sec  (  2.6%)
+Initial guess               ....       0.015 sec  (  1.2%)
+Orbital Transformation      ....       0.000 sec  (  0.0%)
+Orbital Orthonormalization  ....       0.010 sec  (  0.8%)
+DIIS solution               ....       0.009 sec  (  0.8%)
+Grid generation             ....       0.492 sec  ( 40.2%)
+
+Maximum memory used throughout the entire SCF-calculation: 34.5 MB
+
+-------------------------   --------------------
+FINAL SINGLE POINT ENERGY      -815.959737266080
+-------------------------   --------------------
+
+
+
+           ************************************************************
+           *        Program running with 6 parallel MPI-processes     *
+           *              working on a common directory               *
+           ************************************************************
+------------------------------------------------------------------------------
+                         ORCA SCF GRADIENT CALCULATION
+------------------------------------------------------------------------------
+
+Gradient of the Kohn-Sham DFT energy:
+Kohn-Sham wavefunction type      ... UKS
+Hartree-Fock exchange scaling    ...    0.000
+Number of operators              ...    2
+Number of atoms                  ...   27
+Basis set dimensions             ...  214
+Integral neglect threshold       ... 2.5e-11
+Integral primitive cutoff        ... 2.5e-12
+SHARK Integral package           ... ON
+
+Nuc. rep. gradient       (SHARK) ... done (  0.0 sec)
+HCore & Overlap gradient (SHARK) ... done (  0.1 sec)
+RI-J gradient            (SHARK) ... done (  0.3 sec)
+Exchange-correlation gradient    ... done
+
+------------------
+CARTESIAN GRADIENT
+------------------
+
+   1   F   :   -0.006465738   -0.000128275    0.000140869
+   2   Si  :   -0.003545106   -0.003199842   -0.002439971
+   3   C   :    0.029530701    0.000833007    0.000941748
+   4   C   :    0.000255598    0.000231935   -0.000292218
+   5   C   :   -0.000775089   -0.000154188    0.001503764
+   6   C   :   -0.000318257    0.003098359    0.000886965
+   7   H   :    0.003673263    0.000593270   -0.000744090
+   8   H   :   -0.000269626    0.003860819    0.000218478
+   9   H   :   -0.000478925   -0.001405282   -0.003452051
+  10   H   :   -0.000134521    0.003707405    0.000784886
+  11   H   :    0.002499073    0.000572736    0.000506094
+  12   H   :   -0.000432695   -0.002251212    0.002946738
+  13   H   :   -0.000357773   -0.001538994   -0.003480368
+  14   H   :   -0.000406441   -0.002592848    0.002872988
+  15   H   :    0.003787690   -0.001587113   -0.000383823
+  16   C   :   -0.028585096   -0.000293767   -0.000042097
+  17   C   :    0.002925236   -0.000167909    0.000030983
+  18   C   :    0.001399216   -0.004419511   -0.000041487
+  19   C   :    0.000117082   -0.003933400    0.000003942
+  20   C   :    0.000117795    0.000003014    0.000010993
+  21   C   :   -0.000158018    0.004012245   -0.000045577
+  22   C   :    0.001045385    0.004799154    0.000106320
+  23   H   :    0.002220604   -0.004005198    0.000017294
+  24   H   :   -0.001721866   -0.003531427   -0.000002861
+  25   H   :   -0.004202167   -0.000060957   -0.000030087
+  26   H   :   -0.001818124    0.003483920   -0.000025365
+  27   H   :    0.002097800    0.004074061    0.000007930
+
+Difference to translation invariance:
+           :   -0.0000000000   -0.0000000000    0.0000000000
+
+Difference to rotation invariance:
+           :    0.0002268841    0.0000248507    0.0000665433
+
+Norm of the cartesian gradient     ...    0.0455722402
+RMS gradient                       ...    0.0050635822
+MAX gradient                       ...    0.0295307009
+
+-------
+TIMINGS
+-------
+
+Total SCF gradient time            ...        1.989 sec
+
+One electron gradient       ....       0.066 sec  (  3.3%)
+RI-J Coulomb gradient       ....       0.338 sec  ( 17.0%)
+XC gradient                 ....       1.452 sec  ( 73.0%)
+
+Maximum memory used throughout the entire SCFGRAD-calculation: 28.3 MB
+
+                            ***************************************
+                            *     ORCA property calculations      *
+                            ***************************************
+
+                                    ---------------------
+                                    Active property flags
+                                    ---------------------
+   (+) Dipole Moment
+
+
+------------------------------------------------------------------------------
+                       ORCA ELECTRIC PROPERTIES CALCULATION
+------------------------------------------------------------------------------
+
+Dipole Moment Calculation                       ... on
+Quadrupole Moment Calculation                   ... off
+Polarizability Calculation                      ... off
+GBWName                                         ... orca.gbw
+Electron density                                ... orca.scfp
+The origin for moment calculation is the CENTER OF MASS  = ( 0.002150, -0.296255  0.086315)
+
+-------------
+DIPOLE MOMENT
+-------------
+                                X             Y             Z
+Electronic contribution:      1.84602      -0.21505      -0.30526
+Nuclear contribution   :      1.30721       0.21236       0.34181
+                        -----------------------------------------
+Total Dipole Moment    :      3.15323      -0.00269       0.03656
+                        -----------------------------------------
+Magnitude (a.u.)       :      3.15344
+Magnitude (Debye)      :      8.01540
+
+
+
+--------------------
+Rotational spectrum 
+--------------------
+ 
+Rotational constants in cm-1:     0.067808     0.006733     0.006501 
+Rotational constants in MHz :  2032.832599   201.841849   194.891969 
+
+ Dipole components along the rotational axes: 
+x,y,z [a.u.] :    -3.153359    -0.017110     0.014514 
+x,y,z [Debye]:    -8.015201    -0.043489     0.036893 
+
+ 
+
+Timings for individual modules:
+
+Sum of individual times         ...        4.525 sec (=   0.075 min)
+GTO integral calculation        ...        0.530 sec (=   0.009 min)  11.7 %
+SCF iterations                  ...        1.613 sec (=   0.027 min)  35.6 %
+SCF Gradient evaluation         ...        2.382 sec (=   0.040 min)  52.6 %
+                             ****ORCA TERMINATED NORMALLY****
+TOTAL RUN TIME: 0 days 0 hours 0 minutes 5 seconds 9 msec
