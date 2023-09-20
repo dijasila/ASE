@@ -135,7 +135,7 @@ FINAL SINGLE POINT ENERGY       -76.422436201230
 def test_read_orca_outputs_with_dipole(datadir):
     results_sample = {
         'energy': -22203.395391088576,
-        'dipole': np.array([1.66861746e+00, -1.42348670e-03, 1.93467188e-02])}
+        'dipole_COM': np.array([1.66861746, -0.00142348670, 0.0193467188])}
 
     results_sample['free_energy'] = results_sample['energy']
 

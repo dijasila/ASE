@@ -92,7 +92,9 @@ def read_dipole(text):
 
 @reader
 def read_orca_output(fd):
-    """Read Energy and dipole moment from ORCA output file."""
+    """ From the ORCA output file: Read Energy and dipole moment
+    in the frame of reference of the center of mass "
+    """
     text = fd.read()
 
     energy = read_energy(text)
@@ -103,7 +105,7 @@ def read_orca_output(fd):
     results['free_energy'] = energy
 
     if dipole is not None:
-        results['dipole'] = dipole
+        results['dipole_COM'] = dipole
 
     return results
 
