@@ -3,9 +3,6 @@ import pytest
 from ase.atoms import Atoms
 from ase.calculators.calculator import compare_atoms
 from ase.io.orca import write_orca, read_geom_orcainp, read_orca_outputs
-from pathlib import Path
-
-parent = Path(__file__).parents[1]
 
 
 def test_orca_inputfile():
@@ -135,14 +132,14 @@ FINAL SINGLE POINT ENERGY       -76.422436201230
         assert results[key] == pytest.approx(results_sample[key])
 
 
-def test_read_orca_outputs_with_dipole():
+def test_read_orca_outputs_with_dipole(datadir):
     results_sample = {
         'energy': -22203.395391088576,
         'dipole': np.array([1.66861746e+00, -1.42348670e-03, 1.93467188e-02])}
 
     results_sample['free_energy'] = results_sample['energy']
 
-    results = read_orca_outputs('.', parent / 'testdata/orca/orca_out_tail.out')
+    results = read_orca_outputs('.', datadir / 'orca/orca_out_tail.out')
 
     keys = set(results)
     assert keys == set(results_sample)
