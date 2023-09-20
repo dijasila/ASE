@@ -58,7 +58,11 @@ def test_orca(water, factory):
         opt.run(fmax=0.05)
 
     final_energy = water.get_potential_energy()
+    final_dipole = water.get_dipole_moment()
+
     np.testing.assert_almost_equal(final_energy, -2077.24420, decimal=0)
+    np.testing.assert_almost_equal(
+        final_dipole, [0.28669234, 0.28669234, 0.], decimal=6)
 
 
 @calc('orca')
