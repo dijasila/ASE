@@ -57,6 +57,19 @@ def write_orca(fd, atoms, params):
     fd.write('*\n')
 
 
+def read_charge(text):
+    re_charge = re.compile(r'Sum of atomic charges\s*:\s*([+-]?[0-9]*\.[0-9]*)')
+
+    match = None
+    for match in re_charge.finditer(text):
+        pass
+    if match is None:
+        raise RuntimeError('No charge')
+    charge = float(match.group(1))
+
+    return charge
+
+
 def read_energy(text):
     re_energy = re.compile(r"FINAL SINGLE POINT ENERGY.*\n")
     re_not_converged = re.compile(r"Wavefunction not fully converged")
@@ -72,7 +85,34 @@ def read_energy(text):
     return energy
 
 
+def read_center_of_mass(text):
+    """ Scan through text for the center of mass """
+    # Example:
+    # 'The origin for moment calculation is the CENTER OF MASS  =
+    # ( 0.002150, -0.296255  0.086315)'
+    # Note the missing comma in the output
+    re_com = re.compile(r'The origin for moment calculation is the '
+                        r'CENTER OF MASS\s+=\s+\('
+                        r'\s+(-?[0-9]+\.[0-9]+)'
+                        r',?\s+(-?[0-9]+\.[0-9]+)'
+                        r',?\s+(-?[0-9]+\.[0-9]+)'
+                        r'\)')
+
+    match = None
+    for match in re_com.finditer(text):
+        pass
+    if match is None:
+        # Nothing was found
+        return None
+
+    # Return the last match
+    com = np.array([float(s) for s in match.groups()]) * Bohr
+    return com
+
+
 def read_dipole(text):
+    """ Scan through text for the dipole moment in the COM
+    frame of reference """
     # Example:
     # 'Total Dipole Moment    :      3.15321      -0.00269       0.03656'
     re_dipole = re.compile(r'Total Dipole Moment\s+:'
@@ -100,14 +140,17 @@ def read_orca_output(fd):
     text = fd.read()
 
     energy = read_energy(text)
-    dipole = read_dipole(text)
+    charge = read_charge(text)
+    position_COM = read_center_of_mass(text)
+    dipole_COM = read_dipole(text)
 
     results = dict()
     results['energy'] = energy
     results['free_energy'] = energy
 
-    if dipole is not None:
-        results['dipole_COM'] = dipole
+    if dipole_COM is not None:
+        dipole = dipole_COM + position_COM * charge
+        results['dipole'] = dipole
 
     return results
 

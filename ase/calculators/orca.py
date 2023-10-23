@@ -99,14 +99,3 @@ class ORCA(GenericFileIOCalculator):
         super().__init__(template=OrcaTemplate(),
                          profile=profile, directory=directory,
                          parameters=kwargs)
-
-    def calculate(self, atoms, properties, system_changes):
-        super().calculate(atoms, properties, system_changes)
-
-        # Convert the dipole moment in the center of mass frame
-        # to the origin frame
-        dipole_COM = self.results.pop('dipole_COM', None)
-        if dipole_COM is not None:
-            charge = self.parameters.get('charge', 0)
-            dipole = dipole_COM + atoms.get_center_of_mass() * charge
-            self.results['dipole'] = dipole
