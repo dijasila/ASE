@@ -19,23 +19,23 @@ http://cms.mpi.univie.ac.at/vasp/
 """
 
 import os
-import sys
 import re
-import numpy as np
 import subprocess
+import sys
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Any, Dict, List, Tuple
 from warnings import warn
-from typing import Dict, Any, List, Tuple
 from xml.etree import ElementTree
 
 import ase
-from ase.io import read, jsonio
-from ase.utils import PurePath
+import numpy as np
 from ase.calculators import calculator
 from ase.calculators.calculator import Calculator
 from ase.calculators.singlepoint import SinglePointDFTCalculator
 from ase.calculators.vasp.create_input import GenerateVaspInput
+from ase.io import jsonio, read
+from ase.utils import PurePath
 from ase.vibrations.data import VibrationsData
 
 
@@ -325,7 +325,7 @@ class Vasp(GenerateVaspInput, Calculator):  # type: ignore[misc]
         if errorcode:
             raise calculator.CalculationFailed(
                 '{} in {} returned an error: {:d}'.format(
-                    self.name, self.directory, errorcode))
+                    self.name, Path(self.directory).resolve(), errorcode))
 
         # Read results from calculation
         self.update_atoms(atoms)
@@ -774,7 +774,7 @@ class Vasp(GenerateVaspInput, Calculator):  # type: ignore[misc]
         return nelect
 
     def get_k_point_weights(self):
-        filename = self._indir('IBZKPT')
+        filename = 'IBZKPT'
         return self.read_k_point_weights(filename)
 
     def get_dos(self, spin=None, **kwargs):

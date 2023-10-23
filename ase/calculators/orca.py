@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+
 import ase.io.orca as io
 from ase.calculators.genericfileio import (CalculatorTemplate,
                                            GenericFileIOCalculator)

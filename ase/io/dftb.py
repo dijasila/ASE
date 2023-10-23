@@ -1,3 +1,5 @@
+from typing import Sequence, Union
+
 import numpy as np
 from ase.atoms import Atoms
 from ase.utils import reader, writer
@@ -105,6 +107,7 @@ def read_dftb_velocities(atoms, filename):
     """Method to read velocities (AA/ps) from DFTB+ output file geo_end.xyz
     """
     from ase.units import second
+
     # AA/ps -> ase units
     AngdivPs2ASE = 1.0 / (1e-12 * second)
 
@@ -172,11 +175,15 @@ def read_dftb_lattice(fileobj, images=None):
 
 
 @writer
-def write_dftb(fileobj, images):
+def write_dftb(
+    fileobj,
+    images: Union[Atoms, Sequence[Atoms]],
+    fractional: bool = False,
+):
     """Write structure in GEN format (refer to DFTB+ manual).
        Multiple snapshots are not allowed. """
     from ase.io.gen import write_gen
-    write_gen(fileobj, images)
+    write_gen(fileobj, images, fractional=fractional)
 
 
 def write_dftb_velocities(atoms, filename):
@@ -184,6 +191,7 @@ def write_dftb_velocities(atoms, filename):
        to a file to be read by dftb+
     """
     from ase.units import AUT, Bohr
+
     # ase units -> atomic units
     ASE2au = Bohr / AUT
 

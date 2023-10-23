@@ -4,7 +4,9 @@ from ase.utils import reader, writer
 from ase.units import Hartree, Bohr
 from pathlib import Path
 import re
+
 import numpy as np
+
 # Made from NWChem interface
 
 
