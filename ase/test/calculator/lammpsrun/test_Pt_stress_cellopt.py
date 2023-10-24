@@ -1,6 +1,7 @@
 import numpy as np
-from numpy.testing import assert_allclose
 import pytest
+from numpy.testing import assert_allclose
+
 from ase.build import bulk
 from ase.filters import FrechetCellFilter
 from ase.optimize import BFGS

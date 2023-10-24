@@ -1,9 +1,7 @@
 import numpy as np
-# import pytest
 
-
-from ase.calculators.qmmm import ForceConstantCalculator
 from ase.build import molecule
+from ase.calculators.qmmm import ForceConstantCalculator
 from ase.optimize import MDMin
 
 
