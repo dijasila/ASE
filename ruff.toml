@@ -1,0 +1,16 @@
+line-length = 80
+exclude = ["./build/", "./dist", "./doc/build"]
+
+[lint]
+select = ["E4", "E7", "E9", "F", "B"]
+ignore = ["E741"]
+
+[format]
+quote-style = "single"
+
+[pycodestyle]
+max-line-length = 80
+max-doc-length = 80
+
+[pydocstyle]
+convention = "numpy"
