@@ -29,7 +29,7 @@ class SciPyOptimizer(Optimizer):
         callback_always: bool = False,
         alpha: float = 70.0,
         master: Optional[bool] = None,
-        force_consistent: Optional[bool] = None,
+        force_consistent=Optimizer._deprecated,
     ):
         """Initialize object
 
@@ -59,11 +59,6 @@ class SciPyOptimizer(Optimizer):
             Defaults to None, which causes only rank 0 to save files.  If
             set to true,  this rank will save files.
 
-        force_consistent: boolean or None
-            Use force-consistent energy calls (as opposed to the energy
-            extrapolated to 0 K).  By default (force_consistent=None) uses
-            force-consistent energies if available in the calculator, but
-            falls back to force_consistent=False if not.
         """
         restart = None
         Optimizer.__init__(self, atoms, restart, logfile, trajectory,
@@ -71,24 +66,24 @@ class SciPyOptimizer(Optimizer):
         self.force_calls = 0
         self.callback_always = callback_always
         self.H0 = alpha
+        self.max_steps = 0
 
     def x0(self):
         """Return x0 in a way SciPy can use
 
         This class is mostly usable for subclasses wanting to redefine the
         parameters (and the objective function)"""
-        return self.atoms.get_positions().reshape(-1)
+        return self.optimizable.get_positions().reshape(-1)
 
     def f(self, x):
         """Objective function for use of the optimizers"""
-        self.atoms.set_positions(x.reshape(-1, 3))
+        self.optimizable.set_positions(x.reshape(-1, 3))
         # Scale the problem as SciPy uses I as initial Hessian.
-        return (self.atoms.get_potential_energy(
-                force_consistent=self.force_consistent) / self.H0)
+        return self.optimizable.get_potential_energy() / self.H0
 
     def fprime(self, x):
         """Gradient of the objective function for use of the optimizers"""
-        self.atoms.set_positions(x.reshape(-1, 3))
+        self.optimizable.set_positions(x.reshape(-1, 3))
         self.force_calls += 1
 
         if self.callback_always:
@@ -96,7 +91,7 @@ class SciPyOptimizer(Optimizer):
 
         # Remember that forces are minus the gradient!
         # Scale the problem as SciPy uses I as initial Hessian.
-        return - self.atoms.get_forces().reshape(-1) / self.H0
+        return - self.optimizable.get_forces().reshape(-1) / self.H0
 
     def callback(self, x):
         """Callback function to be run after each iteration by SciPy
@@ -109,24 +104,30 @@ class SciPyOptimizer(Optimizer):
         optimisation is complete. This will be silently ignored by
         :meth:`run`().
         """
-        f = self.atoms.get_forces()
+        if self.nsteps < self.max_steps:
+            self.nsteps += 1
+        f = self.optimizable.get_forces()
         self.log(f)
         self.call_observers()
         if self.converged(f):
             raise Converged
-        self.nsteps += 1
 
     def run(self, fmax=0.05, steps=100000000):
-        if self.force_consistent is None:
-            self.set_force_consistent()
         self.fmax = fmax
+
         try:
             # As SciPy does not log the zeroth iteration, we do that manually
-            self.callback(None)
+            if self.nsteps == 0:
+                self.log()
+                self.call_observers()
+
+            self.max_steps = steps + self.nsteps
+
             # Scale the problem as SciPy uses I as initial Hessian.
             self.call_fmin(fmax / self.H0, steps)
         except Converged:
             pass
+        return self.converged()
 
     def dump(self, data):
         pass
@@ -198,7 +199,7 @@ class SciPyGradientlessOptimizer(Optimizer):
 
     def __init__(self, atoms, logfile='-', trajectory=None,
                  callback_always=False, master=None,
-                 force_consistent=None):
+                 force_consistent=Optimizer._deprecated):
         """Initialize object
 
         Parameters:
@@ -227,11 +228,6 @@ class SciPyGradientlessOptimizer(Optimizer):
             Defaults to None, which causes only rank 0 to save files.  If
             set to true,  this rank will save files.
 
-        force_consistent: boolean or None
-            Use force-consistent energy calls (as opposed to the energy
-            extrapolated to 0 K).  By default (force_consistent=None) uses
-            force-consistent energies if available in the calculator, but
-            falls back to force_consistent=False if not.
         """
         restart = None
         Optimizer.__init__(self, atoms, restart, logfile, trajectory,
@@ -244,15 +240,14 @@ class SciPyGradientlessOptimizer(Optimizer):
 
         This class is mostly usable for subclasses wanting to redefine the
         parameters (and the objective function)"""
-        return self.atoms.get_positions().reshape(-1)
+        return self.optimizable.get_positions().reshape(-1)
 
     def f(self, x):
         """Objective function for use of the optimizers"""
-        self.atoms.set_positions(x.reshape(-1, 3))
+        self.optimizable.set_positions(x.reshape(-1, 3))
         self.function_calls += 1
         # Scale the problem as SciPy uses I as initial Hessian.
-        return self.atoms.get_potential_energy(
-            force_consistent=self.force_consistent)
+        return self.optimizable.get_potential_energy()
 
     def callback(self, x):
         """Callback function to be run after each iteration by SciPy
@@ -262,7 +257,7 @@ class SciPyGradientlessOptimizer(Optimizer):
         call something similar before as well.
         """
         # We can't assume that forces are available!
-        # f = self.atoms.get_forces()
+        # f = self.optimizable.get_forces()
         # self.log(f)
         self.call_observers()
         # if self.converged(f):
@@ -270,8 +265,6 @@ class SciPyGradientlessOptimizer(Optimizer):
         self.nsteps += 1
 
     def run(self, ftol=0.01, xtol=0.01, steps=100000000):
-        if self.force_consistent is None:
-            self.set_force_consistent()
         self.xtol = xtol
         self.ftol = ftol
         # As SciPy does not log the zeroth iteration, we do that manually
@@ -281,6 +274,7 @@ class SciPyGradientlessOptimizer(Optimizer):
             self.call_fmin(xtol, ftol, steps)
         except Converged:
             pass
+        return self.converged()
 
     def dump(self, data):
         pass
@@ -288,7 +282,7 @@ class SciPyGradientlessOptimizer(Optimizer):
     def load(self):
         pass
 
-    def call_fmin(self, fmax, steps):
+    def call_fmin(self, xtol, ftol, steps):
         raise NotImplementedError
 
 

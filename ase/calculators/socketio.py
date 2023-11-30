@@ -8,13 +8,16 @@ import numpy as np
 import ase.units as units
 from ase.calculators.calculator import (Calculator,
                                         PropertyNotImplementedError,
-                                        all_changes)
+                                        all_changes,
+                                        ArgvProfile,
+                                        OldShellProfile)
+from ase.calculators.genericfileio import GenericFileIOCalculator
 from ase.stress import full_3x3_to_voigt_6_stress
 from ase.utils import IOContext
 
 
 def actualunixsocketname(name):
-    return '/tmp/ipi_{}'.format(name)
+    return f'/tmp/ipi_{name}'
 
 
 class SocketClosed(OSError):
@@ -73,7 +76,7 @@ class IPIProtocol:
     def send(self, a, dtype):
         buf = np.asarray(a, dtype).tobytes()
         # self.log('  send {}'.format(np.array(a).ravel().tolist()))
-        self.log('  send {} bytes of {}'.format(len(buf), dtype))
+        self.log(f'  send {len(buf)} bytes of {dtype}')
         self.socket.sendall(buf)
 
     def recv(self, shape, dtype):
@@ -81,7 +84,7 @@ class IPIProtocol:
         nbytes = np.dtype(dtype).itemsize * np.prod(shape)
         buf = self._recvall(nbytes)
         assert len(buf) == nbytes, (len(buf), nbytes)
-        self.log('  recv {} bytes of {}'.format(len(buf), dtype))
+        self.log(f'  recv {len(buf)} bytes of {dtype}')
         # print(np.frombuffer(buf, dtype=dtype))
         a.flat[:] = np.frombuffer(buf, dtype=dtype)
         # self.log('  recv {}'.format(a.ravel().tolist()))
@@ -198,7 +201,7 @@ def bind_unixsocket(socketfile):
     try:
         serversocket.bind(socketfile)
     except OSError as err:
-        raise OSError('{}: {}'.format(err, repr(socketfile)))
+        raise OSError(f'{err}: {repr(socketfile)}')
 
     try:
         with serversocket:
@@ -224,8 +227,9 @@ class FileIOSocketClientLauncher:
     def __call__(self, atoms, properties=None, port=None, unixsocket=None):
         assert self.calc is not None
         cwd = self.calc.directory
+
         profile = getattr(self.calc, 'profile', None)
-        if profile is not None:
+        if isinstance(self.calc, GenericFileIOCalculator):
             # New GenericFileIOCalculator:
 
             self.calc.write_inputfiles(atoms, properties)
@@ -237,10 +241,18 @@ class FileIOSocketClientLauncher:
             return Popen(argv, cwd=cwd, env=os.environ)
         else:
             # Old FileIOCalculator:
+            if profile is None:
+                cmd = self.calc.command.replace('PREFIX', self.calc.prefix)
+                cmd = cmd.format(port=port, unixsocket=unixsocket)
+            elif isinstance(profile, OldShellProfile):
+                cmd = profile.command
+                if "PREFIX" in cmd:
+                    cmd = cmd.replace("PREFIX", profile.prefix)
+            elif isinstance(profile, ArgvProfile):
+                cmd = " ".join(profile.argv)
+
             self.calc.write_input(atoms, properties=properties,
                                   system_changes=all_changes)
-            cmd = self.calc.command.replace('PREFIX', self.calc.prefix)
-            cmd = cmd.format(port=port, unixsocket=unixsocket)
             return Popen(cmd, shell=True, cwd=cwd)
 
 
@@ -284,16 +296,16 @@ class SocketServer(IOContext):
 
         if unixsocket is not None:
             actualsocket = actualunixsocketname(unixsocket)
-            conn_name = 'UNIX-socket {}'.format(actualsocket)
+            conn_name = f'UNIX-socket {actualsocket}'
             socket_context = bind_unixsocket(actualsocket)
         else:
-            conn_name = 'INET port {}'.format(port)
+            conn_name = f'INET port {port}'
             socket_context = bind_inetsocket(port)
 
         self.serversocket = self.closelater(socket_context)
 
         if log:
-            print('Accepting clients on {}'.format(conn_name), file=log)
+            print(f'Accepting clients on {conn_name}', file=log)
 
         self.serversocket.settimeout(timeout)
 
@@ -342,7 +354,7 @@ class SocketServer(IOContext):
         if log:
             # For unix sockets, address is b''.
             source = ('client' if self.address == b'' else self.address)
-            print('Accepted connection from {}'.format(source), file=log)
+            print(f'Accepted connection from {source}', file=log)
 
         self.protocol = IPIProtocol(self.clientsocket, txt=log)
 

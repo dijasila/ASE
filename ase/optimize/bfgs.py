@@ -5,7 +5,7 @@ import numpy as np
 from numpy.linalg import eigh
 
 from ase import Atoms
-from ase.optimize.optimize import Optimizer
+from ase.optimize.optimize import Optimizer, UnitCellFilter
 
 
 class BFGS(Optimizer):
@@ -16,8 +16,9 @@ class BFGS(Optimizer):
         self,
         atoms: Atoms,
         restart: Optional[str] = None,
-        logfile: Union[IO, str] = '-',
+        logfile: Optional[Union[IO, str]] = '-',
         trajectory: Optional[str] = None,
+        append_trajectory: bool = False,
         maxstep: Optional[float] = None,
         master: Optional[bool] = None,
         alpha: Optional[float] = None,
@@ -67,31 +68,41 @@ class BFGS(Optimizer):
         self.alpha = alpha
         if self.alpha is None:
             self.alpha = self.defaults['alpha']
-
-        Optimizer.__init__(self, atoms, restart, logfile, trajectory, master)
+        Optimizer.__init__(self, atoms=atoms, restart=restart,
+                           logfile=logfile, trajectory=trajectory,
+                           master=master, append_trajectory=append_trajectory)
 
     def initialize(self):
         # initial hessian
-        self.H0 = np.eye(3 * len(self.atoms)) * self.alpha
+        self.H0 = np.eye(3 * len(self.optimizable)) * self.alpha
 
         self.H = None
         self.pos0 = None
         self.forces0 = None
 
     def read(self):
-        self.H, self.pos0, self.forces0, self.maxstep = self.load()
+        file = self.load()
+        if len(file) == 5:
+            (self.H, self.pos0, self.forces0, self.maxstep,
+             self.atoms.orig_cell) = file
+        else:
+            self.H, self.pos0, self.forces0, self.maxstep = file
 
     def step(self, forces=None):
-        atoms = self.atoms
+        optimizable = self.optimizable
 
         if forces is None:
-            forces = atoms.get_forces()
+            forces = optimizable.get_forces()
 
-        pos = atoms.get_positions()
+        pos = optimizable.get_positions()
         dpos, steplengths = self.prepare_step(pos, forces)
         dpos = self.determine_step(dpos, steplengths)
-        atoms.set_positions(pos + dpos)
-        self.dump((self.H, self.pos0, self.forces0, self.maxstep))
+        optimizable.set_positions(pos + dpos)
+        if isinstance(self.atoms, UnitCellFilter):
+            self.dump((self.H, self.pos0, self.forces0, self.maxstep,
+                       self.atoms.orig_cell))
+        else:
+            self.dump((self.H, self.pos0, self.forces0, self.maxstep))
 
     def prepare_step(self, pos, forces):
         forces = forces.reshape(-1)

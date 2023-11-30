@@ -1,13 +1,44 @@
-import warnings
-from typing import IO, Callable, Optional, Union
+from typing import IO, Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 
 from ase import Atoms
 from ase.optimize.optimize import Optimizer
+from ase.utils import deprecated
+
+
+def _forbid_maxmove(args: List, kwargs: Dict[str, Any]) -> bool:
+    """Set maxstep with maxmove if not set."""
+    maxstep_index = 6
+    maxmove_index = 7
+
+    def _pop_arg(name: str) -> Any:
+        to_pop = None
+        if len(args) > maxmove_index:
+            to_pop = args[maxmove_index]
+            args[maxmove_index] = None
+
+        elif name in kwargs:
+            to_pop = kwargs[name]
+            del kwargs[name]
+        return to_pop
+
+    if len(args) > maxstep_index and args[maxstep_index] is None:
+        value = args[maxstep_index] = _pop_arg("maxmove")
+    elif kwargs.get("maxstep", None) is None:
+        value = kwargs["maxstep"] = _pop_arg("maxmove")
+    else:
+        return False
+
+    return value is not None
 
 
 class FIRE(Optimizer):
+    @deprecated(
+        "Use of `maxmove` is deprecated. Use `maxstep` instead.",
+        category=FutureWarning,
+        callback=_forbid_maxmove,
+    )
     def __init__(
         self,
         atoms: Atoms,
@@ -27,7 +58,7 @@ class FIRE(Optimizer):
         master: Optional[bool] = None,
         downhill_check: bool = False,
         position_reset_callback: Optional[Callable] = None,
-        force_consistent: Optional[bool] = None,
+        force_consistent=Optimizer._deprecated,
     ):
         """Parameters:
 
@@ -63,12 +94,8 @@ class FIRE(Optimizer):
             *r* that the optimizer will revert to, current energy *e* and
             energy of last step *e_last*. This is only called if e > e_last.
 
-        force_consistent: boolean or None
-            Use force-consistent energy calls (as opposed to the energy
-            extrapolated to 0 K).  By default (force_consistent=None) uses
-            force-consistent energies if available in the calculator, but
-            falls back to force_consistent=False if not.  Only meaningful
-            when downhill_check is True.
+        .. deprecated:: 3.19.3
+            Use of ``maxmove`` is deprecated; please use ``maxstep``.
         """
         Optimizer.__init__(self, atoms, restart, logfile, trajectory,
                            master, force_consistent=force_consistent)
@@ -79,12 +106,8 @@ class FIRE(Optimizer):
 
         if maxstep is not None:
             self.maxstep = maxstep
-        elif maxmove is not None:
-            self.maxstep = maxmove
-            warnings.warn('maxmove is deprecated; please use maxstep',
-                          np.VisibleDeprecationWarning)
         else:
-            self.maxstep = self.defaults['maxstep']
+            self.maxstep = self.defaults["maxstep"]
 
         self.dtmax = dtmax
         self.Nmin = Nmin
@@ -103,34 +126,32 @@ class FIRE(Optimizer):
         self.v, self.dt = self.load()
 
     def step(self, f=None):
-        atoms = self.atoms
+        optimizable = self.optimizable
 
         if f is None:
-            f = atoms.get_forces()
+            f = optimizable.get_forces()
 
         if self.v is None:
-            self.v = np.zeros((len(atoms), 3))
+            self.v = np.zeros((len(optimizable), 3))
             if self.downhill_check:
-                self.e_last = atoms.get_potential_energy(
-                    force_consistent=self.force_consistent)
-                self.r_last = atoms.get_positions().copy()
+                self.e_last = optimizable.get_potential_energy()
+                self.r_last = optimizable.get_positions().copy()
                 self.v_last = self.v.copy()
         else:
             is_uphill = False
             if self.downhill_check:
-                e = atoms.get_potential_energy(
-                    force_consistent=self.force_consistent)
+                e = optimizable.get_potential_energy()
                 # Check if the energy actually decreased
                 if e > self.e_last:
                     # If not, reset to old positions...
                     if self.position_reset_callback is not None:
-                        self.position_reset_callback(atoms, self.r_last, e,
-                                                     self.e_last)
-                    atoms.set_positions(self.r_last)
+                        self.position_reset_callback(
+                            optimizable, self.r_last, e,
+                            self.e_last)
+                    optimizable.set_positions(self.r_last)
                     is_uphill = True
-                self.e_last = atoms.get_potential_energy(
-                    force_consistent=self.force_consistent)
-                self.r_last = atoms.get_positions().copy()
+                self.e_last = optimizable.get_potential_energy()
+                self.r_last = optimizable.get_positions().copy()
                 self.v_last = self.v.copy()
 
             vf = np.vdot(f, self.v)
@@ -152,6 +173,6 @@ class FIRE(Optimizer):
         normdr = np.sqrt(np.vdot(dr, dr))
         if normdr > self.maxstep:
             dr = self.maxstep * dr / normdr
-        r = atoms.get_positions()
-        atoms.set_positions(r + dr)
+        r = optimizable.get_positions()
+        optimizable.set_positions(r + dr)
         self.dump((self.v, self.dt))

@@ -4,14 +4,16 @@ from warnings import warn
 
 import numpy as np
 
-# `Filter` classes are imported for backward compatibility.
-from ase.filters import (  # noqa: F401 # pylint: disable=unused-import
-    ExpCellFilter, Filter, StrainFilter, UnitCellFilter)
+from ase.filters import ExpCellFilter as ExpCellFilterOld
+from ase.filters import Filter as FilterOld
+from ase.filters import StrainFilter as StrainFilterOld
+from ase.filters import UnitCellFilter as UnitCellFilterOld
 from ase.geometry import (conditional_find_mic, find_mic, get_angles,
                           get_angles_derivatives, get_dihedrals,
                           get_dihedrals_derivatives, get_distances_derivatives,
                           wrap_positions)
 from ase.stress import full_3x3_to_voigt_6_stress, voigt_6_to_full_3x3_stress
+from ase.utils import deprecated
 from ase.utils.parsemath import eval_expression
 
 __all__ = [
@@ -180,6 +182,9 @@ class FixAtoms(IndexedConstraint):
     --------
     Fix all Copper atoms:
 
+    >>> from ase.build import bulk
+
+    >>> atoms = bulk('Cu', 'fcc', a=3.6)
     >>> mask = (atoms.symbols == 'Cu')
     >>> c = FixAtoms(mask=mask)
     >>> atoms.set_constraint(c)
@@ -211,6 +216,7 @@ class FixAtoms(IndexedConstraint):
 
 class FixCom(FixConstraint):
     """Constraint class for fixing the center of mass."""
+
     def get_removed_dof(self, atoms):
         return 3
 
@@ -647,7 +653,7 @@ class FixedMode(FixConstraint):
                 'kwargs': {'mode': self.mode.tolist()}}
 
     def __repr__(self):
-        return 'FixedMode(%s)' % self.mode.tolist()
+        return f'FixedMode({self.mode.tolist()})'
 
 
 def _normalize(direction):
@@ -679,11 +685,14 @@ class FixedPlane(IndexedConstraint):
         --------
         Fix all Copper atoms to only move in the yz-plane:
 
+        >>> from ase.build import bulk
         >>> from ase.constraints import FixedPlane
+
+        >>> atoms = bulk('Cu', 'fcc', a=3.6)
         >>> c = FixedPlane(
-        >>>     indices=[atom.index for atom in atoms if atom.symbol == 'Cu'],
-        >>>     direction=[1, 0, 0],
-        >>> )
+        ...     indices=[atom.index for atom in atoms if atom.symbol == 'Cu'],
+        ...     direction=[1, 0, 0],
+        ... )
         >>> atoms.set_constraint(c)
 
         or constrain a single atom with the index 0 to move in the xy-plane:
@@ -744,9 +753,9 @@ class FixedLine(IndexedConstraint):
 
         >>> from ase.constraints import FixedLine
         >>> c = FixedLine(
-        >>>     indices=[atom.index for atom in atoms if atom.symbol == 'Cu'],
-        >>>     direction=[1, 0, 0],
-        >>> )
+        ...     indices=[atom.index for atom in atoms if atom.symbol == 'Cu'],
+        ...     direction=[1, 0, 0],
+        ... )
         >>> atoms.set_constraint(c)
 
         or constrain a single atom with the index 0 to move in the z-direction:
@@ -840,7 +849,7 @@ class FixScaled(IndexedConstraint):
                            'mask': self.mask.tolist()}}
 
     def __repr__(self):
-        return 'FixScaled({}, {})'.format(self.index.tolist(), self.mask)
+        return f'FixScaled({self.index.tolist()}, {self.mask})'
 
 
 # TODO: Better interface might be to use dictionaries in place of very
@@ -894,14 +903,14 @@ class FixInternals(FixConstraint):
         """
         warn_msg = 'Please specify {} in degrees using the {} argument.'
         if angles:
-            warn(FutureWarning(warn_msg.format('angles', 'angle_deg')))
+            warn(warn_msg.format('angles', 'angle_deg'), FutureWarning)
             angles = np.asarray(angles)
             angles[:, 0] = angles[:, 0] / np.pi * 180
             angles = angles.tolist()
         else:
             angles = angles_deg
         if dihedrals:
-            warn(FutureWarning(warn_msg.format('dihedrals', 'dihedrals_deg')))
+            warn(warn_msg.format('dihedrals', 'dihedrals_deg'), FutureWarning)
             dihedrals = np.asarray(dihedrals)
             dihedrals[:, 0] = dihedrals[:, 0] / np.pi * 180
             dihedrals = dihedrals.tolist()
@@ -1050,8 +1059,8 @@ class FixInternals(FixConstraint):
             if maxerr < self.epsilon:
                 return
         msg = 'FixInternals.adjust_positions did not converge.'
-        if any([constr.targetvalue > 175. or constr.targetvalue < 5. for constr
-                in self.constraints if isinstance(constr, self.FixAngle)]):
+        if any(constr.targetvalue > 175. or constr.targetvalue < 5. for constr
+                in self.constraints if isinstance(constr, self.FixAngle)):
             msg += (' This may be caused by an almost planar angle.'
                     ' Support for planar angles would require the'
                     ' implementation of ghost, i.e. dummy, atoms.'
@@ -1455,8 +1464,8 @@ class FixParametricRelations(FixConstraint):
             int_fmt_str = "{:0" + \
                 str(int(np.ceil(np.log10(len(params) + 1)))) + "d}"
 
-            param_dct = dict()
-            param_map = dict()
+            param_dct = {}
+            param_map = {}
 
             # Construct a standardized param template for A/B filling
             for param_ind, param in enumerate(params):
@@ -1541,7 +1550,7 @@ class FixParametricRelations(FixConstraint):
                     param_exp += "-"
 
                 if np.abs(abs_jacob_val - 1.0) <= self.eps:
-                    param_exp += "{:s}".format(param)
+                    param_exp += f"{param:s}"
                 else:
                     param_exp += (fmt_str +
                                   "*{:s}").format(abs_jacob_val, param)
@@ -1571,13 +1580,13 @@ class FixParametricRelations(FixConstraint):
             indices_str = "[{:d}, ..., {:d}]".format(
                 self.indices[0], self.indices[-1])
         else:
-            indices_str = "[{:d}]".format(self.indices[0])
+            indices_str = f"[{self.indices[0]:d}]"
 
         if len(self.params) > 1:
             params_str = "[{:s}, ..., {:s}]".format(
                 self.params[0], self.params[-1])
         elif len(self.params) == 1:
-            params_str = "[{:s}]".format(self.params[0])
+            params_str = f"[{self.params[0]:s}]"
         else:
             params_str = "[]"
 
@@ -1603,7 +1612,7 @@ class FixScaledParametricRelations(FixParametricRelations):
 
         All arguments are the same, but since this is for fractional
         coordinates use_cell is false"""
-        super(FixScaledParametricRelations, self).__init__(
+        super().__init__(
             indices,
             Jacobian,
             const_shift,
@@ -1664,7 +1673,7 @@ class FixScaledParametricRelations(FixParametricRelations):
 
     def todict(self):
         """Create a dictionary representation of the constraint"""
-        dct = super(FixScaledParametricRelations, self).todict()
+        dct = super().todict()
         del dct["kwargs"]["use_cell"]
         return dct
 
@@ -1681,7 +1690,7 @@ class FixCartesianParametricRelations(FixParametricRelations):
         use_cell=False,
     ):
         """The Cartesian coordinate version of FixParametricRelations"""
-        super(FixCartesianParametricRelations, self).__init__(
+        super().__init__(
             indices,
             Jacobian,
             const_shift,
@@ -1818,7 +1827,7 @@ class Hookean(FixConstraint):
             dct['kwargs']['a1'] = self.index
             dct['kwargs']['a2'] = self.plane
         else:
-            raise NotImplementedError('Bad type: %s' % self._type)
+            raise NotImplementedError(f'Bad type: {self._type}')
         return dct
 
     def adjust_positions(self, atoms, newpositions):
@@ -1927,6 +1936,11 @@ class ExternalForce(FixConstraint):
     sure that *ExternalForce* comes first in the list if there are overlaps
     between atom1-2 and atom3-4:
 
+    >>> from ase.build import bulk
+
+    >>> atoms = bulk('Cu', 'fcc', a=3.6)
+    >>> atom1, atom2, atom3, atom4 = atoms[:4]
+    >>> fext = 1.0
     >>> con1 = ExternalForce(atom1, atom2, f_ext)
     >>> con2 = FixBondLength(atom3, atom4)
     >>> atoms.set_constraint([con1, con2])
@@ -2008,6 +2022,10 @@ class MirrorForce(FixConstraint):
     sure that *MirrorForce* comes first in the list if there are overlaps
     between atom1-2 and atom3-4:
 
+    >>> from ase.build import bulk
+
+    >>> atoms = bulk('Cu', 'fcc', a=3.6)
+    >>> atom1, atom2, atom3, atom4 = atoms[:4]
     >>> con1 = MirrorForce(atom1, atom2)
     >>> con2 = FixBondLength(atom3, atom4)
     >>> atoms.set_constraint([con1, con2])
@@ -2123,6 +2141,10 @@ class MirrorTorque(FixConstraint):
     sure that *MirrorTorque* comes first in the list if there are overlaps
     between atom1-4 and atom5-6:
 
+    >>> from ase.build import bulk
+
+    >>> atoms = bulk('Cu', 'fcc', a=3.6)
+    >>> atom1, atom2, atom3, atom4, atom5, atom6 = atoms[:6]
     >>> con1 = MirrorTorque(atom1, atom2, atom3, atom4)
     >>> con2 = FixBondLength(atom5, atom6)
     >>> atoms.set_constraint([con1, con2])
@@ -2210,3 +2232,45 @@ class MirrorTorque(FixConstraint):
                            'a3': self.indices[2], 'a4': self.indices[3],
                            'max_angle': self.max_angle,
                            'min_angle': self.min_angle, 'fmax': self.fmax}}
+
+
+class Filter(FilterOld):
+    @deprecated('Import Filter from ase.filters')
+    def __init__(self, *args, **kwargs):
+        """
+        .. deprecated:: 3.23.0
+            Import ``Filter`` from :mod:`ase.filters`
+        """
+        super().__init__(*args, **kwargs)
+
+
+class StrainFilter(StrainFilterOld):
+    @deprecated('Import StrainFilter from ase.filters')
+    def __init__(self, *args, **kwargs):
+        """
+        .. deprecated:: 3.23.0
+            Import ``StrainFilter`` from :mod:`ase.filters`
+        """
+        super().__init__(*args, **kwargs)
+
+
+class UnitCellFilter(UnitCellFilterOld):
+    @deprecated('Import UnitCellFilter from ase.filters')
+    def __init__(self, *args, **kwargs):
+        """
+        .. deprecated:: 3.23.0
+            Import ``UnitCellFilter`` from :mod:`ase.filters`
+        """
+        super().__init__(*args, **kwargs)
+
+
+class ExpCellFilter(ExpCellFilterOld):
+    @deprecated('Import ExpCellFilter from ase.filters')
+    def __init__(self, *args, **kwargs):
+        """
+        .. deprecated:: 3.23.0
+            Import ``ExpCellFilter`` from :mod:`ase.filters`
+            or use :class:`~ase.filters.FrechetCellFilter` for better
+            convergence w.r.t. cell variables
+        """
+        super().__init__(*args, **kwargs)

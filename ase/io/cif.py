@@ -50,7 +50,7 @@ def convert_value(value: str) -> CIFDataValue:
         return float(value[:value.index('(')])  # strip off uncertainties
     elif re.match(r'[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?\(\d+$',
                   value):
-        warnings.warn('Badly formed number: "{0}"'.format(value))
+        warnings.warn(f'Badly formed number: "{value}"')
         return float(value[:value.index('(')])  # strip off uncertainties
     else:
         return handle_subscripts(value)
@@ -117,6 +117,8 @@ def parse_cif_loop_data(lines: List[str],
         if line.startswith('#'):
             continue
 
+        line = line.split(' #')[0]
+
         if line.startswith(';'):
             moretokens = [parse_multiline_string(lines, line)]
         else:
@@ -132,15 +134,16 @@ def parse_cif_loop_data(lines: List[str],
             for i, token in enumerate(tokens):
                 columns[i].append(convert_value(token))
         else:
-            warnings.warn('Wrong number {} of tokens, expected {}: {}'
-                          .format(len(tokens), ncolumns, tokens))
+            warnings.warn(f'Wrong number {len(tokens)} of tokens, '
+                          f'expected {ncolumns}: {tokens}')
 
         # (Due to continue statements we cannot move this to start of loop)
         tokens = []
 
     if tokens:
         assert len(tokens) < ncolumns
-        raise RuntimeError('CIF loop ended unexpectedly with incomplete row')
+        raise RuntimeError('CIF loop ended unexpectedly with incomplete row: '
+                           f'{tokens}, expected {ncolumns} tokens')
 
     return columns
 
@@ -157,7 +160,7 @@ def parse_loop(lines: List[str]) -> Dict[str, List[CIFDataValue]]:
     columns_dict = {}
     for i, header in enumerate(headers):
         if header in columns_dict:
-            warnings.warn('Duplicated loop tags: {0}'.format(header))
+            warnings.warn(f'Duplicated loop tags: {header}')
         else:
             columns_dict[header] = columns[i]
     return columns_dict
@@ -188,7 +191,7 @@ def parse_items(lines: List[str], line: str) -> Dict[str, CIFData]:
         elif line.startswith(';'):
             parse_multiline_string(lines, line)
         else:
-            raise ValueError('Unexpected CIF file entry: "{0}"'.format(line))
+            raise ValueError(f'Unexpected CIF file entry: "{line}"')
     return tags
 
 
@@ -392,14 +395,14 @@ class CIFBlock(collections.abc.Mapping):
                     setting = 2
                 else:
                     warnings.warn(
-                        'unexpected crystal system %r for space group %r' % (
-                            setting_name, spacegroup))
+                        f'unexpected crystal system {repr(setting_name)} '
+                        f'for space group {repr(spacegroup)}')
             # FIXME - check for more crystal systems...
             else:
                 warnings.warn(
-                    'crystal system %r is not interpreted for space group %r. '
-                    'This may result in wrong setting!' % (
-                        setting_name, spacegroup))
+                    f'crystal system {repr(setting_name)} is not '
+                    f'interpreted for space group {repr(spacegroup)}. '
+                    'This may result in wrong setting!')
 
         spg = Spacegroup(spacegroup, setting)
         if no is not None:
@@ -657,7 +660,7 @@ def format_cell(cell: Cell) -> str:
     assert cell.rank == 3
     lines = []
     for name, value in zip(CIFBlock.cell_tags, cell.cellpar()):
-        line = '{:20} {}\n'.format(name, value)
+        line = f'{name:20} {value}\n'
         lines.append(line)
     assert len(lines) == 6
     return ''.join(lines)

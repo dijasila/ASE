@@ -92,7 +92,7 @@ def all_tested_formats():
 
     # Check if excitingtools is installed, if not skip exciting tests.
     try:
-        __import__('excitingtools')
+        import excitingtools  # noqa
     except ModuleNotFoundError:
         skip += ['exciting']
 
@@ -106,23 +106,27 @@ def test_ioformat(format, atoms, catch_warnings):
         # netCDF4 uses np.bool which may cause warnings in new numpy.
         warnings.simplefilter('ignore', DeprecationWarning)
 
+    kwargs = {}
+
     if format == 'dlp4':
         atoms.pbc = (1, 1, 0)
+    elif format == 'espresso-in':
+        kwargs = {'pseudopotentials': {'H': 'plum', 'Au': 'lemon'}}
 
     images = [atoms, atoms]
 
     io = ioformats[format]
-    print('{0:20}{1}{2}{3}{4}'.format(format,
-                                      ' R'[io.can_read],
-                                      ' W'[io.can_write],
-                                      '+1'[io.single],
-                                      'SF'[io.acceptsfd]))
-    fname1 = 'io-test.1.{}'.format(format)
-    fname2 = 'io-test.2.{}'.format(format)
+    print('{:20}{}{}{}{}'.format(format,
+                                 ' R'[io.can_read],
+                                 ' W'[io.can_write],
+                                 '+1'[io.single],
+                                 'SF'[io.acceptsfd]))
+    fname1 = f'io-test.1.{format}'
+    fname2 = f'io-test.2.{format}'
     if io.can_write:
-        write(fname1, atoms, format=format)
+        write(fname1, atoms, format=format, **kwargs)
         if not io.single:
-            write(fname2, images, format=format)
+            write(fname2, images, format=format, **kwargs)
 
         if io.can_read:
             for a in [read(fname1, format=format), read(fname1)]:

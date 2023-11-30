@@ -287,10 +287,12 @@ class Phonons(Displacement):
     >>> from ase.build import bulk
     >>> from ase.phonons import Phonons
     >>> from gpaw import GPAW, FermiDirac
+
     >>> atoms = bulk('Si', 'diamond', a=5.4)
-    >>> calc = GPAW(kpts=(5, 5, 5),
-                    h=0.2,
-                    occupations=FermiDirac(0.))
+    >>> calc = GPAW(mode='fd',
+    ...             kpts=(5, 5, 5),
+    ...             h=0.2,
+    ...             occupations=FermiDirac(0.))
     >>> ph = Phonons(atoms, calc, supercell=(5, 5, 5))
     >>> ph.run()
     >>> ph.read(method='frederiksen', acoustic=True)
@@ -369,6 +371,9 @@ class Phonons(Displacement):
             Key used to identify the file with Born charges for the unit cell
             in the JSON cache.
 
+        .. deprecated:: 3.22.1
+            Current implementation of non-analytical correction is likely
+            incorrect, see :issue:`941`
         """
 
         # Load file with Born charges and dielectric tensor for atoms in the

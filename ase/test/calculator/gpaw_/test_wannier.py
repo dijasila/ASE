@@ -38,6 +38,7 @@ def _base_calculator_gpwfile(tmp_path_factory, factories):
         import gpaw
         gpw_path = tmp_path_factory.mktemp('sub') / filename
         calc = gpaw.GPAW(
+            mode='fd',
             gpts=gpts,
             nbands=nbands,
             kpts={'size': kpts, 'gamma': True},
@@ -144,6 +145,7 @@ def wan(rng, h2_calculator):
         if calc is None:
             gpaw = pytest.importorskip('gpaw')
             calc = gpaw.GPAW(
+                mode='fd',
                 gpts=gpts,
                 nbands=nwannier,
                 kpts=kpts,
@@ -342,7 +344,7 @@ def test_get_functional_value(fun, wan):
 def test_get_centers(factory):
     # Rough test on the position of the Wannier functions' centers
     gpaw = pytest.importorskip('gpaw')
-    calc = gpaw.GPAW(gpts=(32, 32, 32), nbands=4, txt=None)
+    calc = gpaw.GPAW(mode='fd', gpts=(32, 32, 32), nbands=4, txt=None)
     atoms = molecule('H2', calculator=calc)
     atoms.center(vacuum=3.)
     atoms.get_potential_energy()
@@ -364,7 +366,7 @@ def test_write_cube_default(wan, h2_calculator, testdir):
     # It returns some errors when using file objects, so we use a string
     cubefilename = 'wanf.cube'
     wanf.write_cube(index, cubefilename)
-    with open(cubefilename, mode='r') as inputfile:
+    with open(cubefilename) as inputfile:
         content = read_cube(inputfile)
     assert pytest.approx(content['atoms'].cell.array) == atoms.cell.array * 2
     assert pytest.approx(content['data']) == abs(wanf.get_function(index))
@@ -381,7 +383,7 @@ def test_write_cube_angle(wan, testdir):
     # It returns some errors when using file objects, so we use a string
     cubefilename = 'wanf.cube'
     wanf.write_cube(index, cubefilename, angle=True)
-    with open(cubefilename, mode='r') as inputfile:
+    with open(cubefilename) as inputfile:
         content = read_cube(inputfile)
     assert pytest.approx(content['atoms'].cell.array) == atoms.cell.array
     assert pytest.approx(content['data']) == np.angle(wanf.get_function(index))
@@ -400,7 +402,7 @@ def test_write_cube_repeat(wan, testdir):
     cubefilename = 'wanf.cube'
     wanf.write_cube(index, cubefilename, repeat=repetition)
 
-    with open(cubefilename, mode='r') as inputfile:
+    with open(cubefilename) as inputfile:
         content = read_cube(inputfile)
     assert pytest.approx(content['atoms'].cell.array) == \
         (atoms * repetition).cell.array
@@ -433,7 +435,7 @@ def test_get_spectral_weight_random(wan, rng):
 def test_get_pdos(wan):
     nwannier = 4
     gpaw = pytest.importorskip('gpaw')
-    calc = gpaw.GPAW(gpts=(16, 16, 16), nbands=nwannier, txt=None)
+    calc = gpaw.GPAW(mode='fd', gpts=(16, 16, 16), nbands=nwannier, txt=None)
     atoms = molecule('H2')
     atoms.center(vacuum=3.)
     atoms.calc = calc

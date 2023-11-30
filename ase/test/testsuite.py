@@ -3,8 +3,12 @@ import os
 import sys
 import warnings
 from pathlib import Path
+from subprocess import Popen
 
-from ase.cli.main import CLIError
+from multiprocessing import cpu_count
+
+from ase.calculators.names import names as calc_names
+from ase.cli.main import CLIError, main
 
 testdir = Path(__file__).parent
 
@@ -30,7 +34,6 @@ def test(calculators=tuple(), jobs=0, verbose=False,
     """Run the tests programmatically.
 
     This is here for compatibility and perhaps convenience."""
-    from ase.cli.main import main
 
     if stream != 'ignored':
         warnings.warn('Ignoring old "stream" keyword', FutureWarning)
@@ -43,7 +46,7 @@ def test(calculators=tuple(), jobs=0, verbose=False,
     if calculators:
         args += ['--calculators={}'.format(','.join(calculators))]
     if jobs:
-        args += '--jobs={}'.format(jobs)
+        args += f'--jobs={jobs}'
 
     main(args=args)
 
@@ -59,7 +62,6 @@ MULTIPROCESSING_AUTO = -1
 
 
 def choose_how_many_workers(jobs):
-    from multiprocessing import cpu_count
 
     if jobs == MULTIPROCESSING_AUTO:
         if have_module('xdist'):
@@ -150,9 +152,6 @@ class CLICommand:
 
     @staticmethod
     def run(args):
-        from subprocess import Popen
-
-        from ase.calculators.names import names as calc_names
 
         if args.help_calculators:
             print(help_calculators)
@@ -176,7 +175,7 @@ class CLICommand:
 
         jobs = choose_how_many_workers(args.jobs)
         if jobs:
-            add_args('--numprocesses={}'.format(jobs))
+            add_args(f'--numprocesses={jobs}')
 
         if args.fast:
             add_args('-m', 'not slow')

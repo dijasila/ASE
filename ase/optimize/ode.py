@@ -67,7 +67,6 @@ def ode12r(f, X0, h=None, verbose=1, fmax=1e-6, maxtol=1e3, steps=100,
     if callback is None:
         def callback(X):
             pass
-    callback(X)
 
     if residual is None:
         def residual(F, X):
@@ -149,7 +148,7 @@ def ode12r(f, X0, h=None, verbose=1, fmax=1e-6, maxtol=1e3, steps=100,
                     f"large at iteration number {nit}")
 
             if converged(Fn, X):
-                log(f"ODE12r: terminates successfully "
+                log("ODE12r: terminates successfully "
                     f"after {nit} iterations.")
                 return X
 
@@ -175,9 +174,6 @@ def ode12r(f, X0, h=None, verbose=1, fmax=1e-6, maxtol=1e3, steps=100,
             raise OptimizerConvergenceError('ODE12r terminates unsuccessfully'
                                             f' Step size {h} too small')
 
-    raise OptimizerConvergenceError(f'ODE12r terminates unsuccessfully after '
-                                    f'{steps} iterations.')
-
 
 class ODE12r(SciPyOptimizer):
     """
@@ -192,7 +188,7 @@ class ODE12r(SciPyOptimizer):
         callback_always: bool = False,
         alpha: float = 1.0,
         master: Optional[bool] = None,
-        force_consistent: Optional[bool] = None,
+        force_consistent=SciPyOptimizer._deprecated,
         precon: Optional[str] = None,
         verbose: int = 0,
         rtol: float = 1e-2,
@@ -200,6 +196,7 @@ class ODE12r(SciPyOptimizer):
         SciPyOptimizer.__init__(self, atoms, logfile, trajectory,
                                 callback_always, alpha, master,
                                 force_consistent)
+        self._actual_atoms = atoms
         from ase.optimize.precon.precon import \
             make_precon  # avoid circular dep
         self.precon = make_precon(precon)
@@ -207,8 +204,8 @@ class ODE12r(SciPyOptimizer):
         self.rtol = rtol
 
     def apply_precon(self, Fn, X):
-        self.atoms.set_positions(X.reshape(len(self.atoms), 3))
-        Fn, Rn = self.precon.apply(Fn, self.atoms)
+        self._actual_atoms.set_positions(X.reshape(len(self._actual_atoms), 3))
+        Fn, Rn = self.precon.apply(Fn, self._actual_atoms)
         return Fn, Rn
 
     def call_fmin(self, fmax, steps):

@@ -14,7 +14,8 @@ from ase.parallel import world
 class GPMin(Optimizer, GaussianProcess):
     def __init__(self, atoms, restart=None, logfile='-', trajectory=None,
                  prior=None, kernel=None, master=None, noise=None, weight=None,
-                 scale=None, force_consistent=None, batch_size=None,
+                 scale=None, force_consistent=Optimizer._deprecated,
+                 batch_size=None,
                  bounds=None, update_prior_strategy="maximum",
                  update_hyperparams=False):
         """Optimize atomic positions using GPMin algorithm, which uses both
@@ -63,12 +64,6 @@ class GPMin(Optimizer, GaussianProcess):
         master: boolean
             Defaults to None, which causes only rank 0 to save files. If
             set to True, this rank will save files.
-
-        force_consistent: boolean or None
-            Use force-consistent energy calls (as opposed to the energy
-            extrapolated to 0 K). By default (force_consistent=None) uses
-            force-consistent energies if available in the calculator, but
-            falls back to force_consistent=False if not.
 
         prior: Prior object or None
             Prior for the GP regression of the PES surface
@@ -256,19 +251,18 @@ class GPMin(Optimizer, GaussianProcess):
         self.noise = ratio * self.kernel.weight
 
     def step(self, f=None):
-        atoms = self.atoms
+        optimizable = self.optimizable
         if f is None:
-            f = atoms.get_forces()
+            f = optimizable.get_forces()
 
-        fc = self.force_consistent
-        r0 = atoms.get_positions().reshape(-1)
-        e0 = atoms.get_potential_energy(force_consistent=fc)
+        r0 = optimizable.get_positions().reshape(-1)
+        e0 = optimizable.get_potential_energy()
         self.update(r0, e0, f)
 
         r1 = self.relax_model(r0)
-        self.atoms.set_positions(r1.reshape(-1, 3))
-        e1 = self.atoms.get_potential_energy(force_consistent=fc)
-        f1 = self.atoms.get_forces()
+        optimizable.set_positions(r1.reshape(-1, 3))
+        e1 = optimizable.get_potential_energy()
+        f1 = optimizable.get_forces()
         self.function_calls += 1
         self.force_calls += 1
         count = 0
@@ -276,9 +270,9 @@ class GPMin(Optimizer, GaussianProcess):
             self.update(r1, e1, f1)
             r1 = self.relax_model(r0)
 
-            self.atoms.set_positions(r1.reshape(-1, 3))
-            e1 = self.atoms.get_potential_energy(force_consistent=fc)
-            f1 = self.atoms.get_forces()
+            optimizable.set_positions(r1.reshape(-1, 3))
+            e1 = optimizable.get_potential_energy()
+            f1 = optimizable.get_forces()
             self.function_calls += 1
             self.force_calls += 1
             if self.converged(f1):
