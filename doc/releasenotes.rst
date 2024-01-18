@@ -265,6 +265,9 @@ Thermochemistry:
 
 I/O:
 
+* Add :func:`~ase.io.castep.write_castep_geom` and
+  :func:`~ase.io.castep.write_castep_md` (:mr:`3229`)
+
 * Add support for reading POSCAR files with negative and multiple scaling
   factors in :func:`ase.io.vasp.read_vasp` (:mr:`3029`)
 
