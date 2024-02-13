@@ -853,7 +853,7 @@ def write_xyz(fileobj, images, comment='', columns=None,
                         # special case for stress, which should be converted
                         # to 3x3 matrices before writing
                         if key == 'stress':
-                            xx, yy, zz, yz, xz, xy = value
+                            xx, yy, zz, yz, xz, xy = atoms.get_stress(voigt=True)
                             value = np.array(
                                 [(xx, xy, xz), (xy, yy, yz), (xz, yz, zz)])
                         per_frame_results[key] = value
