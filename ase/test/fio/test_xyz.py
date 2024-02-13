@@ -74,7 +74,8 @@ def test_single_write_with_newline_comment(format):
 )
 def test_single_write_with_stress(format: str, voigt: bool) -> None:
     atoms = bulk('Al')
-    atoms.calc = SinglePointCalculator(atoms, stress=[[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    atoms.calc = SinglePointCalculator(
+        atoms, stress=[[1, 0, 0], [0, 1, 0], [0, 0, 1]])
     if voigt:
         atoms.calc.results['stress'] = atoms.get_stress(voigt=True)
         assert atoms.calc.results['stress'].shape == (6,)
