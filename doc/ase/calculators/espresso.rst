@@ -155,7 +155,7 @@ These two main functions are wrappers around the :func:`ase.io.espresso.write_es
 
 .. autofunction:: ase.io.espresso.write_espresso_in
 
-Example:
+**Example:**
 
 .. code-block:: python
 
@@ -205,7 +205,7 @@ As of January 2024, ``ph.x`` has custom read and write functions in ASE. The fun
 
 .. autofunction:: ase.io.espresso.write_espresso_ph
 
-Example:
+**Example:**
 
 .. code-block:: python
 
@@ -228,7 +228,7 @@ After running the calculation, the output can be read with the :meth:`~ase.io.es
 
 .. autofunction:: ase.io.espresso.read_espresso_ph
 
-Example:
+**Example:**
 
 .. code-block:: python
 
@@ -250,7 +250,7 @@ The list of currently implemented executable is available in
 
 .. autofunction:: ase.io.espresso.write_fortran_namelist
 
-Example:
+**Example:**
 
 .. code-block:: python
 
@@ -288,7 +288,7 @@ second element is a list of additional cards at the end of the file.
 
 .. autofunction:: ase.io.espresso.read_fortran_namelist
 
-Example:
+**Example:**
 
 .. code-block:: python
 
