@@ -893,10 +893,10 @@ def read_fortran_namelist(fileobj):
 
     Returns
     -------
-    data : dict of dict
+    data : dict[str, dict]
         Dictionary for each section in the namelist with key = value
         pairs of data.
-    card_lines : list of str
+    additional_cards : list[str]
         Any lines not used to create the data, assumed to belong to 'cards'
         in the input file.
 
@@ -1193,7 +1193,7 @@ def write_espresso_in(fd, atoms, input_data=None, pseudopotentials=None,
     """
     Create an input file for pw.x.
 
-    Use set_initial_magnetic_moments to turn on spin, if ispin is set to 2
+    Use set_initial_magnetic_moments to turn on spin, if nspin is set to 2
     with no magnetic moments, they will all be set to 0.0. Magnetic moments
     will be converted to the QE units (fraction of valence electrons) using
     any pseudopotential files found, or a best guess for the number of
@@ -1207,9 +1207,8 @@ def write_espresso_in(fd, atoms, input_data=None, pseudopotentials=None,
 
     Implemented features:
 
-    - Conversion of :class:`ase.constraints.FixAtoms` and
-                    :class:`ase.constraints.FixCartesian`.
-    - `starting_magnetization` derived from the `mgmoms` and pseudopotentials
+    - Conversion of :class:`ase.constraints.FixAtoms` and :class:`ase.constraints.FixCartesian`.
+    - ``starting_magnetization`` derived from the ``magmoms`` and pseudopotentials
       (searches default paths for pseudo files.)
     - Automatic assignment of options to their correct sections.
 
@@ -1227,7 +1226,7 @@ def write_espresso_in(fd, atoms, input_data=None, pseudopotentials=None,
     fd: file | str
         A file to which the input is written.
     atoms: Atoms
-        A single atomistic configuration to write to `fd`.
+        A single atomistic configuration to write to ``fd``.
     input_data: dict
         A flat or nested dictionary with input parameters for pw.x
     pseudopotentials: dict
@@ -1515,7 +1514,7 @@ def write_espresso_ph(
 def read_espresso_ph(fileobj):
     """
     Function that reads the output of a ph.x calculation.
-    It returns a dictionary where each q-point is a key and
+    It returns a dictionary where each q-point number is a key and
     the value is a dictionary with the following keys if available:
 
     - qpoints: The q-point in cartesian coordinates.
@@ -1533,7 +1532,7 @@ def read_espresso_ph(fileobj):
     Some notes:
 
         - For some reason, the cell is not defined to high level of
-        precision with ph.x. Be careful when using the atoms object
+        precision in ph.x outputs. Be careful when using the atoms object
         retrieved from this function.
         - This function can be called on incomplete calculations i.e.
         if the calculation couldn't diagonalize the dynamical matrix
