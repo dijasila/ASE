@@ -880,11 +880,11 @@ def read_fortran_namelist(fileobj):
     Behaviour is taken from Quantum ESPRESSO 5.3. Parses fairly
     convoluted files the same way that QE should, but may not get
     all the MANDATORY rules and edge cases for very non-standard files:
-        Ignores anything after '!' in a namelist, split pairs on ','
-        to include multiple key=values on a line, read values on section
-        start and end lines, section terminating character, '/', can appear
-        anywhere on a line.
-        All of these are ignored if the value is in 'quotes'.
+    Ignores anything after '!' in a namelist, split pairs on ','
+    to include multiple key=values on a line, read values on section
+    start and end lines, section terminating character, '/', can appear
+    anywhere on a line.
+    All of these are ignored if the value is in 'quotes'.
 
     Parameters
     ----------
