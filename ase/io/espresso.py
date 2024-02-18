@@ -883,8 +883,7 @@ def read_fortran_namelist(fileobj):
     Ignores anything after '!' in a namelist, split pairs on ','
     to include multiple key=values on a line, read values on section
     start and end lines, section terminating character, '/', can appear
-    anywhere on a line.
-    All of these are ignored if the value is in 'quotes'.
+    anywhere on a line. All of these are ignored if the value is in 'quotes'.
 
     Parameters
     ----------

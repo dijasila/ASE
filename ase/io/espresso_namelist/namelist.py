@@ -15,7 +15,7 @@ class Namelist(UserDict):
 
     to_string() have been added to handle the conversion of the dictionary
     to a string for writing to a file or quick lookup using print().
-    
+
     to_nested() have been added to convert the dictionary to a nested
     dictionary with the correct structure for the specified binary.
     """
