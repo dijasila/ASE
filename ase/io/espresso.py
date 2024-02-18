@@ -1207,9 +1207,10 @@ def write_espresso_in(fd, atoms, input_data=None, pseudopotentials=None,
 
     Implemented features:
 
-    - Conversion of :class:`ase.constraints.FixAtoms` and :class:`ase.constraints.FixCartesian`.
-    - ``starting_magnetization`` derived from the ``magmoms`` and pseudopotentials
-      (searches default paths for pseudo files.)
+    - Conversion of :class:`ase.constraints.FixAtoms` and
+      :class:`ase.constraints.FixCartesian`.
+    - ``starting_magnetization`` derived from the ``magmoms`` and
+      pseudopotentials (searches default paths for pseudo files.)
     - Automatic assignment of options to their correct sections.
 
     Not implemented:
@@ -1532,12 +1533,12 @@ def read_espresso_ph(fileobj):
     Some notes:
 
         - For some reason, the cell is not defined to high level of
-        precision in ph.x outputs. Be careful when using the atoms object
-        retrieved from this function.
+          precision in ph.x outputs. Be careful when using the atoms object
+          retrieved from this function.
         - This function can be called on incomplete calculations i.e.
-        if the calculation couldn't diagonalize the dynamical matrix
-        for some q-points, the results for the other q-points will
-        still be returned.
+          if the calculation couldn't diagonalize the dynamical matrix
+          for some q-points, the results for the other q-points will
+          still be returned.
 
     Parameters
     ----------
