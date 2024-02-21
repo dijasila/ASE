@@ -115,7 +115,7 @@ constraints. Some parameters are used by ASE and have additional meaning:
    cell in that direction. Also accepts ``True`` and ``False``.
  * ``kspacing=0.1`` sets the minimum distance between kpoints in reciprocal
    space.
- * ``nspin`` should not be specified by the users, if any atom has a magnetic moment spin it is turned on automatically.
+ * ``nspin`` does not typically need to be specified by the user. If any atom has a magnetic moment, it is turned on automatically.
 
 Parallelism
 -----------
