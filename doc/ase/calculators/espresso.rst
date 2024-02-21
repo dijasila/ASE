@@ -79,10 +79,10 @@ found at the `PW input description <https://www.quantum-espresso.org/
 Doc/INPUT_PW.html>`_.
 
 Parameters must be passed in the ``input_data`` parameter, which is a dictionary
-, previously accepted kwargs keywords are now deprecated. The input_data dictionary
+, previously accepted kwargs keywords are now deprecated. The ``input_data`` dictionary
 can be used both in flat or nested format. In the flat format, keywords
 will be put into the correct section of the input file. In the nested format, the
-input_data dictionary will be used as is. Currently the nested format can be used
+``input_data`` dictionary will be used as is. Currently the nested format can be used
 to specify exotic input sections manually such as ``&FCP`` or ``&RISM``.
 
 All parameters must be given in QE units, usually Ry or atomic units
@@ -271,7 +271,7 @@ The list of currently implemented executable is available in
   input_data = {
     'environ': {
       'environ_type': 'water',
-    ...} # In this case, the input_data is a nested dictionary
+    ...} # In this case, the ``input_data`` is a nested dictionary
     # since ASE cannot guess the input sections for exotic executables
   
   additional_cards = [
@@ -283,7 +283,7 @@ The list of currently implemented executable is available in
   write_fortran_namelist("environ.in", input_data)
 
 The :meth:`~ase.io.espresso.read_fortran_namelist` method will read a fortran namelist file and
-return a tuple, where the first element is the input_data dictionary and the
+return a tuple, where the first element is the ``input_data`` dictionary and the
 second element is a list of additional cards at the end of the file.
 
 .. autofunction:: ase.io.espresso.read_fortran_namelist
