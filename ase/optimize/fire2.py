@@ -1,21 +1,22 @@
-#######################################
-#Implementation of FIRE2.0 and ABC-FIRE
+# ######################################
+# Implementation of FIRE2.0 and ABC-FIRE
 
-#The FIRE2.0 algorithm is implemented using the integrator euler semi implicit 
-# as described in the paper:
-#  J. Guénolé, W.G. Nöhring, A. Vaid, F. Houllé, Z. Xie, A. Prakash, E. Bitzek, 
-#   Assessment and optimization of the fast inertial relaxation engine (fire) 
-#   for energy minimization in atomistic simulations and its implementation in lammps, 
-#   Comput. Mater. Sci. 175 (2020) 109584. 
-#   https://doi.org/10.1016/j.commatsci.2020.109584.
+# The FIRE2.0 algorithm is implemented using the integrator euler semi implicit 
+#  as described in the paper:
+#   J. Guénolé, W.G. Nöhring, A. Vaid, F. Houllé, Z. Xie, A. Prakash, 
+#   E. Bitzek, 
+#    Assessment and optimization of the fast inertial relaxation engine (fire)
+#    for energy minimization in atomistic simulations and its 
+#    implementation in lammps, 
+#    Comput. Mater. Sci. 175 (2020) 109584. 
+#    https://doi.org/10.1016/j.commatsci.2020.109584.
 
-#ABC-Fire is implemented s described in the paper:
-#  S. Echeverri Restrepo, P. Andric, 
-#   ABC-FIRE: Accelerated Bias-Corrected Fast Inertial Relaxation Engine, 
-#   Comput. Mater. Sci. 218 (2023) 111978. 
-#   https://doi.org/10.1016/j.commatsci.2022.111978.
-
-####################################### 
+# ABC-Fire is implemented s described in the paper:
+#   S. Echeverri Restrepo, P. Andric, 
+#    ABC-FIRE: Accelerated Bias-Corrected Fast Inertial Relaxation Engine, 
+#    Comput. Mater. Sci. 218 (2023) 111978. 
+#    https://doi.org/10.1016/j.commatsci.2022.111978.
+ ####################################### 
 
 from typing import IO, Any, Callable, Dict, List, Optional, Union
 
@@ -23,41 +24,9 @@ import numpy as np
 
 from ase import Atoms
 from ase.optimize.optimize import Optimizer
-from ase.utils import deprecated
-
-
-#def _forbid_maxmove(args: List, kwargs: Dict[str, Any]) -> bool:
-#    """Set maxstep with maxmove if not set."""
-#    maxstep_index = 6
-#    maxmove_index = 7
-#
-#    def _pop_arg(name: str) -> Any:
-#        to_pop = None
-#        if len(args) > maxmove_index:
-#            to_pop = args[maxmove_index]
-#            args[maxmove_index] = None
-#
-#        elif name in kwargs:
-#            to_pop = kwargs[name]
-#            del kwargs[name]
-#        return to_pop
-#
-#    if len(args) > maxstep_index and args[maxstep_index] is None:
-#        value = args[maxstep_index] = _pop_arg("maxmove")
-#    elif kwargs.get("maxstep", None) is None:
-#        value = kwargs["maxstep"] = _pop_arg("maxmove")
-#    else:
-#        return False
-#
-#    return value is not None
 
 
 class FIRE2(Optimizer):
-#    @deprecated(
-#        "Use of `maxmove` is deprecated. Use `maxstep` instead.",
-#        category=FutureWarning,
-#        callback=_forbid_maxmove,
-#    )
     def __init__(
         self,
         atoms: Atoms,
@@ -66,7 +35,6 @@ class FIRE2(Optimizer):
         trajectory: Optional[str] = None,
         dt: float = 0.1,
         maxstep: float = 0.2,
-#        maxmove: Optional[float] = None,
         dtmax: float = 1.0,
         Nmin: int = 20, 
         finc: float = 1.1,
@@ -208,38 +176,37 @@ class FIRE2(Optimizer):
         if self.abc:
             if self.a <= 1e-10:
                 self.a = 1e-10
-            abc_multiplier = 1./(1.-(1.-self.a)**(self.Nsteps+1))
+            abc_multiplier = 1. / (1. - (1. - self.a)**(self.Nsteps + 1))
             self.v = abc_multiplier * ((1.0 - self.a) * self.v + self.a * f / np.sqrt(
                                   np.vdot(f, f)) * np.sqrt(np.vdot(self.v, self.v)))
 
-            #Verifying if the maximum distance an atom moved is larger than maxstep, 
-            # for ABC-FIRE the check is done independently for each cartesian direction
+            # Verifying if the maximum distance an atom 
+            #  moved is larger than maxstep, for ABC-FIRE the check 
+            #  is done independently for each cartesian direction
             if np.all(self.v):
-                v_x = np.where(np.abs(self.v[:,0]) * self.dt > self.maxstep,
-                               (self.maxstep/self.dt) * (self.v[:,0]/np.abs(self.v[:,0])),
-                               self.v[:,0])
-                v_y = np.where(np.abs(self.v[:,1]) * self.dt > self.maxstep,
-                               (self.maxstep/self.dt) * (self.v[:,1]/np.abs(self.v[:,1])),
-                               self.v[:,1])
-                v_z = np.where(np.abs(self.v[:,2]) * self.dt > self.maxstep,
-                               (self.maxstep/self.dt) * (self.v[:,2]/np.abs(self.v[:,2])),
+                v_x = np.where(np.abs(self.v[:, 0]) * self.dt > self.maxstep,
+                               (self.maxstep / self.dt) * (self.v[:, 0] / np.abs(self.v[:, 0])),
+                               self.v[:, 0])
+                v_y = np.where(np.abs(self.v[:, 1]) * self.dt > self.maxstep,
+                               (self.maxstep / self.dt) * (self.v[:, 1] / np.abs(self.v[:, 1])),
+                               self.v[:, 1])
+                v_z = np.where(np.abs(self.v[:, 2]) * self.dt > self.maxstep,
+                               (self.maxstep / self.dt) * (self.v[:, 2] / np.abs(self.v[:, 2])),
                                self.v[:,2])
                 self.v = np.array([v_x, v_y, v_z]).T
-
 
         else:
             self.v =  ((1.0 - self.a) * self.v + self.a * f / np.sqrt(
                   np.vdot(f, f)) * np.sqrt(np.vdot(self.v, self.v)))
 
-
         dr = self.dt * self.v
 
-        #Verifying if the maximum distance an atom moved step is larger than maxstep, for FIRE2.
+        # Verifying if the maximum distance an atom moved 
+        #  step is larger than maxstep, for FIRE2.
         if not self.abc:
             normdr = np.sqrt(np.vdot(dr, dr))
             if normdr > self.maxstep:
                 dr = self.maxstep * dr / normdr
-
 
         r = optimizable.get_positions()
         optimizable.set_positions(r + dr)
