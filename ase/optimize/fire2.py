@@ -26,38 +26,38 @@ from ase.optimize.optimize import Optimizer
 from ase.utils import deprecated
 
 
-def _forbid_maxmove(args: List, kwargs: Dict[str, Any]) -> bool:
-    """Set maxstep with maxmove if not set."""
-    maxstep_index = 6
-    maxmove_index = 7
-
-    def _pop_arg(name: str) -> Any:
-        to_pop = None
-        if len(args) > maxmove_index:
-            to_pop = args[maxmove_index]
-            args[maxmove_index] = None
-
-        elif name in kwargs:
-            to_pop = kwargs[name]
-            del kwargs[name]
-        return to_pop
-
-    if len(args) > maxstep_index and args[maxstep_index] is None:
-        value = args[maxstep_index] = _pop_arg("maxmove")
-    elif kwargs.get("maxstep", None) is None:
-        value = kwargs["maxstep"] = _pop_arg("maxmove")
-    else:
-        return False
-
-    return value is not None
+#def _forbid_maxmove(args: List, kwargs: Dict[str, Any]) -> bool:
+#    """Set maxstep with maxmove if not set."""
+#    maxstep_index = 6
+#    maxmove_index = 7
+#
+#    def _pop_arg(name: str) -> Any:
+#        to_pop = None
+#        if len(args) > maxmove_index:
+#            to_pop = args[maxmove_index]
+#            args[maxmove_index] = None
+#
+#        elif name in kwargs:
+#            to_pop = kwargs[name]
+#            del kwargs[name]
+#        return to_pop
+#
+#    if len(args) > maxstep_index and args[maxstep_index] is None:
+#        value = args[maxstep_index] = _pop_arg("maxmove")
+#    elif kwargs.get("maxstep", None) is None:
+#        value = kwargs["maxstep"] = _pop_arg("maxmove")
+#    else:
+#        return False
+#
+#    return value is not None
 
 
 class FIRE2(Optimizer):
-    @deprecated(
-        "Use of `maxmove` is deprecated. Use `maxstep` instead.",
-        category=FutureWarning,
-        callback=_forbid_maxmove,
-    )
+#    @deprecated(
+#        "Use of `maxmove` is deprecated. Use `maxstep` instead.",
+#        category=FutureWarning,
+#        callback=_forbid_maxmove,
+#    )
     def __init__(
         self,
         atoms: Atoms,
@@ -65,15 +65,14 @@ class FIRE2(Optimizer):
         logfile: Union[IO, str] = '-',
         trajectory: Optional[str] = None,
         dt: float = 0.1,
-        maxstep: Optional[float] = None,
-        maxmove: Optional[float] = None,
+        maxstep: float = 0.2,
+#        maxmove: Optional[float] = None,
         dtmax: float = 1.0,
         Nmin: int = 20, 
         finc: float = 1.1,
         fdec: float = 0.5,
         astart: float = 0.25, 
         fa: float = 0.99,
-        a: float = 0.1,
         master: Optional[bool] = None,
         position_reset_callback: Optional[Callable] = None,
         force_consistent=Optimizer._deprecated,
@@ -89,25 +88,56 @@ class FIRE2(Optimizer):
             such a name will be searched and hessian matrix stored will
             be used, if the file exists.
 
-        trajectory: string
-            Pickle file used to store trajectory of atomic movement.
-
         logfile: file object or str
             If *logfile* is a string, a file with that name will be opened.
             Use '-' for stdout.
 
+        trajectory: string
+            Pickle file used to store trajectory of atomic movement.
+        
+        dt: float
+            Initial time step. Defualt value is 0.1
+
+        dtmax: float
+            Maximum time step. Default value is 1.0
+
+        finc: float
+            Factor to increase the time step. Default value is 1.1
+
+        fdec: float
+            Factor to decrease the time step. Default value is 0.5
+
+        astart: float
+            Initial value of the parameter a. a is the Coefficcient for 
+            mixing the velocity and the force. Called alpha in the FIRE article.
+            Default value 0.25.
+
+        fa: float
+            Factor to decrease the parameter alpha. Default value is 0.99
+
+        Nmin: int
+            Number of steps to wait after the last time the dot product of
+            the velocity and force is negative (P in The FIRE article) before 
+            increasing the time step. Default value is 20.
+
+        maxstep: float
+            Used to set the maximum distance an atom can move per
+            iteration (default value is 0.2). Note that for ABC-FIRE the
+            check is done independently for each cartesian direction.
+
+        abc: bool
+            If True, the Accelerated Bias-Corrected FIRE algorithm is used (ABC-FIRE).
+            Default value is False.
+
         master: boolean
             Defaults to None, which causes only rank 0 to save files.  If
             set to true,  this rank will save files.
-
 
         position_reset_callback: function(atoms, r, e, e_last)
             Function that takes current *atoms* object, an array of position
             *r* that the optimizer will revert to, current energy *e* and
             energy of last step *e_last*. This is only called if e > e_last.
 
-        .. deprecated:: 3.19.3
-            Use of ``maxmove`` is deprecated; please use ``maxstep``.
         """
         Optimizer.__init__(self, atoms, restart, logfile, trajectory,
                            master, force_consistent=force_consistent)
@@ -181,6 +211,9 @@ class FIRE2(Optimizer):
             abc_multiplier = 1./(1.-(1.-self.a)**(self.Nsteps+1))
             self.v = abc_multiplier * ((1.0 - self.a) * self.v + self.a * f / np.sqrt(
                                   np.vdot(f, f)) * np.sqrt(np.vdot(self.v, self.v)))
+
+            #Verifying if the maximum distance an atom moved is larger than maxstep, 
+            # for ABC-FIRE the check is done independently for each cartesian direction
             if np.all(self.v):
                 v_x = np.where(np.abs(self.v[:,0]) * self.dt > self.maxstep,
                                (self.maxstep/self.dt) * (self.v[:,0]/np.abs(self.v[:,0])),
@@ -200,6 +233,8 @@ class FIRE2(Optimizer):
 
 
         dr = self.dt * self.v
+
+        #Verifying if the maximum distance an atom moved step is larger than maxstep, for FIRE2.
         if not self.abc:
             normdr = np.sqrt(np.vdot(dr, dr))
             if normdr > self.maxstep:
