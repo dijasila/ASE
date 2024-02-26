@@ -1,24 +1,25 @@
 # ######################################
 # Implementation of FIRE2.0 and ABC-FIRE
 
-# The FIRE2.0 algorithm is implemented using the integrator euler semi implicit 
+# The FIRE2.0 algorithm is implemented using the integrator euler semi implicit
 #  as described in the paper:
-#   J. Guénolé, W.G. Nöhring, A. Vaid, F. Houllé, Z. Xie, A. Prakash, 
-#   E. Bitzek, 
+#   J. Guénolé, W.G. Nöhring, A. Vaid, F. Houllé, Z. Xie, A. Prakash,
+#   E. Bitzek,
 #    Assessment and optimization of the fast inertial relaxation engine (fire)
-#    for energy minimization in atomistic simulations and its 
-#    implementation in lammps, 
-#    Comput. Mater. Sci. 175 (2020) 109584. 
+#    for energy minimization in atomistic simulations and its
+#    implementation in lammps,
+#    Comput. Mater. Sci. 175 (2020) 109584.
 #    https://doi.org/10.1016/j.commatsci.2020.109584.
-
+#    This implementation does not include N(p<0), initialdelay, dtmin
+#
 # ABC-Fire is implemented s described in the paper:
-#   S. Echeverri Restrepo, P. Andric, 
-#    ABC-FIRE: Accelerated Bias-Corrected Fast Inertial Relaxation Engine, 
-#    Comput. Mater. Sci. 218 (2023) 111978. 
+#   S. Echeverri Restrepo, P. Andric,
+#    ABC-FIRE: Accelerated Bias-Corrected Fast Inertial Relaxation Engine,
+#    Comput. Mater. Sci. 218 (2023) 111978.
 #    https://doi.org/10.1016/j.commatsci.2022.111978.
- ####################################### 
+ #######################################
 
-from typing import IO, Any, Callable, Dict, List, Optional, Union
+from typing import IO, Callable, Optional, Union
 
 import numpy as np
 
@@ -36,10 +37,10 @@ class FIRE2(Optimizer):
         dt: float = 0.1,
         maxstep: float = 0.2,
         dtmax: float = 1.0,
-        Nmin: int = 20, 
+        Nmin: int = 20,
         finc: float = 1.1,
         fdec: float = 0.5,
-        astart: float = 0.25, 
+        astart: float = 0.25,
         fa: float = 0.99,
         master: Optional[bool] = None,
         position_reset_callback: Optional[Callable] = None,
@@ -114,7 +115,6 @@ class FIRE2(Optimizer):
 
         self.Nsteps = 0
 
-
         if maxstep is not None:
             self.maxstep = maxstep
         else:
@@ -145,11 +145,7 @@ class FIRE2(Optimizer):
         if self.v is None:
             self.v = np.zeros((len(optimizable), 3))
         else:
-#######################################################################
-#missing:  N(p<0)   
-#          initialdelay
-#          dtmin
-#
+
             vf = np.vdot(f, self.v)
             if vf > 0.0:
 
@@ -171,17 +167,15 @@ class FIRE2(Optimizer):
         #euler semi implicit
         f = optimizable.get_forces()
         self.v += self.dt * f
-        
 
         if self.abc:
-            if self.a <= 1e-10:
-                self.a = 1e-10
+            a = max(a, 1e-10)
             abc_multiplier = 1. / (1. - (1. - self.a)**(self.Nsteps + 1))
             self.v = abc_multiplier * ((1.0 - self.a) * self.v + self.a * f / np.sqrt(
                                   np.vdot(f, f)) * np.sqrt(np.vdot(self.v, self.v)))
 
-            # Verifying if the maximum distance an atom 
-            #  moved is larger than maxstep, for ABC-FIRE the check 
+            # Verifying if the maximum distance an atom
+            #  moved is larger than maxstep, for ABC-FIRE the check
             #  is done independently for each cartesian direction
             if np.all(self.v):
                 v_x = np.where(np.abs(self.v[:, 0]) * self.dt > self.maxstep,
@@ -201,7 +195,7 @@ class FIRE2(Optimizer):
 
         dr = self.dt * self.v
 
-        # Verifying if the maximum distance an atom moved 
+        # Verifying if the maximum distance an atom moved
         #  step is larger than maxstep, for FIRE2.
         if not self.abc:
             normdr = np.sqrt(np.vdot(dr, dr))
