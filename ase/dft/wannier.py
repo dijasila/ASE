@@ -134,7 +134,7 @@ def md_min(func, step=.25, tolerance=1e-6, max_iter=10000,
     log(f'Initial value={finit}, Final value={fvalue}')
 
 
-def rotation_from_projection(proj_nw, fixed, ortho=True):
+def rotation_from_projection(proj_nw, fixed_n, ortho=True):
     """Determine rotation and coefficient matrices from projections
 
     proj_nw = <psi_n|p_w>
@@ -146,9 +146,15 @@ def rotation_from_projection(proj_nw, fixed, ortho=True):
     M  (f) = Number of fixed states
     L  (l) = Number of extra degrees of freedom
     U  (u) = Number of non-fixed states
+    fixed_n = band indices of fixed subspace
     """
 
     Nb, Nw = proj_nw.shape
+    if isinstance(fixed_n, int):
+        fixed = fixed_n
+        fixed_n = range(fixed)
+    else:
+        fixed = len(fixed_n)
     M = fixed
     L = Nw - M
     U = Nb - M
@@ -156,14 +162,16 @@ def rotation_from_projection(proj_nw, fixed, ortho=True):
     U_ww = np.empty((Nw, Nw), dtype=proj_nw.dtype)
 
     # Set the section of the rotation matrix about the 'fixed' states
-    U_ww[:M] = proj_nw[:M]
+    U_ww[:M] = proj_nw[fixed_n]
 
     if L > 0:
         # If there are extra degrees of freedom we have to select L of them
         C_ul = np.empty((U, L), dtype=proj_nw.dtype)
 
         # Get the projections on the 'non fixed' states
-        proj_uw = proj_nw[M:]
+        nonfixed_n = np.ones(Nb, dtype=bool)
+        nonfixed_n[fixed_n] = False
+        proj_uw = proj_nw[nonfixed_n]
 
         # Obtain eigenvalues and eigevectors matrix
         eig_w, C_ww = np.linalg.eigh(dag(proj_uw) @ proj_uw)
@@ -370,9 +378,13 @@ def get_invkklst(kklst_dk):
 def choose_states(calcdata, fixedenergy, fixedstates, Nk, nwannier, log, spin):
 
     if fixedenergy is None and fixedstates is not None:
-        if isinstance(fixedstates, int):
-            fixedstates = [fixedstates] * Nk
-        fixedstates_k = np.array(fixedstates, int)
+        if isinstance(fixedstates, range):
+            fixedstates_km = [fixedstates] * Nk
+            fixedstates_k = [len(fixedstates)] * Nk
+        elif isinstance(fixedstates, int):
+            fixedstates_k = [fixedstates] * Nk
+            fixedstates_km = [range(fs) for fs in fixedstates_k]
+        fixedstates_k = np.array(fixedstates_k, int)
     elif fixedenergy is not None and fixedstates is None:
         # Setting number of fixed states and EDF from given energy cutoff.
         # All states below this energy cutoff are fixed.
@@ -388,6 +400,7 @@ def choose_states(calcdata, fixedenergy, fixedstates, Nk, nwannier, log, spin):
             eps_n = calcdata.eps_skn[spin, k]
             kindex = eps_n.searchsorted(cutoff)
             tmp_fixedstates_k.append(kindex)
+        fixedstates_km = [range(fs) for fs in tmp_fixedstates_k]
         fixedstates_k = np.array(tmp_fixedstates_k, int)
     elif fixedenergy is not None and fixedstates is not None:
         raise RuntimeError(
@@ -405,14 +418,16 @@ def choose_states(calcdata, fixedenergy, fixedstates, Nk, nwannier, log, spin):
                 eps_n = calcdata.eps_skn[spin, k]
                 kindex = eps_n.searchsorted(calcdata.fermi_level)
                 tmp_fixedstates_k.append(kindex)
+            fixedstates_km = [range(fs) for fs in tmp_fixedstates_k]
             fixedstates_k = np.array(tmp_fixedstates_k, int)
         nwannier = np.max(fixedstates_k)
 
     # Without user choice just set nwannier fixed states without EDF
     if fixedstates is None and fixedenergy is None:
         fixedstates_k = np.array([nwannier] * Nk, int)
+        fixedstates_km = [range(fs) for fs in fixedstates_k]
 
-    return fixedstates_k, nwannier
+    return fixedstates_k, nwannier, fixedstates_km
 
 
 def get_eigenvalues(calc):
@@ -504,7 +519,7 @@ class Wannier:
           ``fixedenergy`` / ``fixedstates``: Fixed part of Hilbert space.
             Determine the fixed part of Hilbert space by either a maximal
             energy *or* a number of bands (possibly a list for multiple
-            k-points).
+            k-points) *or* a range of bands, which is common to all k-points.
             Default is None meaning that the number of fixed states is equated
             to ``nwannier``.
             The maximal energy is relative to the CBM if there is a finite
