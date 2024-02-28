@@ -10,7 +10,7 @@
 #    implementation in lammps,
 #    Comput. Mater. Sci. 175 (2020) 109584.
 #    https://doi.org/10.1016/j.commatsci.2020.109584.
-#    This implementation does not include N(p<0), initialdelay, dtmin
+#    This implementation does not include N(p<0), initialdelay
 #
 # ABC-Fire is implemented s described in the paper:
 #   S. Echeverri Restrepo, P. Andric,
