@@ -17,7 +17,7 @@
 #    ABC-FIRE: Accelerated Bias-Corrected Fast Inertial Relaxation Engine,
 #    Comput. Mater. Sci. 218 (2023) 111978.
 #    https://doi.org/10.1016/j.commatsci.2022.111978.
- #######################################
+#######################################
 
 from typing import IO, Callable, Optional, Union
 
@@ -63,7 +63,7 @@ class FIRE2(Optimizer):
 
         trajectory: string
             Pickle file used to store trajectory of atomic movement.
-        
+
         dt: float
             Initial time step. Defualt value is 0.1
 
@@ -77,7 +77,7 @@ class FIRE2(Optimizer):
             Factor to decrease the time step. Default value is 0.5
 
         astart: float
-            Initial value of the parameter a. a is the Coefficcient for 
+            Initial value of the parameter a. a is the Coefficcient for
             mixing the velocity and the force. Called alpha in the FIRE article.
             Default value 0.25.
 
@@ -86,7 +86,7 @@ class FIRE2(Optimizer):
 
         Nmin: int
             Number of steps to wait after the last time the dot product of
-            the velocity and force is negative (P in The FIRE article) before 
+            the velocity and force is negative (P in The FIRE article) before
             increasing the time step. Default value is 20.
 
         maxstep: float
@@ -95,7 +95,8 @@ class FIRE2(Optimizer):
             check is done independently for each cartesian direction.
 
         abc: bool
-            If True, the Accelerated Bias-Corrected FIRE algorithm is used (ABC-FIRE).
+            If True, the Accelerated Bias-Corrected FIRE algorithm is 
+            used (ABC-FIRE).
             Default value is False.
 
         master: boolean
@@ -164,12 +165,12 @@ class FIRE2(Optimizer):
                 optimizable.set_positions(r + dr)
                 self.v[:] *= 0.0
 
-        #euler semi implicit
+        # euler semi implicit
         f = optimizable.get_forces()
         self.v += self.dt * f
 
         if self.abc:
-            a = max(a, 1e-10)
+            self.a = max(self.a, 1e-10)
             abc_multiplier = 1. / (1. - (1. - self.a)**(self.Nsteps + 1))
             self.v = abc_multiplier * ((1.0 - self.a) * self.v + self.a * f / np.sqrt(
                                   np.vdot(f, f)) * np.sqrt(np.vdot(self.v, self.v)))
@@ -186,11 +187,11 @@ class FIRE2(Optimizer):
                                self.v[:, 1])
                 v_z = np.where(np.abs(self.v[:, 2]) * self.dt > self.maxstep,
                                (self.maxstep / self.dt) * (self.v[:, 2] / np.abs(self.v[:, 2])),
-                               self.v[:,2])
+                               self.v[:, 2])
                 self.v = np.array([v_x, v_y, v_z]).T
 
         else:
-            self.v =  ((1.0 - self.a) * self.v + self.a * f / np.sqrt(
+            self.v = ((1.0 - self.a) * self.v + self.a * f / np.sqrt(
                   np.vdot(f, f)) * np.sqrt(np.vdot(self.v, self.v)))
 
         dr = self.dt * self.v
