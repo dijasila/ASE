@@ -173,7 +173,7 @@ class FIRE2(Optimizer):
             self.a = max(self.a, 1e-10)
             abc_multiplier = 1. / (1. - (1. - self.a)**(self.Nsteps + 1))
             v_mix = ((1.0 - self.a) * self.v + self.a * f / np.sqrt(
-                   np.vdot(f, f)) * np.sqrt(np.vdot(self.v, self.v)))
+                np.vdot(f, f)) * np.sqrt(np.vdot(self.v, self.v)))
             self.v = abc_multiplier * v_mix
 
             # Verifying if the maximum distance an atom
@@ -181,19 +181,22 @@ class FIRE2(Optimizer):
             #  is done independently for each cartesian direction
             if np.all(self.v):
                 v_x = np.where(np.abs(self.v[:, 0]) * self.dt > self.maxstep,
-                      (self.maxstep / self.dt) * (self.v[:, 0] / np.abs(self.v[:, 0])),
-                      self.v[:, 0])
+                               (self.maxstep / self.dt) *
+                               (self.v[:, 0] / np.abs(self.v[:, 0])),
+                               self.v[:, 0])
                 v_y = np.where(np.abs(self.v[:, 1]) * self.dt > self.maxstep,
-                      (self.maxstep / self.dt) * (self.v[:, 1] / np.abs(self.v[:, 1])),
-                      self.v[:, 1])
+                               (self.maxstep / self.dt) *
+                               (self.v[:, 1] / np.abs(self.v[:, 1])),
+                               self.v[:, 1])
                 v_z = np.where(np.abs(self.v[:, 2]) * self.dt > self.maxstep,
-                      (self.maxstep / self.dt) * (self.v[:, 2] / np.abs(self.v[:, 2])),
-                      self.v[:, 2])
+                               (self.maxstep / self.dt) *
+                               (self.v[:, 2] / np.abs(self.v[:, 2])),
+                               self.v[:, 2])
                 self.v = np.array([v_x, v_y, v_z]).T
 
         else:
             self.v = ((1.0 - self.a) * self.v + self.a * f / np.sqrt(
-                    np.vdot(f, f)) * np.sqrt(np.vdot(self.v, self.v)))
+                np.vdot(f, f)) * np.sqrt(np.vdot(self.v, self.v)))
 
         dr = self.dt * self.v
 
