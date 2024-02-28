@@ -17,14 +17,14 @@ def test_fire():
     a.calc = EMT()
 
     opt = FIRE2(a,
-                dt = 0.1,
-                maxstep = 0.2,
-                dtmax = 1.0,
-                Nmin = 20,
-                finc = 1.1,
-                fdec = 0.5,
-                astart = 0.25,
-                fa = 0.99)
+                dt=0.1,
+                maxstep=0.2,
+                dtmax=1.0,
+                Nmin=20,
+                finc=1.1,
+                fdec=0.5,
+                astart=0.25,
+                fa=0.99)
     opt.run(fmax=0.001)
     e1 = a.get_potential_energy()
     n1 = opt.nsteps
@@ -42,14 +42,14 @@ def test_fire():
         reset_history.append([e - e_last])
 
     opt = FIRE2(a,
-                dt = 0.1,
-                maxstep = 0.2,
-                dtmax = 1.0,
-                Nmin = 20,
-                finc = 1.1,
-                fdec = 0.5,
-                astart = 0.25,
-                fa = 0.99,
+                dt=0.1,
+                maxstep=0.2,
+                dtmax=1.0,
+                Nmin=20,
+                finc=1.1,
+                fdec=0.5,
+                astart=0.25,
+                fa=0.99,
                 abc=True,
                 position_reset_callback=callback)
     opt.run(fmax=0.001)

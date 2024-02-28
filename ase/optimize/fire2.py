@@ -95,7 +95,7 @@ class FIRE2(Optimizer):
             check is done independently for each cartesian direction.
 
         abc: bool
-            If True, the Accelerated Bias-Corrected FIRE algorithm is 
+            If True, the Accelerated Bias-Corrected FIRE algorithm is
             used (ABC-FIRE).
             Default value is False.
 
@@ -173,7 +173,7 @@ class FIRE2(Optimizer):
             self.a = max(self.a, 1e-10)
             abc_multiplier = 1. / (1. - (1. - self.a)**(self.Nsteps + 1))
             self.v = abc_multiplier * ((1.0 - self.a) * self.v + self.a * f / np.sqrt(
-                                  np.vdot(f, f)) * np.sqrt(np.vdot(self.v, self.v)))
+                     np.vdot(f, f)) * np.sqrt(np.vdot(self.v, self.v)))
 
             # Verifying if the maximum distance an atom
             #  moved is larger than maxstep, for ABC-FIRE the check
@@ -192,7 +192,7 @@ class FIRE2(Optimizer):
 
         else:
             self.v = ((1.0 - self.a) * self.v + self.a * f / np.sqrt(
-                  np.vdot(f, f)) * np.sqrt(np.vdot(self.v, self.v)))
+                     np.vdot(f, f)) * np.sqrt(np.vdot(self.v, self.v)))
 
         dr = self.dt * self.v
 
