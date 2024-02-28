@@ -161,7 +161,7 @@ class FIRE2(Optimizer):
                     self.a *= self.fa
             else:
                 self.Nsteps = 0
-                self.dt = max(self.dt*self.fdec, self.dtmin)
+                self.dt = max(self.dt * self.fdec, self.dtmin)
                 self.a = self.astart
 
                 dr = - 0.5 * self.dt * self.v
