@@ -37,6 +37,7 @@ class FIRE2(Optimizer):
         dt: float = 0.1,
         maxstep: float = 0.2,
         dtmax: float = 1.0,
+        dtmin: float = 2e-3,
         Nmin: int = 20,
         finc: float = 1.1,
         fdec: float = 0.5,
@@ -69,6 +70,9 @@ class FIRE2(Optimizer):
 
         dtmax: float
             Maximum time step. Default value is 1.0
+
+        dtmin: float
+            Minimum time step. Default value is 2e-3
 
         finc: float
             Factor to increase the time step. Default value is 1.1
@@ -122,6 +126,7 @@ class FIRE2(Optimizer):
             self.maxstep = self.defaults["maxstep"]
 
         self.dtmax = dtmax
+        self.dtmin = dtmin
         self.Nmin = Nmin
         self.finc = finc
         self.fdec = fdec
@@ -156,8 +161,7 @@ class FIRE2(Optimizer):
                     self.a *= self.fa
             else:
                 self.Nsteps = 0
-                self.dt *= self.fdec
-
+                self.dt = max(self.dt*self.fdec, self.dtmin)
                 self.a = self.astart
 
                 dr = - 0.5 * self.dt * self.v
