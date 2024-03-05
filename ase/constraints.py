@@ -2382,12 +2382,12 @@ class FixSymmetry(FixConstraint):
 
     def todict(self):
         return {
-            "name": "FixSymmetry",
-            "kwargs": {
-                "symprec": self.symprec,
-                "adjust_positions": self.do_adjust_positions,
-                "adjust_cell": self.do_adjust_cell,
-                "verbose": self.verbose,
+            'name': 'FixSymmetry',
+            'kwargs': {
+                'symprec': self.symprec,
+                'adjust_positions': self.do_adjust_positions,
+                'adjust_cell': self.do_adjust_cell,
+                'verbose': self.verbose,
             },
         }
 
