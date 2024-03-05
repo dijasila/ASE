@@ -2385,7 +2385,7 @@ class FixSymmetry(FixConstraint):
         return {
             'name': 'FixSymmetry',
             'kwargs': {
-                'atoms': self.atoms
+                'atoms': self.atoms,
                 'symprec': self.symprec,
                 'adjust_positions': self.do_adjust_positions,
                 'adjust_cell': self.do_adjust_cell,
