@@ -3,7 +3,7 @@ Provides utility functions for FixSymmetry class
 """
 import numpy as np
 
-from ase.utils import atoms_to_spglib_cell, deprecated
+from ase.utils import atoms_to_spglib_cell
 
 __all__ = ['refine_symmetry', 'check_symmetry']
 
@@ -170,18 +170,3 @@ def symmetrize_rank2(lattice, lattice_inv, stress_3_3, rot):
     sym = np.dot(np.dot(lattice_inv, symmetrized_scaled_stress), lattice_inv.T)
     return sym
 
-
-class FixSymmetry():
-    """
-    Constraint to preserve spacegroup symmetry during optimisation.
-
-    Requires spglib package to be available.
-    """
-
-    @deprecated('Import FixSymmetry from ase.constraints')
-    def __init__(self, *args, **kwargs):
-        """
-        .. deprecated:: 3.23.0
-            Import ``FixSymmetry`` from :mod:`ase.constraints`
-        """
-        super().__init__(*args, **kwargs)
