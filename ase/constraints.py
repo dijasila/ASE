@@ -2285,6 +2285,7 @@ class MirrorTorque(FixConstraint):
                            'max_angle': self.max_angle,
                            'min_angle': self.min_angle, 'fmax': self.fmax}}
 
+
 class FixSymmetry(FixConstraint):
     """
     Constraint to preserve spacegroup symmetry during optimisation.
@@ -2325,9 +2326,8 @@ class FixSymmetry(FixConstraint):
                                ' with large deformation gradient step {} > 0.25'
                                .format(max_delta_deform_grad))
         elif max_delta_deform_grad > 0.15:
-            warnings.warn('FixSymmetry adjust_cell may be ill behaved with'
-                          ' large deformation gradient step {}'
-                          .format(max_delta_deform_grad))
+            warn('FixSymmetry adjust_cell may be ill behaved with large '
+                 'deformation gradient step {}'.format(max_delta_deform_grad))
 
         symmetrized_delta_deform_grad = symmetrize_rank2(cur_cell, cur_cell_inv,
                                                          delta_deform_grad,
