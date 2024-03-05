@@ -2295,7 +2295,7 @@ class FixSymmetry(FixConstraint):
 
     def __init__(self, atoms, symprec=0.01, adjust_positions=True,
                  adjust_cell=True, verbose=False):
-        self.atoms = atoms
+        self.atoms = atoms.copy()
         self.symprec = symprec
         self.verbose = verbose
         refine_symmetry(atoms, symprec, self.verbose)  # refine initial symmetry

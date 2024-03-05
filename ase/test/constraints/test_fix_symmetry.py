@@ -80,7 +80,7 @@ def test_as_dict():
     assert atoms.constraints[0].todict() == {
         'name': 'FixSymmetry',
         'kwargs': {
-            'atoms': atoms
+            'atoms': bulk('Cu'),
             'symprec': 0.01,
             'adjust_positions': True,
             'adjust_cell': True,
