@@ -2295,6 +2295,7 @@ class FixSymmetry(FixConstraint):
 
     def __init__(self, atoms, symprec=0.01, adjust_positions=True,
                  adjust_cell=True, verbose=False):
+        self.atoms = atoms
         self.symprec = symprec
         self.verbose = verbose
         refine_symmetry(atoms, symprec, self.verbose)  # refine initial symmetry
@@ -2384,6 +2385,7 @@ class FixSymmetry(FixConstraint):
         return {
             'name': 'FixSymmetry',
             'kwargs': {
+                'atoms': self.atoms
                 'symprec': self.symprec,
                 'adjust_positions': self.do_adjust_positions,
                 'adjust_cell': self.do_adjust_cell,
