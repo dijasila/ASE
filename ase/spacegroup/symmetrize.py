@@ -169,4 +169,3 @@ def symmetrize_rank2(lattice, lattice_inv, stress_3_3, rot):
 
     sym = np.dot(np.dot(lattice_inv, symmetrized_scaled_stress), lattice_inv.T)
     return sym
-
