@@ -9,12 +9,14 @@ from ase.optimize import FIRE2
 @pytest.mark.optimize
 @pytest.mark.slow
 def test_fire():
-    a = bulk('Au')
-    a *= (2, 2, 2)
+    def system_setup():
+        a = bulk('Au')
+        a *= (2, 2, 2)
+        a[0].x += 0.5
+        a.calc = EMT()
+        return a
 
-    a[0].x += 0.5
-
-    a.calc = EMT()
+    a = system_setup()
 
     opt = FIRE2(a,
                 dt=0.1,
@@ -29,12 +31,7 @@ def test_fire():
     e1 = a.get_potential_energy()
     n1 = opt.nsteps
 
-    a = bulk('Au')
-    a *= (2, 2, 2)
-
-    a[0].x += 0.5
-
-    a.calc = EMT()
+    a = system_setup()
 
     reset_history = []
 
