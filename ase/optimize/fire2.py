@@ -184,19 +184,16 @@ class FIRE2(Optimizer):
             #  moved is larger than maxstep, for ABC-FIRE the check
             #  is done independently for each cartesian direction
             if np.all(self.v):
-                v_x = np.where(np.abs(self.v[:, 0]) * self.dt > self.maxstep,
-                               (self.maxstep / self.dt) *
-                               (self.v[:, 0] / np.abs(self.v[:, 0])),
-                               self.v[:, 0])
-                v_y = np.where(np.abs(self.v[:, 1]) * self.dt > self.maxstep,
-                               (self.maxstep / self.dt) *
-                               (self.v[:, 1] / np.abs(self.v[:, 1])),
-                               self.v[:, 1])
-                v_z = np.where(np.abs(self.v[:, 2]) * self.dt > self.maxstep,
-                               (self.maxstep / self.dt) *
-                               (self.v[:, 2] / np.abs(self.v[:, 2])),
-                               self.v[:, 2])
-                self.v = np.array([v_x, v_y, v_z]).T
+                v_tmp = []
+                for car_dir in range(3):
+                    v_i = np.where(np.abs(self.v[:, car_dir]) *
+                                   self.dt > self.maxstep,
+                                   (self.maxstep / self.dt) *
+                                   (self.v[:, car_dir] /
+                                   np.abs(self.v[:, car_dir])),
+                                   self.v[:, car_dir])
+                    v_tmp.append(v_i)
+                self.v = np.array(v_tmp).T
 
         else:
             self.v = ((1.0 - self.a) * self.v + self.a * f / np.sqrt(
