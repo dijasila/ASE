@@ -12,7 +12,7 @@
 #    https://doi.org/10.1016/j.commatsci.2020.109584.
 #    This implementation does not include N(p<0), initialdelay
 #
-# ABC-Fire is implemented s described in the paper:
+# ABC-Fire is implemented as described in the paper:
 #   S. Echeverri Restrepo, P. Andric,
 #    ABC-FIRE: Accelerated Bias-Corrected Fast Inertial Relaxation Engine,
 #    Comput. Mater. Sci. 218 (2023) 111978.
