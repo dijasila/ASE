@@ -2,9 +2,10 @@ import filecmp
 
 import pytest
 
-from ase.build import molecule
+from ase.build import bulk, molecule
 from ase.calculators.calculator import compare_atoms
 from ase.calculators.emt import EMT
+from ase.calculators.singlepoint import SinglePointCalculator
 from ase.io import read, write
 
 
@@ -63,6 +64,22 @@ def test_single_write_with_newline_comment(format):
         assert 'comment line' in str(e).lower()
     else:
         raise RuntimeError('Write should fail for newlines in comment.')
+
+
+@pytest.mark.parametrize(
+    'format', [pytest.param(f, id=f'format={f}') for f in ['xyz', 'extxyz']]
+)
+@pytest.mark.parametrize(
+    'voigt', [pytest.param(v, id=f'voigt={v}') for v in [True, False]]
+)
+def test_single_write_with_stress(format: str, voigt: bool) -> None:
+    atoms = bulk('Al')
+    atoms.calc = SinglePointCalculator(
+        atoms, stress=[[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    if voigt:
+        atoms.calc.results['stress'] = atoms.get_stress(voigt=True)
+        assert atoms.calc.results['stress'].shape == (6,)
+    write('atoms.xyz', atoms, format=format)
 
 
 def test_multiple_write_and_read():
