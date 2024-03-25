@@ -134,7 +134,7 @@ def md_min(func, step=.25, tolerance=1e-6, max_iter=10000,
     log(f'Initial value={finit}, Final value={fvalue}')
 
 
-def rotation_from_projection(proj_nw, fixed_n, ortho=True):
+def rotation_from_projection(proj_nw, fixed_m, ortho=True):
     """Determine rotation and coefficient matrices from projections
 
     proj_nw = <psi_n|p_w>
@@ -150,11 +150,11 @@ def rotation_from_projection(proj_nw, fixed_n, ortho=True):
     """
 
     Nb, Nw = proj_nw.shape
-    if isinstance(fixed_n, int):
-        fixed = fixed_n
-        fixed_n = range(fixed)
+    if isinstance(fixed_m, (int, np.integer)):
+        fixed = fixed_m
+        fixed_m = range(fixed)
     else:
-        fixed = len(fixed_n)
+        fixed = len(fixed_m)
     M = fixed
     L = Nw - M
     U = Nb - M
@@ -162,7 +162,7 @@ def rotation_from_projection(proj_nw, fixed_n, ortho=True):
     U_ww = np.empty((Nw, Nw), dtype=proj_nw.dtype)
 
     # Set the section of the rotation matrix about the 'fixed' states
-    U_ww[:M] = proj_nw[fixed_n]
+    U_ww[:M] = proj_nw[fixed_m]
 
     if L > 0:
         # If there are extra degrees of freedom we have to select L of them
@@ -170,7 +170,7 @@ def rotation_from_projection(proj_nw, fixed_n, ortho=True):
 
         # Get the projections on the 'non fixed' states
         nonfixed_n = np.ones(Nb, dtype=bool)
-        nonfixed_n[fixed_n] = False
+        nonfixed_n[fixed_m] = False
         proj_uw = proj_nw[nonfixed_n]
 
         # Obtain eigenvalues and eigevectors matrix
@@ -568,13 +568,24 @@ class Wannier:
             # Is this case properly tested, lest we confuse them?
             nbands = self.calcdata.nbands
         self.nbands = nbands
-
-        self.fixedstates_k, self.nwannier = choose_states(
+        Nk = len(self.calcdata.kpt_kc)
+        if isinstance(fixedstates, range):
+            self.use_nondefault_bands = True
+        else:
+            self.use_nondefault_bands = False
+        self.fixedstates_k, self.nwannier, self.fixedstates_km = choose_states(
             self.calcdata, fixedenergy, fixedstates, self.Nk, nwannier,
             log, spin)
-
         # Compute the number of extra degrees of freedom (EDF)
         self.edf_k = self.nwannier - self.fixedstates_k
+        self.edf_km = []
+        nonfixed_kn = np.ones((Nk, nbands), dtype=bool)
+        for k, fixedstates_m in enumerate(self.fixedstates_km):
+            edf_start_idx = fixedstates_m[-1] + 1
+            self.edf_km.append(range(edf_start_idx,
+                                     edf_start_idx + self.edf_k[k]))
+            nonfixed_kn[k, fixedstates_m] = False
+        self.nonfixed_kn = nonfixed_kn
 
         self.log(f'Wannier: Fixed states            : {self.fixedstates_k}')
         self.log(f'Wannier: Extra degrees of freedom: {self.edf_k}')
@@ -639,10 +650,13 @@ class Wannier:
         Keywords are identical to those of the constructor.
         """
         from ase.dft.wannierstate import WannierSpec, WannierState
-
+        if self.use_nondefault_bands:
+            if initialwannier not in {'orbitals', 'random'}:
+                raise NotImplementedError('If you use non-default bands,'
+                                          ' initialwannier must be either'
+                                          ' \'orbitals\' or \'random\'.)')
         spec = WannierSpec(self.Nk, self.nwannier, self.nbands,
-                           self.fixedstates_k)
-
+                           self.fixedstates_km)
         if file is not None:
             with paropen(file, 'r') as fd:
                 Z_dknn, U_kww, C_kul = read_json(fd, always_array=False)
@@ -674,10 +688,12 @@ class Wannier:
 
     def update(self):
         # Update large rotation matrix V (from rotation U and coeff C)
-        for k, M in enumerate(self.fixedstates_k):
-            self.V_knw[k, :M] = self.U_kww[k, :M]
+        for k, fixed_m in enumerate(self.fixedstates_km):
+            M = len(fixed_m)
+            nonfixed_n = self.nonfixed_kn[k]
+            self.V_knw[k, fixed_m] = self.U_kww[k, :M]
             if M < self.nwannier:
-                self.V_knw[k, M:] = self.C_kul[k] @ self.U_kww[k, M:]
+                self.V_knw[k, nonfixed_n] = self.C_kul[k] @ self.U_kww[k, M:]
             # else: self.V_knw[k, M:] = 0.0
 
         # Calculate the Zk matrix from the large rotation matrix:

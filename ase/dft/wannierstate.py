@@ -25,11 +25,12 @@ def _empty():
 
 
 class WannierSpec:
-    def __init__(self, Nk, Nw, Nb, fixedstates_k):
+    def __init__(self, Nk, Nw, Nb, fixedstates_km):
         self.Nk = Nk
         self.Nw = Nw
         self.Nb = Nb
-        self.fixedstates_k = fixedstates_k
+        self.fixedstates_km = fixedstates_km
+        self.fixedstates_k = np.array([len(n_m) for n_m in fixedstates_km])
 
     def _zeros(self):
         return np.zeros((self.Nk, self.Nw, self.Nw), complex)
@@ -60,7 +61,7 @@ class WannierSpec:
 
     def initial_orbitals(self, calc, orbitals, kptgrid, edf_k, spin):
         C_kul, U_kww = calc.initial_wannier(
-            orbitals, kptgrid, self.fixedstates_k, edf_k, spin, self.Nb)
+            orbitals, kptgrid, self.fixedstates_km, edf_k, spin, self.Nb)
         return WannierState(C_kul, U_kww)
 
     def initial_wannier(self, calc, method, kptgrid, edf_k, spin):
