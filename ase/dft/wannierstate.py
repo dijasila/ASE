@@ -88,7 +88,7 @@ class WannierSpec:
         # Use initial guess to determine U and C
         C_kul, U_kww = scdm(pseudo_nkG,
                             kpts=kpt_kc,
-                            fixed_k=self.fixedstates_k,
+                            fixed_km=self.fixedstates_km,
                             Nw=self.Nw)
         return WannierState(C_kul, U_kww)
 

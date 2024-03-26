@@ -736,9 +736,9 @@ def test_scdm(ti_calculator):
         for n in range(nbands):
             pseudo_nkG[n, k] = calc.get_pseudo_wave_function(
                 band=n, kpt=k, spin=0).ravel()
-    fixed_k = [Nw - 2] * number_kpts
+    fixed_km = [range(Nw - 2)] * number_kpts
     C_kul, U_kww = scdm(pseudo_nkG, kpts=kpt_kc,
-                        fixed_k=fixed_k, Nw=Nw)
+                        fixed_km=fixed_km, Nw=Nw)
     for k in range(number_kpts):
         assert unitarity_error(U_kww[k]) < 1e-10, 'U_ww not unitary'
         assert orthogonality_error(C_kul[k].T) < 1e-10, \
@@ -784,3 +784,7 @@ def test_spread_contributions(wan):
     test_values_w = wan1._spread_contributions()
     ref_values_w = [2.28535569, 0.04660427]
     assert test_values_w == pytest.approx(ref_values_w, abs=1e-4)
+
+
+def test_fixed_valenceband(wan, si_calculator):
+    return
