@@ -786,5 +786,13 @@ def test_spread_contributions(wan):
     assert test_values_w == pytest.approx(ref_values_w, abs=1e-4)
 
 
-def test_fixed_valenceband(wan, si_calculator):
-    return
+def test_fixed_band(wan, si_calculator):
+    band_idx = 3
+    wanf = wan(calc=si_calculator, initialwannier='bloch', nwannier=1,
+               full_calc=True, fixedstates=range(band_idx, band_idx + 1))
+    wanf.localize()
+    Nk = wanf.Nk
+    for ik in range(Nk):
+        Edft = si_calculator.get_eigenvalues(ik)[band_idx]
+        Ewan, _ = np.linalg.eigh(wanf.get_hamiltonian(ik))
+        assert np.allclose(Edft, Ewan)
