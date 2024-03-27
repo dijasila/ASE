@@ -796,3 +796,24 @@ def test_fixed_band(wan, si_calculator):
         Edft = si_calculator.get_eigenvalues(ik)[band_idx]
         Ewan, _ = np.linalg.eigh(wanf.get_hamiltonian(ik))
         assert np.allclose(Edft, Ewan)
+
+
+def test_fixed_energywindow(wan, si_calculator):
+    Emin = -2
+    Emax = 2
+    wanf = wan(calc=si_calculator, initialwannier='bloch', nwannier=6,
+               full_calc=True, fixedenergy=[Emin, Emax])
+    wanf.localize()
+    Nk = wanf.Nk
+    lumo = wanf.calcdata.lumo
+    for ik in range(Nk):
+        Edft_n = si_calculator.get_eigenvalues(ik)
+        Ewan_n, _ = np.linalg.eigh(wanf.get_hamiltonian(ik))
+        for Edft in Edft_n:
+            if (lumo + Emin) <= Edft < (lumo + Emax):
+                Edif = np.min(np.abs(Edft - Ewan_n))
+                assert np.allclose(Edif, 0)
+
+    with pytest.raises(ValueError, match=r'^Not enough Wannier functions'):
+        wanf = wan(calc=si_calculator, initialwannier='bloch', nwannier=2,
+                   full_calc=True, fixedenergy=[Emin, Emax])

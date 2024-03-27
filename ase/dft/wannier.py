@@ -396,22 +396,33 @@ def choose_states(calcdata, fixedenergy, fixedstates, Nk, nwannier, log, spin):
         fixedstates_k = np.array(fixedstates_k, int)
 
     elif fixedenergy is not None:
-        # Setting number of fixed states and EDF from given energy cutoff.
-        # All states below this energy cutoff are fixed.
-        # The reference energy is Ef for metals and CBM for insulators.
-        if calcdata.gap < 0.01 or fixedenergy < 0.01:
-            cutoff = fixedenergy + calcdata.fermi_level
+
+        if isinstance(fixedenergy, (list, np.ndarray)):
+            assert len(fixedenergy) == 2
+            if calcdata.gap < 0.01:
+                offset = calcdata.fermi_level
+            else:
+                offset = calcdata.lumo
+            cutoff_min = fixedenergy[0] + offset
+            cutoff_max = fixedenergy[1] + offset
         else:
-            cutoff = fixedenergy + calcdata.lumo
+            # Setting number of fixed states and EDF from given energy cutoff.
+            # All states below this energy cutoff are fixed.
+            # The reference energy is Ef for metals and CBM for insulators.
+            if calcdata.gap < 0.01 or fixedenergy < 0.01:
+                cutoff_max = fixedenergy + calcdata.fermi_level
+            else:
+                cutoff_max = fixedenergy + calcdata.lumo
+            cutoff_min = -np.inf
 
         # Find the states below the energy cutoff at each k-point
-        tmp_fixedstates_k = []
+        fixedstates_km = []
         for k in range(Nk):
             eps_n = calcdata.eps_skn[spin, k]
-            kindex = eps_n.searchsorted(cutoff)
-            tmp_fixedstates_k.append(kindex)
-        fixedstates_km = [range(fs) for fs in tmp_fixedstates_k]
-        fixedstates_k = np.array(tmp_fixedstates_k, int)
+            start_index = eps_n.searchsorted(cutoff_min)
+            end_index = eps_n.searchsorted(cutoff_max)
+            fixedstates_km.append(range(start_index, end_index))
+        fixedstates_k = np.array([len(fs_m) for fs_m in fixedstates_km], int)
 
     elif fixedstates is None and fixedenergy is None:
         if nwannier == 'auto':
@@ -433,6 +444,10 @@ def choose_states(calcdata, fixedenergy, fixedstates, Nk, nwannier, log, spin):
     if nwannier == 'auto':
         nwannier = max([max(fs_m) for fs_m in fixedstates_km]) + 1
 
+    if nwannier < np.max(fixedstates_k):
+        raise ValueError('Not enough Wannier functions to cover fixed energy'
+                         ' window! For the specified window, there must be at'
+                         f' least {np.max(fixedstates_k)} wannier functions')
     return fixedstates_k, nwannier, fixedstates_km
 
 
