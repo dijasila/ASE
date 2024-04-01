@@ -1,12 +1,20 @@
-from math import cos, pi, sin
-from typing import Any, Dict
+from __future__ import annotations
 
+from math import cos, pi, sin
+from typing import Any, List, Dict, Tuple, Iterator, Union
+from itertools import product
 import numpy as np
+from ase.cell import Cell
+
+from scipy.spatial.transform import Rotation
 
 
 def bz_vertices(icell, dim=3):
-    """See https://xkcd.com/1421 ..."""
+    """Return the vertices and the normal vector of the BZ.
+
+    See https://xkcd.com/1421 ..."""
     from scipy.spatial import Voronoi
+
     icell = icell.copy()
     if dim < 3:
         icell[2, 2] = 1e-3
@@ -20,7 +28,7 @@ def bz_vertices(icell, dim=3):
     for vertices, points in zip(vor.ridge_vertices, vor.ridge_points):
         if -1 not in vertices and 13 in points:
             normal = G[points].sum(0)
-            normal /= (normal**2).sum()**0.5
+            normal /= (normal**2).sum() ** 0.5
             bz1.append((vor.vertices[vertices], normal))
     return bz1
 
@@ -34,20 +42,29 @@ class FlatPlot:
     def new_axes(self, fig):
         return fig.gca()
 
-    def adjust_view(self, ax, minp, maxp):
+    def adjust_view(self, ax, minp, maxp, symmetric: bool = True):
         ax.autoscale_view(tight=True)
         s = maxp * 1.05
-        ax.set_xlim(-s, s)
-        ax.set_ylim(-s, s)
+        if symmetric:
+            ax.set_xlim(-s, s)
+            ax.set_ylim(-s, s)
+        else:
+            ax.set_xlim(minp * 1.05, maxp * 1.05)
+            ax.set_ylim(minp * 1.05, maxp * 1.05)
         ax.set_aspect('equal')
 
     def draw_arrow(self, ax, vector, **kwargs):
-        ax.arrow(0, 0, vector[0], vector[1],
-                 lw=1,
-                 length_includes_head=True,
-                 head_width=0.03,
-                 head_length=0.05,
-                 **kwargs)
+        ax.arrow(
+            0,
+            0,
+            vector[0],
+            vector[1],
+            lw=1,
+            length_includes_head=True,
+            head_width=0.03,
+            head_length=0.05,
+            **kwargs,
+        )
 
     def label_options(self, point):
         ha_s = ['right', 'left', 'right']
@@ -61,12 +78,14 @@ class FlatPlot:
 
 class SpacePlot:
     """Helper class for ordinary (3D) Brillouin zone plots."""
+
     axis_dim = 3
     point_options: Dict[str, Any] = {}
 
     def __init__(self, *, elev=None):
         from matplotlib.patches import FancyArrowPatch
         from mpl_toolkits.mplot3d import Axes3D, proj3d
+
         Axes3D  # silence pyflakes
 
         class Arrow3D(FancyArrowPatch):
@@ -77,8 +96,9 @@ class SpacePlot:
 
             def draw(self, renderer):
                 xs3d, ys3d, zs3d = self._verts3d
-                xs, ys, zs = proj3d.proj_transform(xs3d, ys3d,
-                                                   zs3d, self.ax.axes.M)
+                xs, ys, zs = proj3d.proj_transform(
+                    xs3d, ys3d, zs3d, self.ax.axes.M
+                )
                 self.set_positions((xs[0], ys[0]), (xs[1], ys[1]))
                 FancyArrowPatch.draw(self, renderer)
 
@@ -103,20 +123,23 @@ class SpacePlot:
         return fig.add_subplot(projection='3d')
 
     def draw_arrow(self, ax, vector, **kwargs):
-        ax.add_artist(self.arrow3d(
-            ax,
-            [0, vector[0]],
-            [0, vector[1]],
-            [0, vector[2]],
-            mutation_scale=20,
-            arrowstyle='-|>',
-            **kwargs))
+        ax.add_artist(
+            self.arrow3d(
+                ax,
+                [0, vector[0]],
+                [0, vector[1]],
+                [0, vector[2]],
+                mutation_scale=20,
+                arrowstyle='-|>',
+                **kwargs,
+            )
+        )
 
-    def adjust_view(self, ax, minp, maxp):
+    def adjust_view(self, ax, minp, maxp, symmetric=True):
         import matplotlib.pyplot as plt
 
         # ax.set_aspect('equal') <-- won't work anymore in 3.1.0
-        ax.view_init(azim=self.azim / pi * 180, elev=self.elev / pi * 180)
+        ax.view_init(azim=np.deg2rad(self.azim), elev=np.deg2rad(self.elev))
         # We want aspect 'equal', but apparently there was a bug in
         # matplotlib causing wrong behaviour.  Matplotlib raises
         # NotImplementedError as of v3.1.0.  This is a bit unfortunate
@@ -151,6 +174,7 @@ def normalize_name(name):
 
     if len(name) > 1:
         import re
+
         m = re.match(r'^(\D+?)(\d*)$', name)
         if m is None:
             raise ValueError(f'Bad label: {name}')
@@ -160,19 +184,63 @@ def normalize_name(name):
     return name
 
 
-def bz_plot(cell, vectors=False, paths=None, points=None,
-            elev=None, scale=1, interactive=False,
-            pointstyle=None, ax=None, show=False):
+def bz_plot(
+    cell: Cell,
+    vectors: bool = False,
+    paths=None,
+    points=None,
+    elev=None,
+    scale=1,
+    interactive: bool = False,
+    transforms: List | None = None,
+    repeat: Union[Tuple[int, int], Tuple[int, int, int]] = (1, 1, 1),
+    pointstyle: Dict | None = None,
+    ax=None,
+    show=False,
+    **kwargs,
+):
+    """Plot the Brillouin zone of the Cell
+
+    Parameters
+    ----------
+    cell: (Cell)
+        Cell object for BZ drawing.
+    vectors : bool
+        if True, show the vector.
+    paths : [TODO:type]
+        [TODO:description]
+    points : [TODO:type]
+        [TODO:description]
+    elev : [TODO:type]
+        Not used. To be removed?
+    scale : float
+        Not used. To be removed?
+    interactive : bool
+        Not effectively works. To be removed?
+    transforms: List
+        List of linear transformation object, typically scipy.spatial.transform.Rotation
+    repeat: Tuple[int, int] | Tuple[int, int, int]
+        Set the repeating draw of BZ. default is (1, 1, 1), no repeat.
+    pointstyle : Dict
+        Style of the special point
+    ax : Axes | Axes3D
+        matplolib Axes (Axes3D in 3D) object
+    show : bool
+        If true, show the figure.
+    """
     import matplotlib.pyplot as plt
 
     if pointstyle is None:
         pointstyle = {}
 
+    if transforms is None:
+        transforms = [Rotation.from_rotvec((0, 0, 0))]
+
     cell = cell.copy()
 
     dimensions = cell.rank
     if dimensions == 3:
-        plotter = SpacePlot()
+        plotter: SpacePlot | FlatPlot = SpacePlot()
     else:
         plotter = FlatPlot()
     assert dimensions > 0, 'No BZ for 0D!'
@@ -180,27 +248,42 @@ def bz_plot(cell, vectors=False, paths=None, points=None,
     if ax is None:
         ax = plotter.new_axes(plt.gcf())
 
-    assert not cell[dimensions:, :].any()
-    assert not cell[:, dimensions:].any()
+    assert not np.array(cell)[dimensions:, :].any()
+    assert not np.array(cell)[:, dimensions:].any()
 
     icell = cell.reciprocal()
     kpoints = points
     bz1 = bz_vertices(icell, dim=dimensions)
+    if len(repeat) == 2:
+        repeat = (*repeat, 1)
 
     maxp = 0.0
     minp = 0.0
-    for points, normal in bz1:
-        ls = '-'
-        xyz = np.concatenate([points, points[:1]]).T
-        if dimensions == 3:
-            if normal @ plotter.view < 0 and not interactive:
-                ls = ':'
-
-        ax.plot(*xyz[:plotter.axis_dim], c='k', ls=ls)
-        maxp = max(maxp, points.max())
-        minp = min(minp, points.min())
+    for bz_i in bz_index(repeat):
+        for points, normal in bz1:
+            shift = np.dot(np.array(icell).T, np.array(bz_i))
+            for transform in transforms:
+                shift = transform.apply(shift)
+            ls = '-'
+            xyz = np.concatenate([points, points[:1]])
+            for transform in transforms:
+                xyz = transform.apply(xyz)
+            x, y, z = xyz.T
+            x, y, z = x + shift[0], y + shift[1], z + shift[2]
+            if dimensions == 3:
+                if normal @ plotter.view < 0 and not interactive:
+                    ls = ':'
+            if plotter.axis_dim == 2:
+                ax.plot(x, y, c='k', ls=ls, **kwargs)
+            else:
+                ax.plot(x, y, z, c='k', ls=ls, **kwargs)
+            maxp = max(maxp, x.max(), y.max(), z.max())
+            minp = min(minp, x.min(), y.min(), z.min())
 
     if vectors:
+        for transform in transforms:
+            icell = transform.apply(icell)
+        assert isinstance(icell, np.ndarray)
         for i in range(dimensions):
             plotter.draw_arrow(ax, icell[i], color='k')
 
@@ -212,24 +295,53 @@ def bz_plot(cell, vectors=False, paths=None, points=None,
 
     if paths is not None:
         for names, points in paths:
-            coords = np.array(points).T[:plotter.axis_dim, :]
+            for transform in transforms:
+                points = transform.apply(points)
+            coords = np.array(points).T[: plotter.axis_dim, :]
             ax.plot(*coords, c='r', ls='-')
 
             for name, point in zip(names, points):
                 name = normalize_name(name)
-                point = point[:plotter.axis_dim]
-                ax.text(*point, rf'$\mathrm{{{name}}}$',
-                        color='g', **plotter.label_options(point))
+                for transform in transforms:
+                    point = transform.apply(point)
+                point = point[: plotter.axis_dim]
+                ax.text(
+                    *point,
+                    rf'$\mathrm{{{name}}}$',
+                    color='g',
+                    **plotter.label_options(point),
+                )
 
     if kpoints is not None:
         kw = {'c': 'b', **plotter.point_options, **pointstyle}
-        ax.scatter(*kpoints[:, :plotter.axis_dim].T, **kw)
+        for transform in transforms:
+            kpoints = transform.apply(kpoints)
+        ax.scatter(*kpoints[:, : plotter.axis_dim].T, **kw)
 
     ax.set_axis_off()
 
-    plotter.adjust_view(ax, minp, maxp)
-
+    if repeat == (1, 1, 1):
+        plotter.adjust_view(ax, minp, maxp)
+    else:
+        plotter.adjust_view(ax, minp, maxp, symmetric=False)
     if show:
         plt.show()
 
     return ax
+
+
+def bz_index(repeat: Tuple[int, int, int]) -> Iterator[Tuple[int, int, int]]:
+    """BZ index from the repeat"""
+    assert repeat[0] != 0
+    assert repeat[1] != 0
+    assert repeat[2] != 0
+    repeat_along_a = (
+        range(0, repeat[0]) if repeat[0] > 0 else range(0, repeat[0], -1)
+    )
+    repeat_along_b = (
+        range(0, repeat[1]) if repeat[1] > 0 else range(0, repeat[1], -1)
+    )
+    repeat_along_c = (
+        range(0, repeat[2]) if repeat[2] > 0 else range(0, repeat[2], -1)
+    )
+    return product(repeat_along_a, repeat_along_b, repeat_along_c)
