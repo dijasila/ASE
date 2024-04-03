@@ -221,7 +221,7 @@ def bz_plot(
     interactive : bool
         Not effectively works. To be removed?
     transforms: List
-        List of linear transformation object, typically scipy.spatial.transform.Rotation
+        List of linear transformation (scipy.spatial.transform.Rotation)
     repeat: Tuple[int, int] | Tuple[int, int, int]
         Set the repeating draw of BZ. default is (1, 1, 1), no repeat.
     pointstyle : Dict
