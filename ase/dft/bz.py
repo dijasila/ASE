@@ -7,6 +7,8 @@ import numpy as np
 from ase.cell import Cell
 
 from scipy.spatial.transform import Rotation
+from matplotlib.patches import FancyArrowPatch
+from mpl_toolkits.mplot3d import Axes3D, proj3d
 
 
 def bz_vertices(icell, dim=3):
@@ -75,6 +77,9 @@ class FlatPlot:
         va = va_s[int(np.sign(y))]
         return {'ha': ha, 'va': va, 'zorder': 4}
 
+    def view(self):
+        pass
+
 
 class SpacePlot:
     """Helper class for ordinary (3D) Brillouin zone plots."""
@@ -82,12 +87,7 @@ class SpacePlot:
     axis_dim = 3
     point_options: Dict[str, Any] = {}
 
-    def __init__(self, *, elev=None):
-        from matplotlib.patches import FancyArrowPatch
-        from mpl_toolkits.mplot3d import Axes3D, proj3d
-
-        Axes3D  # silence pyflakes
-
+    def __init__(self, *, azim: float | None = None, elev: float | None = None):
         class Arrow3D(FancyArrowPatch):
             def __init__(self, ax, xs, ys, zs, *args, **kwargs):
                 FancyArrowPatch.__init__(self, (0, 0), (0, 0), *args, **kwargs)
@@ -111,18 +111,18 @@ class SpacePlot:
                 return 0
 
         self.arrow3d = Arrow3D
-        self.azim = pi / 5
-        if elev is None:
-            elev = pi / 6
-        self.elev = elev
-        x = sin(self.azim)
-        y = cos(self.azim)
-        self.view = [x * cos(elev), y * cos(elev), sin(elev)]
+        self.azim: float = pi / 5 if azim is None else azim
+        self.elev: float = pi / 6 if elev is None else elev
+        self.view = [
+            sin(self.azim) * cos(self.elev),
+            cos(self.azim) * cos(self.elev),
+            sin(self.elev),
+        ]
 
     def new_axes(self, fig):
         return fig.add_subplot(projection='3d')
 
-    def draw_arrow(self, ax, vector, **kwargs):
+    def draw_arrow(self, ax: Axes3D, vector, **kwargs):
         ax.add_artist(
             self.arrow3d(
                 ax,
@@ -189,7 +189,8 @@ def bz_plot(
     vectors: bool = False,
     paths=None,
     points=None,
-    elev=None,
+    azim: float | None = None,
+    elev: float | None = None,
     scale=1,
     interactive: bool = False,
     transforms: List | None = None,
@@ -211,8 +212,10 @@ def bz_plot(
         [TODO:description]
     points : [TODO:type]
         [TODO:description]
-    elev : [TODO:type]
-        Not used. To be removed?
+    azim : float | None
+        Azimuthal angle in radian for viewing 3D BZ.
+    elev : float | None
+        Elevation angle in radian for viewing 3D BZ.
     scale : float
         Not used. To be removed?
     interactive : bool
@@ -240,7 +243,7 @@ def bz_plot(
 
     dimensions = cell.rank
     if dimensions == 3:
-        plotter: SpacePlot | FlatPlot = SpacePlot()
+        plotter: SpacePlot | FlatPlot = SpacePlot(azim=azim, elev=elev)
     else:
         plotter = FlatPlot()
     assert dimensions > 0, 'No BZ for 0D!'
@@ -330,8 +333,12 @@ def bz_plot(
     return ax
 
 
-def bz_index(repeat: Tuple[int, int, int]) -> Iterator[Tuple[int, int, int]]:
+def bz_index(
+    repeat: Union[Tuple[int, int], Tuple[int, int, int]],
+) -> Iterator[Tuple[int, int, int]]:
     """BZ index from the repeat"""
+    if len(repeat) == 2:
+        repeat = (*repeat, 1)
     assert repeat[0] != 0
     assert repeat[1] != 0
     assert repeat[2] != 0
