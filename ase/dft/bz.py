@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from math import cos, pi, sin
-from typing import Any, List, Dict, Tuple, Iterator, Union
+from typing import Any, List, Dict, Tuple, Union
 from itertools import product
 import numpy as np
 from ase.cell import Cell
@@ -258,7 +258,7 @@ def bz_plot(
     kpoints = points
     bz1 = bz_vertices(icell, dim=dimensions)
     if len(repeat) == 2:
-        repeat = (*repeat, 1)
+        repeat = (repeat[0], repeat[1], 1)
 
     maxp = 0.0
     minp = 0.0
@@ -333,12 +333,11 @@ def bz_plot(
     return ax
 
 
-def bz_index(
-    repeat: Union[Tuple[int, int], Tuple[int, int, int]],
-) -> Iterator[Tuple[int, int, int]]:
+def bz_index(repeat):
     """BZ index from the repeat"""
     if len(repeat) == 2:
-        repeat = (*repeat, 1)
+        repeat = (repeat[0], repeat[1], 1)
+    assert len(repeat) == 3
     assert repeat[0] != 0
     assert repeat[1] != 0
     assert repeat[2] != 0
