@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from math import cos, pi, sin
-from typing import Any, List, Dict, Tuple, Union
+from typing import Any
 from itertools import product
 import numpy as np
 from ase.cell import Cell
@@ -85,7 +85,7 @@ class SpacePlot:
     """Helper class for ordinary (3D) Brillouin zone plots."""
 
     axis_dim = 3
-    point_options: Dict[str, Any] = {}
+    point_options: dict[str, Any] = {}
 
     def __init__(self, *, azim: float | None = None, elev: float | None = None):
         class Arrow3D(FancyArrowPatch):
@@ -193,9 +193,9 @@ def bz_plot(
     elev: float | None = None,
     scale=1,
     interactive: bool = False,
-    transforms: List | None = None,
-    repeat: Union[Tuple[int, int], Tuple[int, int, int]] = (1, 1, 1),
-    pointstyle: Dict | None = None,
+    transforms: list | None = None,
+    repeat: tuple[int, int] | tuple[int, int, int] = (1, 1, 1),
+    pointstyle: dict | None = None,
     ax=None,
     show=False,
     **kwargs,
@@ -208,10 +208,10 @@ def bz_plot(
         Cell object for BZ drawing.
     vectors : bool
         if True, show the vector.
-    paths : [TODO:type]
-        [TODO:description]
-    points : [TODO:type]
-        [TODO:description]
+    paths : list[tuple[str, np.ndarray]] | None
+        Special point name and its coordinate position
+    points : np.ndarray
+        Coordinate points along the paths.
     azim : float | None
         Azimuthal angle in radian for viewing 3D BZ.
     elev : float | None
