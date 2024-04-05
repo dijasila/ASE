@@ -2,6 +2,7 @@
 
 from ase.optimize.bfgs import BFGS
 from ase.optimize.bfgslinesearch import BFGSLineSearch
+from ase.optimize.cellawarebfgs import CellAwareBFGS
 from ase.optimize.fire import FIRE
 from ase.optimize.fire2 import FIRE2
 from ase.optimize.gpmin.gpmin import GPMin
@@ -16,4 +17,4 @@ QuasiNewton = BFGSLineSearch
 __all__ = ['MDMin', 'FIRE', 'FIRE2', 'LBFGS',
            'LBFGSLineSearch', 'BFGSLineSearch', 'BFGS',
            'GoodOldQuasiNewton', 'QuasiNewton', 'GPMin',
-           'ODE12r', 'RestartError']
+           'CellAwareBFGS', 'ODE12r', 'RestartError']
