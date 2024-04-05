@@ -25,14 +25,14 @@ BUF_H2O = r"""
  Center     Atomic      Atomic             Coordinates (Angstroms)
  Number     Number       Type             X           Y           Z
  ---------------------------------------------------------------------
-      1          8           0        1.1            2.2        3.3
-      2          1           0        4.4            5.5        6.6
-      3          1           0        7.7            8.8        9.9
+      1          8           0        0.000000    0.000000    0.119262
+      2          1           0        0.000000    0.763239   -0.477047
+      3          1           0        0.000000   -0.763239   -0.477047
  ---------------------------------------------------------------------
 
 ...
 
- SCF Done:  E(RB3LYP) =  -12.3456789     A.U. after    9 cycles
+ SCF Done:  E(RHF) =  -75.9834173665     A.U. after   10 cycles
 
 ...
 
@@ -40,9 +40,9 @@ BUF_H2O = r"""
  Center     Atomic                   Forces (Hartrees/Bohr)
  Number     Number              X              Y              Z
  -------------------------------------------------------------------
-      1        8              0.1              0.2            0.3
-      2        1              0.4              0.5            0.6
-      3        1              0.7              0.8            0.9
+      1        8          -0.000000000   -0.000000000   -0.036558637
+      2        1          -0.000000000   -0.003968101    0.018279318
+      3        1           0.000000000    0.003968101    0.018279318
  -------------------------------------------------------------------
 """
 
@@ -189,20 +189,20 @@ def test_gaussian_out():
     atoms = read(StringIO(BUF_H2O), format='gaussian-out')
     assert str(atoms.symbols) == 'OH2'
     assert atoms.positions == pytest.approx(np.array([
-        [1.1, 2.2, 3.3],
-        [4.4, 5.5, 6.6],
-        [7.7, 8.8, 9.9],
+        [+0.000000, +0.000000, +0.119262],
+        [+0.000000, +0.763239, -0.477047],
+        [+0.000000, -0.763239, -0.477047],
     ]))
     assert not any(atoms.pbc)
     assert atoms.cell.rank == 0
 
     energy = atoms.get_potential_energy()
     forces = atoms.get_forces()
-    assert energy / units.Ha == pytest.approx(-12.3456789)
+    assert energy / units.Ha == pytest.approx(-75.9834173665)
     assert forces / (units.Ha / units.Bohr) == pytest.approx(np.array([
-        [0.1, 0.2, 0.3],
-        [0.4, 0.5, 0.6],
-        [0.7, 0.8, 0.9],
+        [-0.000000000, -0.000000000, -0.036558637],
+        [-0.000000000, -0.003968101, +0.018279318],
+        [+0.000000000, +0.003968101, +0.018279318],
     ]))
 
 
