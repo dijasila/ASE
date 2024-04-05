@@ -13,7 +13,7 @@ def test_info_formats(cli):
 
 
 def test_info_calculators(cli):
-    assert 'gpaw' in cli.ase('info', '--calculators')
+    assert 'gpaw' in cli.ase('info', '--calculators').lower()
 
 
 @pytest.fixture

@@ -88,7 +88,7 @@ def all_tested_formats():
     except ModuleNotFoundError:
         skip += ['exciting']
 
-    return sorted(set(all_formats) - set(skip))
+    return sorted(set(map(lambda x: x.name, all_formats)) - set(skip))
 
 
 @pytest.mark.parametrize('format', all_tested_formats())

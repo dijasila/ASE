@@ -18,16 +18,16 @@ class CLICommand:
                             help='Name of file to determine format for.')
         parser.add_argument('-v', '--verbose', action='store_true',
                             help='Show more information about files.')
-        parser.add_argument('--formats', action='store_true',
-                            help='List file formats known to ASE.')
         parser.add_argument('--config', action='store_true',
                             help='List configured calculators')
+        parser.add_argument('--formats', action='store_true', dest='io_formats',
+                            help='List file formats known to ASE.')
         parser.add_argument('--calculators', action='store_true',
-                            help='List all calculators known to ASE '
-                            'and whether/how each is installed.  Also, '
-                            'attempt to determine version numbers by '
-                            'running binaries or importing packages as '
-                            'appropriate.')
+                            help='List calculators known to ASE. ')
+        parser.add_argument('--viewers', action='store_true',
+                            help='List viewers known to ASE. ')
+        parser.add_argument('--plugins', action='store_true',
+                            help='List the installed plugins.')
 
     @staticmethod
     def run(args):
@@ -38,24 +38,13 @@ class CLICommand:
         from ase.config import cfg
         if not args.filename:
             print_info()
-            if args.formats:
-                print()
-                print_formats()
             if args.config:
                 print()
                 cfg.print_everything()
-            if args.calculators:
-                print()
-                cfg.check_calculators()
-                # print()
-                # from ase.calculators.autodetect import (detect_calculators,
-                #                                        format_configs)
-                # configs = detect_calculators()
-                # print('Calculators:')
-                # for message in format_configs(configs):
-                #     print('  {}'.format(message))
-                # print()
-                # print('Available: {}'.format(','.join(sorted(configs))))
+            for i in ('io_formats', 'calculators', 'viewers', 'plugins'):
+                if getattr(args, i):
+                    print()
+                    print_plugables(i)
             return
 
         n = max(len(filename) for filename in args.filename) + 2
@@ -100,26 +89,7 @@ def print_info():
         print(f'{name:24} {path}')
 
 
-def print_formats():
-    from ase.io.formats import ioformats
-
-    print('Supported formats:')
-    for fmtname in sorted(ioformats):
-        fmt = ioformats[fmtname]
-
-        infos = [fmt.modes, 'single' if fmt.single else 'multi']
-        if fmt.isbinary:
-            infos.append('binary')
-        if fmt.encoding is not None:
-            infos.append(fmt.encoding)
-        infostring = '/'.join(infos)
-
-        moreinfo = [infostring]
-        if fmt.extensions:
-            moreinfo.append('ext={}'.format('|'.join(fmt.extensions)))
-        if fmt.globs:
-            moreinfo.append('glob={}'.format('|'.join(fmt.globs)))
-
-        print('  {} [{}]: {}'.format(fmt.name,
-                                     ', '.join(moreinfo),
-                                     fmt.description))
+def print_plugables(i):
+    import ase.plugins as plugins
+    to_print = getattr(plugins, i)
+    print(to_print.info())
