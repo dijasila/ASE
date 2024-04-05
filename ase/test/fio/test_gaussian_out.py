@@ -36,6 +36,8 @@ BUF_H2O = r"""
 
 ...
 
+ (Enter /opt/bwhpc/common/chem/gaussian/g16.C.01/x86_64-Intel-avx2-source/g16/l716.exe)
+ Dipole        = 3.27065103D-16-1.33226763D-15-1.03989005D+00
  -------------------------------------------------------------------
  Center     Atomic                   Forces (Hartrees/Bohr)
  Number     Number              X              Y              Z
@@ -44,7 +46,7 @@ BUF_H2O = r"""
       2        1          -0.000000000   -0.003968101    0.018279318
       3        1           0.000000000    0.003968101    0.018279318
  -------------------------------------------------------------------
-"""
+"""  # noqa: E501
 
 BUF_F2_RHF = r"""
  Entering Gaussian System, Link 0=g16
@@ -204,6 +206,9 @@ def test_gaussian_out():
         [-0.000000000, -0.003968101, +0.018279318],
         [+0.000000000, +0.003968101, +0.018279318],
     ]))
+    assert atoms.get_dipole_moment() / units.Bohr == pytest.approx(np.array(
+        [+3.27065103e-16, -1.33226763e-15, -1.03989005e+00],
+    ))
 
 
 def test_mp2():
