@@ -17,6 +17,7 @@ from ase.calculators.singlepoint import SinglePointCalculator
 from ase.constraints import FixAtoms, FixCartesian
 from ase.io import extxyz
 from ase.io.extxyz import escape
+from ase.stress import voigt_6_to_full_3x3_stress
 
 # array data of shape (N, 1) squeezed down to shape (N, ) -- bug fixed
 # in commit r4541
@@ -290,7 +291,8 @@ def test_escape():
     assert escape('string with spaces') == '"string with spaces"'
 
 
-def test_stress():
+@pytest.fixture(name="atoms_h2o_dimer_pbc")
+def fixture_atoms_h2o_dimer_pbc():
     # build a water dimer, which has 6 atoms
     water1 = molecule('H2O')
     water2 = molecule('H2O')
@@ -298,12 +300,26 @@ def test_stress():
     atoms = water1 + water2
     atoms.cell = [10, 10, 10]
     atoms.pbc = True
+    return atoms
 
-    atoms.calc = EMT()
-    a_stress = atoms.get_stress()
-    atoms.write('tmp.xyz')
+
+def test_stress(atoms_h2o_dimer_pbc):
+    """Test stress parsing in a round-trip manner"""
+    atoms_h2o_dimer_pbc.calc = EMT()
+    a_stress = atoms_h2o_dimer_pbc.get_stress()
+    atoms_h2o_dimer_pbc.write('tmp.xyz')
     b = ase.io.read('tmp.xyz')
     assert abs(b.get_stress() - a_stress).max() < 1e-6
+
+
+def test_stress_3x3(atoms_h2o_dimer_pbc):
+    """Test if the stress tensor stored in a 3x3 matrix can be written"""
+    atoms_h2o_dimer_pbc.calc = EMT()
+    # store the stress tensor in a 3x3 matrix by hand
+    atoms_h2o_dimer_pbc.calc.results['stress'] = voigt_6_to_full_3x3_stress(
+        atoms_h2o_dimer_pbc.get_stress(),
+    )
+    atoms_h2o_dimer_pbc.write("tmp.xyz")  # test if no errors are raised
 
 
 def test_json_scalars():

@@ -24,6 +24,7 @@ from ase.io.utils import ImageIterator
 from ase.outputs import ArrayProperty, all_outputs
 from ase.spacegroup.spacegroup import Spacegroup
 from ase.utils import reader, writer
+from ase.stress import voigt_6_to_full_3x3_stress
 
 __all__ = ['read_xyz', 'write_xyz', 'iread_xyz']
 
@@ -857,10 +858,8 @@ def write_xyz(fileobj, images, comment='', columns=None,
                         # per-frame quantities (energy, stress)
                         # special case for stress, which should be converted
                         # to 3x3 matrices before writing
-                        if key == 'stress':
-                            xx, yy, zz, yz, xz, xy = value
-                            value = np.array(
-                                [(xx, xy, xz), (xy, yy, yz), (xz, yz, zz)])
+                        if key == 'stress' and value.shape == (6,):
+                            value = voigt_6_to_full_3x3_stress(value)
                         per_frame_results[key] = value
 
         # Move symbols and positions to first two properties
