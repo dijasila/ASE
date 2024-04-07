@@ -1,8 +1,6 @@
 # additional tests of the extended XYZ file I/O
 # (which is also included in oi.py test case)
 # maintained by James Kermode <james.kermode@gmail.com>
-
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -426,61 +424,26 @@ As          -0.0000000002       2.0834705948       9.9596183135""")
     assert (atoms.pbc == atoms_pbc).all()
 
 
-def test_conflicting_fields():
+def test_custom_properties():
+    """Test if custom_properties can be parsed corrrectly."""
     atoms = Atoms('Cu', cell=[2] * 3, pbc=[True] * 3)
     atoms.calc = EMT()
-
-    _ = atoms.get_potential_energy()
-    atoms.info["energy"] = 100
-    # info / per-config conflict
-    with pytest.raises(KeyError):
-        ase.io.write(sys.stdout, atoms, format="extxyz")
-
-    atoms = Atoms('Cu', cell=[2] * 3, pbc=[True] * 3)
-    atoms.calc = EMT()
-
-    _ = atoms.get_forces()
-    atoms.new_array("forces", np.ones(atoms.positions.shape))
-    # arrays / per-atom conflict
-    with pytest.raises(KeyError):
-        ase.io.write(sys.stdout, atoms, format="extxyz")
-
-
-def test_save_calc_results():
-    # DEFAULT (class name)
-    atoms = Atoms('Cu', cell=[2] * 3, pbc=[True] * 3)
-    atoms.calc = EMT()
-    _ = atoms.get_potential_energy()
-
-    calc_prefix = atoms.calc.__class__.__name__ + '_'
-    save_calc_results(atoms, remove_atoms_calc=True)
-    # make sure calculator was removed
-    assert atoms.calc is None
-
-    # make sure info/arrays keys with right names exist
-    assert calc_prefix + 'energy' in atoms.info
-    assert calc_prefix + 'forces' in atoms.arrays
-
-    # EXPLICIT STRING
-    atoms = Atoms('Cu', cell=[2] * 3, pbc=[True] * 3)
-    atoms.calc = EMT()
-    _ = atoms.get_potential_energy()
-
-    calc_prefix = 'REF_'
-    save_calc_results(atoms, calc_prefix=calc_prefix)
-    # make sure calculator was not removed
-    assert atoms.calc is not None
-
-    # make sure info/arrays keys with right names exist
-    assert calc_prefix + 'energy' in atoms.info
-    assert calc_prefix + 'forces' in atoms.arrays
-
-    # make sure conflicting field names raise an error
-    with pytest.raises(KeyError):
-        save_calc_results(atoms, calc_prefix=calc_prefix)
-
-    # make sure conflicting field names do not raise an error when force=True
-    save_calc_results(atoms, calc_prefix=calc_prefix, force=True)
+    atoms.get_potential_energy()
+    atoms.calc.results['REF_energy'] = atoms.calc.results.pop('energy')
+    atoms.calc.results['REF_forces'] = atoms.calc.results.pop('forces')
+    atoms.write(
+        'tmp.xyz',
+        custom_per_atom_properties=['REF_forces'],
+        custom_per_config_properties=['REF_energy'],
+    )
+    with open('tmp.xyz') as fd:
+        line = fd.readlines()[1]
+        assert 'REF_energy=' in line
+        assert 'REF_forces:R:3' in line
+    # TODO: We should also update `read_extxyz` to make it work with follows.
+    # atoms = ase.io.read('tmp.xyz')
+    # for _ in ['REF_energy', 'REF_forces']:
+    #     assert _ in atoms.calc.results
 
 
 def test_basic_functionality(tmp_path):

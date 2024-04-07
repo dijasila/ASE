@@ -801,7 +801,9 @@ def output_column_format(atoms, columns, arrays,
 @writer
 def write_xyz(fileobj, images, comment='', columns=None,
               write_info=True,
-              write_results=True, plain=False, vec_cell=False):
+              write_results=True, plain=False, vec_cell=False, *,
+              custom_per_atom_properties=None,
+              custom_per_config_properties=None):
     """
     Write output in extended XYZ format
 
@@ -815,7 +817,21 @@ def write_xyz(fileobj, images, comment='', columns=None,
 
     See documentation for :func:`read_xyz()` for further details of the extended
     XYZ file format.
+
+    Parameters
+    ----------
+    custom_per_atom_properties : list[str] | None, default: None
+        The specified custom per-atom properties are printed if stored in
+        ``atoms.calc.results`` additionally to the standard ones
+    custom_per_config_properties : list[str] | None, default: None
+        The specified custom per-config properties are printed if stored in
+        ``atoms.calc.results`` additionally to the standard ones
     """
+    if custom_per_atom_properties is None:
+        custom_per_atom_properties = []
+
+    if custom_per_config_properties is None:
+        custom_per_config_properties = []
 
     if hasattr(images, 'get_positions'):
         images = [images]
@@ -839,22 +855,27 @@ def write_xyz(fileobj, images, comment='', columns=None,
             write_info = False
             write_results = False
 
+        all_per_atom_properties = \
+            per_atom_properties + custom_per_atom_properties
+        all_per_config_properties = \
+            per_config_properties + custom_per_config_properties
         per_frame_results = {}
         per_atom_results = {}
         if write_results:
             calculator = atoms.calc
             if (calculator is not None
                     and isinstance(calculator, BaseCalculator)):
-                for key in all_outputs:
+                for key in all_per_atom_properties + all_per_config_properties:
                     value = calculator.results.get(key, None)
                     if value is None:
                         # skip missing calculator results
                         continue
-                    if (key in per_atom_properties and len(value.shape) >= 1
+                    if (key in all_per_atom_properties
+                            and len(value.shape) >= 1
                             and value.shape[0] == len(atoms)):
                         # per-atom quantities (forces, energies, stresses)
                         per_atom_results[key] = value
-                    elif key in per_config_properties:
+                    elif key in all_per_config_properties:
                         # per-frame quantities (energy, stress)
                         # special case for stress, which should be converted
                         # to 3x3 matrices before writing
