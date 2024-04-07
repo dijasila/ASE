@@ -807,19 +807,21 @@ def write_xyz(fileobj, images, comment='', columns=None,
     """
     Write output in extended XYZ format
 
-    Optionally, specify which columns (arrays) to include in output,
-    whether to write the contents of the `atoms.info` dict to the
-    XYZ comment line (default is True), the results of any
-    calculator attached to this Atoms. The `plain` argument
-    can be used to write a simple XYZ file with no additional information.
-    `vec_cell` can be used to write the cell vectors as additional
-    pseudo-atoms.
-
     See documentation for :func:`read_xyz()` for further details of the extended
     XYZ file format.
 
     Parameters
     ----------
+    columns : list[str] | None, default: None
+        Properties in `atoms.arrays` to include.
+    write_info : bool, default: True
+        The contents in `atoms.info` are written to the XYZ comment line.
+    write_results : bool, default: True
+        The standard properties in `atoms.calc.results` are written.
+    plain : bool, default: False
+        If True, a simple XYZ file is written with no additional information.
+    vec_cell : bool, default: False
+        If True, the cell vectors are written as additional pseudo-atoms.
     custom_per_atom_properties : list[str] | None, default: None
         The specified custom per-atom properties are printed if stored in
         ``atoms.calc.results`` additionally to the standard ones
