@@ -265,6 +265,9 @@ Thermochemistry:
 
 I/O:
 
+* Add support for writing custom per-atom and per-config properties in
+  :func:`ase.io.extxyz.write_extxyz` (:mr:`3308`)
+
 * Add support for reading POSCAR files with negative and multiple scaling
   factors in :func:`ase.io.vasp.read_vasp` (:mr:`3029`)
 
