@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import shutil
 from typing import List, Dict, Any, Union
-from pathlib import Path
+from pathlib import Path, PosixPath
 from ase.atoms import Atoms
 from ase.config import cfg
 from ase.calculators.pwmat.etot_writer import write_etot_input
@@ -19,7 +19,7 @@ FLOAT_FORMAT = '5.6f'
 EXP_FORMAT = '5.2e'
 
 ### Type of params
-parallel_keys: List[str] = "parallel"
+parallel_keys: List[str] = ["parallel"]
 ### Type 1. float
 float_keys: List[str] = [
     'Ecut',
@@ -156,14 +156,14 @@ list_float_keys: List[str] = [
 ]
 
 # PWmat has 8 types of parameters. (Make variables in `xxx_keys` above to upper, then assign to themselves.)
-float_keys: List[str] = [tmp_key.upper() for tmp_key in float_keys]
-int_keys: List[str] = [tmp_key.upper() for tmp_key in int_keys]
-bool_keys: List[str] = [tmp_key.upper() for tmp_key in bool_keys]
-char_keys: List[str] = [tmp_key.upper() for tmp_key in char_keys]
-special_keys: List[str] = [tmp_key.upper() for tmp_key in special_keys]
-string_keys: List[str] = [tmp_key.upper() for tmp_key in string_keys]
-list_int_keys: List[str] = [tmp_key.upper() for tmp_key in list_int_keys]
-list_float_keys: List[str] = [tmp_key.upper() for tmp_key in list_float_keys]
+float_keys = [tmp_key.upper() for tmp_key in float_keys]
+int_keys = [tmp_key.upper() for tmp_key in int_keys]
+bool_keys = [tmp_key.upper() for tmp_key in bool_keys]
+char_keys = [tmp_key.upper() for tmp_key in char_keys]
+special_keys = [tmp_key.upper() for tmp_key in special_keys]
+string_keys = [tmp_key.upper() for tmp_key in string_keys]
+list_int_keys = [tmp_key.upper() for tmp_key in list_int_keys]
+list_float_keys = [tmp_key.upper() for tmp_key in list_float_keys]
 
 
 class GeneratePWmatInput:
@@ -182,15 +182,15 @@ class GeneratePWmatInput:
             Represents task type executed by PWmat. You can choose one of 
             'scf', 'nonscf', 'dos', 'relax'
         """
-        self.parallel_params: Dict[str, List[int]] = {}
-        self.float_params: Dict[str, float] = {}
-        self.int_params: Dict[str, int] = {}
-        self.bool_params: Dict[str, bool] = {}
-        self.char_params: Dict[str, str] = {}
-        self.special_params: Dict[str, str] = {}
-        self.string_params: Dict[str, str] = {}
-        self.list_int_params: Dict[str, List[int]] = {}
-        self.list_float_params: Dict[str, List[float]] = {}
+        self.parallel_params: Dict[str, Union[List[int], None]] = {}
+        self.float_params: Dict[str, Union[float, None]] = {}
+        self.int_params: Dict[str, Union[int, None]] = {}
+        self.bool_params: Dict[str, Union[bool, None]] = {}
+        self.char_params: Dict[str, Union[str, None]] = {}
+        self.special_params: Dict[str, Union[str, None]] = {}
+        self.string_params: Dict[str, Union[str, None]] = {}
+        self.list_int_params: Dict[str, Union[List[int], None]] = {}
+        self.list_float_params: Dict[str, Union[List[float], None]] = {}
 
         for tmp_key in parallel_keys:
             if (tmp_key == "PARALLEL"):
@@ -401,8 +401,8 @@ class GeneratePWmatInput:
         atoms: Atoms,
         directory:str = '.') -> None:
         """Add/Modify magnetic moments at the end of atom.config"""        
-        atom_config_path: str = Path(directory) / "atom.config"
-        tmp_atom_config_path: str = Path(directory) / "atom.config_"
+        atom_config_path: PosixPath = Path(directory) / "atom.config"
+        tmp_atom_config_path: PosixPath = Path(directory) / "atom.config_"
         if not os.path.isfile(atom_config_path):
             raise ReadError(f"Cannot read file {atom_config_path}!")
         if os.path.isfile(tmp_atom_config_path):
@@ -426,7 +426,7 @@ class GeneratePWmatInput:
         """Helps to copy pseudopotential files to working directory"""
         pwmat_pp_path: str = cfg["PWMAT_PP_PATH"]
         if (self.char_params.get("XCFUNCTIONAL") == "PBE"):
-            pwmat_sg15_path: str = Path(pwmat_pp_path) / "NCPP-SG15-PBE"
+            pwmat_sg15_path: PosixPath = Path(pwmat_pp_path) / "NCPP-SG15-PBE"
             for symbol in atoms.get_chemical_symbols():
                 shutil.copy(
                     Path(pwmat_sg15_path) / f"{symbol}.SG15.PBE.UPF",
@@ -452,7 +452,7 @@ class GeneratePWmatInput:
         etot_input_params.update(float_dct)
         # Type 2. int params
         self.int_params.update({k.upper() : v for k, v in kwargs.items() if k.upper() in int_keys})
-        int_dct: Dict[str, str] = dict(
+        int_dct: Dict[str, Union[str, None]] = dict(
             (key, val) for key, val
             in self.int_params.items()
             if val is not None

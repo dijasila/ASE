@@ -3,7 +3,7 @@ from __future__ import annotations
 import io
 import os 
 import subprocess
-from typing import Union, Optional, List, Dict, Any, Tuple
+from typing import Union, Optional, List, Dict, Any
 from pathlib import Path
 from contextlib import contextmanager
 
@@ -72,15 +72,15 @@ class PWmat(GeneratePWmatInput, Calculator):
     """
     
     # Environment commands
-    env_commands: Tuple[str] = ('ASE_PWMAT_COMMAND', 'PWMAT_COMMAND', 'PWMAT_SCRIPT')
+    env_commands: tuple[str] = ('ASE_PWMAT_COMMAND', 'PWMAT_COMMAND', 'PWMAT_SCRIPT')
     
     def __init__(self,
                  atoms: Optional[Union[Atoms, None]] = None,
                  job: str = "scf",
                  parallel: List[int] = [4, 1],
                  restart: Optional[str] = None,
-                 directory: Optional[str] = ".",
-                 label: Optional[str] = "pwmat",
+                 directory: str = ".",
+                 label: str = "pwmat",
                  ignore_bad_restart_file=Calculator._deprecated,
                  command: Optional[str] = None,
                  txt: Optional[str] = 'pwmat.out',
@@ -95,7 +95,7 @@ class PWmat(GeneratePWmatInput, Calculator):
         self._store_param_state()   # Initialize an empty parameter state
         
         # Store calculator from vasprun.xml here - None => uninitialized
-        self._xml_calc: SinglePointDFTCalculator = None
+        self._xml_calc: Optional[SinglePointDFTCalculator] = None
         
         # Set directory and label
         '''
@@ -119,7 +119,7 @@ class PWmat(GeneratePWmatInput, Calculator):
             self.prefix: str = label # The label should only contain the prefix
         
         if isinstance(restart, bool):
-            restart: Union[str, None] = self.label if restart is True else None
+            restart = self.label if restart is True else None
                     
         Calculator.__init__(
             self,
@@ -128,7 +128,7 @@ class PWmat(GeneratePWmatInput, Calculator):
             label=self.label,
             atoms=atoms,
             **kwargs)
-        self.command: str = command
+        self.command: Optional[str] = command
         self._txt = None
         self.txt = txt  # Set the output txt stream
         self.version = None
@@ -148,7 +148,10 @@ class PWmat(GeneratePWmatInput, Calculator):
         self.atoms = atoms
         self.natoms = len(atoms)
 
-    def calculate(self, atoms: Union[Atoms, None] = None):
+    def calculate(self, 
+                  atoms: Optional[Atoms] = None, 
+                  properties=('energy', ),
+                  system_changes=tuple(calculator.all_changes)):
         """Do a PWmat calculation in the specified directory.
         
         This will generate the necessary PWmat input files, and then
@@ -303,7 +306,7 @@ class PWmat(GeneratePWmatInput, Calculator):
             if open_and_close:
                 out.close()
     
-    def read_atoms(self, filename: str):
+    def read_atoms(self, filename: str, restart: Optional[int] = None):
         """Read the atoms from file located in the PWmat
         working directory. Normally called final.config."""
         return read(filename)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 import io
-from typing import List, Union, Generator
+from typing import List, Union
 import numpy as np
 
 from ase import Atoms
@@ -83,7 +83,7 @@ def read_pwmat(fd: io.TextIOWrapper) -> Atoms:
 
 
 @reader
-def read_pwmat_report(fd: io.TextIOWrapper, index: Union[int, List[int]] = -1) -> Generator[Atoms]:
+def read_pwmat_report(fd: io.TextIOWrapper, index: Union[int, List[int]] = -1):
     """Parse REPORT file
 
     Args:
@@ -121,15 +121,15 @@ def read_pwmat_report(fd: io.TextIOWrapper, index: Union[int, List[int]] = -1) -
                 #efermi: float = float( line.split()[-1].strip() )
                 break
             if line.split()[0] == "NONSCF":
-                atoms: Atoms = Atoms('H')   # 'H' represents NONSCF step.
-                energy: float = 0.0
+                atoms = Atoms('H')   # 'H' represents NONSCF step.
+                energy = 0.0
                 atoms.calc = SinglePointCalculator(
                     atoms=atoms, energy=energy)
                 calculation.append(atoms)
             elif line.split()[0] == "iter=":
-                atoms: Atoms = Atoms('He')   # 'H' represents SCF step.
+                atoms = Atoms('He')   # 'H' represents SCF step.
                 blk: List[str] = get_scf_block(fd)
-                energy: float = parse_scf_block(blk)
+                energy = parse_scf_block(blk)
                 atoms.calc = SinglePointCalculator(
                     atoms=atoms, energy=energy)
                 calculation.append(atoms)
