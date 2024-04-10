@@ -48,6 +48,6 @@ def test_fire():
     e2 = a.get_potential_energy()
     n2 = opt.nsteps
 
-    assert abs(e1 - e2) < 1e-6
+    assert e2 == pytest.approx(e1)
     assert n2 < n1
     assert all(np.array(reset_history) > 0)
