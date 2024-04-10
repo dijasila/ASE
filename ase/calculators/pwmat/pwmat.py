@@ -310,3 +310,4 @@ class PWmat(GeneratePWmatInput, Calculator):
         """Read the atoms from file located in the PWmat
         working directory. Normally called final.config."""
         return read(filename)
+    

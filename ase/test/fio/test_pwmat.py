@@ -204,5 +204,3 @@ class TestReadPWmat(unittest.TestCase):
         if os.path.isfile(self.report_path):
             os.remove(self.report_path)
 
-if __name__ == "__main__":
-    unittest.main()
