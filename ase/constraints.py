@@ -25,6 +25,14 @@ __all__ = [
     "FixScaledParametricRelations", "FixCartesianParametricRelations"]
 
 
+def str2constraint(string):
+    # TODO: Make this work without eval!
+    # HOW? Turn text into dict and the dict2constraint?
+    if string.split('(')[0] not in __all__:
+        raise ValueError
+    return eval(string)
+
+
 def dict2constraint(dct):
     if dct['name'] not in __all__:
         raise ValueError
@@ -257,6 +265,10 @@ class FixCom(FixConstraint):
         lmd = masses @ forces[self.index] / sum(masses**2)
         forces[self.index] -= masses[:, None] * lmd
 
+    def __repr__(self):
+        clsname = type(self).__name__
+        return f'{clsname}()'
+
     def todict(self):
         return {'name': 'FixCom',
                 'kwargs': {}}
@@ -363,6 +375,11 @@ class FixBondLengths(FixConstraint):
 
     def get_indices(self):
         return np.unique(self.pairs.ravel())
+
+    def __repr__(self):
+        clsname = type(self).__name__
+        pairs = self.pairs.tolist()
+        return f'{clsname}(pairs={pairs}, tolerance={self.tolerance})'
 
     def todict(self):
         return {'name': 'FixBondLengths',
@@ -623,6 +640,11 @@ class FixLinearTriatomic(FixConstraint):
     def get_indices(self):
         return np.unique(self.triples.ravel())
 
+    def __repr__(self):
+        clsname = type(self).__name__
+        triples = self.triples.tolist()
+        return f'{clsname}(triples={triples})'
+
     def todict(self):
         return {'name': 'FixLinearTriatomic',
                 'kwargs': {'triples': self.triples.tolist()}}
@@ -751,7 +773,8 @@ class FixedPlane(IndexedConstraint):
         }
 
     def __repr__(self):
-        return f'FixedPlane(indices={self.index}, {self.dir.tolist()})'
+        return f'FixedPlane(indices={self.index}, '\
+            f'direction={self.dir.tolist()})'
 
 
 def _projection(vectors, direction):
@@ -808,7 +831,8 @@ class FixedLine(IndexedConstraint):
         return 2 * len(self.index)
 
     def __repr__(self):
-        return f'FixedLine(indices={self.index}, {self.dir.tolist()})'
+        return f'FixedLine(indices={self.index}, '\
+            f'direction={self.dir.tolist()})'
 
     def todict(self):
         return {
@@ -1971,11 +1995,13 @@ class Hookean(FixConstraint):
 
     def __repr__(self):
         if self._type == 'two atoms':
-            return 'Hookean(%d, %d)' % tuple(self.indices)
+            stringout = f'Hookean({self.indices[0]}, {self.indices[1]}, '
         elif self._type == 'point':
-            return 'Hookean(%d) to cartesian' % self.index
+            stringout = f'Hookean({self.index}, {self.origin.tolist()}, '
         else:
-            return 'Hookean(%d) to plane' % self.index
+            stringout = f'Hookean({self.index}, {self.plane}, '
+        stringout += f'k={self.spring}, rt={self.threshold})'
+        return stringout
 
 
 class ExternalForce(FixConstraint):

@@ -6,6 +6,7 @@ import numpy as np
 from ase.atoms import Atoms
 from ase.calculators.singlepoint import (SinglePointDFTCalculator,
                                          SinglePointKPoint)
+from ase.parallel import parprint
 
 
 def index_startswith(lines: List[str], string: str) -> int:
@@ -36,6 +37,35 @@ def read_forces(lines: List[str],
     return f, i
 
 
+def read_constraints_from_preamble(lines) -> List:
+    """Read the applied constraints and kwargs from the preamble"""
+    constraints = []
+    constraint_str = []
+    record = False
+    for il, line in enumerate(lines):
+        if record:
+            if len(line) > 3:
+                constraint_str.append(line)
+            else:
+                record = False
+        if line == 'ASE contraints:\n':
+            record = True
+
+    from ase.constraints import str2constraint
+    for con in constraint_str:
+        con_str = con.rstrip('\n')[2:]
+        if con_str[-3] == '(':
+            con_str = con_str[:-3]
+        try:
+            constraints.append(str2constraint(con_str))
+        except (NameError, TypeError):
+            parprint(f'Warning: Constraint {con_str} could not be read! '
+                     'For a custom constraint make sure the __repr__() '
+                     'function produces a string that can can be used with '
+                     'eval()')
+    return constraints
+
+
 def read_stresses(lines: List[str],
                   ii: int,) -> Tuple[List[Tuple[float, float, float]], int]:
     s = []
@@ -50,16 +80,22 @@ def read_stresses(lines: List[str],
 
 def read_gpaw_out(fileobj, index):  # -> Union[Atoms, List[Atoms]]:
     """Read text output from GPAW calculation."""
-    lines = [line.lower() for line in fileobj.readlines()]
+    lines = fileobj.readlines()
 
     blocks = []
     i1 = 0
     for i2, line in enumerate(lines):
-        if line == 'positions:\n':
-            if i1 > 0:
-                blocks.append(lines[i1:i2])
-            i1 = i2
-    blocks.append(lines[i1:])
+        if len(line.split()):
+            if line.split()[0].rstrip(':') == 'Positions':
+                if i1 == 0:
+                    preamble = lines[i1:i2]
+                else:
+                    blocks.append([line.lower() for line in lines[i1:i2]])
+                i1 = i2
+
+    blocks.append([line.lower() for line in lines[i1:]])
+
+    constraints = read_constraints_from_preamble(preamble)
 
     images: List[Atoms] = []
     for lines in blocks:
@@ -91,12 +127,15 @@ def read_gpaw_out(fileobj, index):  # -> Union[Atoms, List[Atoms]]:
             n, symbol, x, y, z = words[:5]
             symbols.append(symbol.split('.')[0].title())
             positions.append([float(x), float(y), float(z)])
-            if len(words) > 5:
+            if len(words) > 6:
                 mom = float(words[-1].rstrip(')'))
                 magmoms.append(mom)
+
         if len(symbols):
             atoms = Atoms(symbols=symbols, positions=positions,
                           cell=cell, pbc=pbc)
+            atoms.constraints.extend(constraints)
+
         else:
             atoms = Atoms(cell=cell, pbc=pbc)
 
