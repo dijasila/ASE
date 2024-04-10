@@ -114,7 +114,7 @@ char_keys: List[str] = [
     'CONVERGENCE',
     'XCFUNCTIONAL',
     #'IN.PSP1', Directly added in `char_dct` in function cls.write_etot_input()
-    #'IN.PSP2',  
+    #'IN.PSP2',
     #'IN.PSP3',
     'VDW',
 ]
@@ -144,7 +144,7 @@ string_keys: List[str] = [
 # Type 7. list_int
 list_int_keys: List[str] = [
     'MP_N123',  # e.g. 'MP_N123 = 3 3 3 0 0 0 0'
-    # Set when calculating DOS. Note: kmesh must 
+    # Set when calculating DOS. Note: kmesh must
     # equal to MP_N123 in the last SCF or NONSCF. e.g. '0 3 3 3'
     "DOS_DETAIL",
 ]
@@ -157,8 +157,8 @@ list_float_keys: List[str] = [
     "RELAX_DETAIL", # Set when relax structure
 ]
 
-# PWmat has 8 types of parameters. 
-# (Make variables in `xxx_keys` above to upper, 
+# PWmat has 8 types of parameters.
+# (Make variables in `xxx_keys` above to upper,
 # then assign to themselves.)
 float_keys = [tmp_key.upper() for tmp_key in float_keys]
 int_keys = [tmp_key.upper() for tmp_key in int_keys]
@@ -197,39 +197,39 @@ class GeneratePWmatInput:
         self.list_float_params: Dict[str, Union[List[float], None]] = {}
 
         for tmp_key in parallel_keys:
-            if (tmp_key == "PARALLEL"):
+            if tmp_key == "PARALLEL":
                 self.parallel_params.update({"PARALLEL": [4, 1]})
             else:
                 self.parallel_params.update({tmp_key: None})
         ### Type 4. char
         for tmp_key in char_keys:
-            if (tmp_key == "JOB"):
+            if tmp_key == "JOB":
                 self.char_params.update({"JOB": job.upper()})
-            elif (tmp_key == "XCFUNCTIONAL"):
+            elif tmp_key == "XCFUNCTIONAL":
                 self.char_params.update({"XCFUNCTIONAL": "PBE"})
-            elif (tmp_key == "ACCURACY"):
-                if (self.char_params.get("JOB") == "RELAX"):
+            elif tmp_key == "ACCURACY":
+                if self.char_params.get("JOB") == "RELAX":
                     self.char_params.update({"ACCURACY": "HIGH"})
                 else:
                     self.char_params.update({"ACCURACY": "NORM"})
-            elif (tmp_key == "CONVERGENCE"):
+            elif tmp_key == "CONVERGENCE":
                 self.char_params.update({"CONVERGENCE": "EASY"})
-            elif (tmp_key == "PRECISION"):
+            elif tmp_key == "PRECISION":
                 self.char_params.update({"PRECISION": "AUTO"})
-            elif (tmp_key == "IN.ATOM"):
+            elif tmp_key == "IN.ATOM":
                 self.char_params.update({"IN.ATOM": "atom.config"})
             else:
                 self.char_params.update({tmp_key: None})
         # Type 1. float
         for tmp_key in float_keys:
-            if (tmp_key == "ECUT"):
-                if (self.char_params.get("JOB") == "RELAX"):
+            if tmp_key == "ECUT":
+                if self.char_params.get("JOB") == "RELAX":
                     self.float_params.update({"ECUT": 70})
                 else:
                     self.float_params.update({"ECUT": 50})
-            elif (tmp_key == "DOS_GAUSSIAN_BROADENING"):
+            elif tmp_key == "DOS_GAUSSIAN_BROADENING":
                 # Set DOS_GAUSSIAN_BROADENING when JOB=DOS
-                if (self.char_params.get("JOB") == "DOS"):
+                if self.char_params.get("JOB") == "DOS":
                     self.float_params.update({"DOS_GAUSSIAN_BROADENING": 0.05})
                 else:
                     self.float_params.update({"DOS_GAUSSIAN_BROADENING": None})
@@ -237,10 +237,10 @@ class GeneratePWmatInput:
                 self.float_params.update({tmp_key: None})
         # Type 2. int
         for tmp_key in int_keys:
-            if (tmp_key == "SPIN"):
+            if tmp_key == "SPIN":
                 self.int_params.update({"SPIN": 1})
-            elif (tmp_key == "NUM_DOS_GRID"):   # Set NUM_DOS_GRID when JOB=DOS
-                if (self.char_params.get("JOB") == "DOS"):
+            elif tmp_key == "NUM_DOS_GRID":   # Set NUM_DOS_GRID when JOB=DOS
+                if self.char_params.get("JOB") == "DOS":
                     self.int_params.update({"NUM_DOS_GRID": 4000})
                 else:
                     self.int_params.update({"NUM_DOS_GRID": None})
@@ -250,91 +250,91 @@ class GeneratePWmatInput:
         for tmp_key in bool_keys:
             if tmp_key in ["OUT.FORCE", "OUT.STRESS", "CHARGE_DECOMP"]:
                 self.bool_params.update({tmp_key: True})
-            elif (tmp_key == "IN.WG"):
-                if (self.char_params.get("JOB") == "SCF"):
+            elif tmp_key == "IN.WG":
+                if self.char_params.get("JOB") == "SCF":
                     self.bool_params.update({"IN.WG": False})
-                elif (self.char_params.get("JOB") == "NONSCF"):
+                elif self.char_params.get("JOB") == "NONSCF":
                     self.bool_params.update({"IN.WG": False})
-                elif (self.char_params.get("JOB") == "DOS"):
+                elif self.char_params.get("JOB") == "DOS":
                     self.bool_params.update({"IN.WG": True})
-                elif (self.char_params.get("JOB") == "RELAX"):
+                elif self.char_params.get("JOB") == "RELAX":
                     self.bool_params.update({"IN.WG": False})
                 else:
                     self.bool_params.update({"IN.WG": None})
-            elif (tmp_key == "IN.RHO"):
-                if (self.char_params.get("JOB") == "SCF"):
+            elif tmp_key == "IN.RHO":
+                if self.char_params.get("JOB") == "SCF":
                     self.bool_params.update({"IN.RHO": False})
-                elif (self.char_params.get("JOB") == "NONSCF"):
+                elif self.char_params.get("JOB") == "NONSCF":
                     self.bool_params.update({"IN.RHO": False})
-                elif (self.char_params.get("JOB") == "DOS"):
+                elif self.char_params.get("JOB") == "DOS":
                     self.bool_params.update({"IN.RHO": False})
-                elif (self.char_params.get("JOB") == "RELAX"):
+                elif self.char_params.get("JOB") == "RELAX":
                     self.bool_params.update({"IN.RHO": False})
                 else:
                     self.bool_params.update({"IN.RHO": None})
-            elif (tmp_key == "IN.VR"):
-                if (self.char_params.get("JOB") == "SCF"):
+            elif tmp_key == "IN.VR":
+                if self.char_params.get("JOB") == "SCF":
                     self.bool_params.update({"IN.VR": False})
-                elif (self.char_params.get("JOB") == "NONSCF"):
+                elif self.char_params.get("JOB") == "NONSCF":
                     self.bool_params.update({"IN.VR": True})
-                elif (self.char_params.get("JOB") == "DOS"):
+                elif self.char_params.get("JOB") == "DOS":
                     self.bool_params.update({"IN.VR": False})
-                elif (self.char_params.get("JOB") == "RELAX"):
+                elif self.char_params.get("JOB") == "RELAX":
                     self.bool_params.update({"IN.VR": False})
                 else:
                     self.bool_params.update({"IN.VR": None})
-            elif (tmp_key == "IN.KPT"):
-                if (self.char_params.get("JOB") == "SCF"):
+            elif tmp_key == "IN.KPT":
+                if self.char_params.get("JOB") == "SCF":
                     self.bool_params.update({"IN.KPT": False})
-                elif (self.char_params.get("JOB") == "NONSCF"):
+                elif self.char_params.get("JOB") == "NONSCF":
                     self.bool_params.update({"IN.KPT": True})
-                elif (self.char_params.get("JOB") == "DOS"):
+                elif self.char_params.get("JOB") == "DOS":
                     self.bool_params.update({"IN.KPT": False})
-                elif (self.char_params.get("JOB") == "RELAX"):
+                elif self.char_params.get("JOB") == "RELAX":
                     self.bool_params.update({"IN.KPT": False})
                 else:
                     self.bool_params.update({"IN.KPT": None})
-            elif (tmp_key == "OUT.WG"):
-                if (self.char_params.get("JOB") == "SCF"):
+            elif tmp_key == "OUT.WG":
+                if self.char_params.get("JOB") == "SCF":
                     self.bool_params.update({"OUT.WG": True})
-                elif (self.char_params.get("JOB") == "NONSCF"):
+                elif self.char_params.get("JOB") == "NONSCF":
                     self.bool_params.update({"OUT.WG": True})
-                elif (self.char_params.get("JOB") == "DOS"):
+                elif self.char_params.get("JOB") == "DOS":
                     self.bool_params.update({"OUT.WG": False})
-                elif (self.char_params.get("JOB") == "RELAX"):
+                elif self.char_params.get("JOB") == "RELAX":
                     self.bool_params.update({"OUT.WG": True})
                 else:
                     self.bool_params.update({"OUT.WG": None})
-            elif (tmp_key == "OUT.RHO"):
-                if (self.char_params.get("JOB") == "SCF"):
+            elif tmp_key == "OUT.RHO":
+                if self.char_params.get("JOB") == "SCF":
                     self.bool_params.update({"OUT.RHO": True})
-                elif (self.char_params.get("JOB") == "NONSCF"):
+                elif self.char_params.get("JOB") == "NONSCF":
                     self.bool_params.update({"OUT.RHO": False})
-                elif (self.char_params.get("JOB") == "DOS"):
+                elif self.char_params.get("JOB") == "DOS":
                     self.bool_params.update({"OUT.RHO": False})
-                elif (self.char_params.get("JOB") == "RELAX"):
+                elif self.char_params.get("JOB") == "RELAX":
                     self.bool_params.update({"OUT.RHO": True})
                 else:
                     self.bool_params.update({"OUT.RHO": None})
-            elif (tmp_key == "OUT.VR"):
-                if (self.char_params.get("JOB") == "SCF"):
+            elif tmp_key == "OUT.VR":
+                if self.char_params.get("JOB") == "SCF":
                     self.bool_params.update({"OUT.VR": True})
-                elif (self.char_params.get("JOB") == "NONSCF"):
+                elif self.char_params.get("JOB") == "NONSCF":
                     self.bool_params.update({"OUT.VR": False})
-                elif (self.char_params.get("JOB") == "DOS"):
+                elif self.char_params.get("JOB") == "DOS":
                     self.bool_params.update({"OUT.VR": False})
-                elif (self.char_params.get("JOB") == "RELAX"):
+                elif self.char_params.get("JOB") == "RELAX":
                     self.bool_params.update({"OUT.VR": True})
                 else:
                     self.bool_params.update({"OUT.VR": None})
-            elif (tmp_key == "OUT.VATOM"):
-                if (self.char_params.get("JOB") == "SCF"):
+            elif tmp_key == "OUT.VATOM":
+                if self.char_params.get("JOB") == "SCF":
                     self.bool_params.update({"OUT.VATOM": False})
-                elif (self.char_params.get("JOB") == "NONSCF"):
+                elif self.char_params.get("JOB") == "NONSCF":
                     self.bool_params.update({"OUT.VATOM": False})
-                elif (self.char_params.get("JOB") == "DOS"):
+                elif self.char_params.get("JOB") == "DOS":
                     self.bool_params.update({"OUT.VATOM": False})
-                elif (self.char_params.get("JOB") == "RELAX"):
+                elif self.char_params.get("JOB") == "RELAX":
                     self.bool_params.update({"OUT.VATOM": False})
                 else:
                     self.bool_params.update({"OUT.VATOM": None})
@@ -348,10 +348,10 @@ class GeneratePWmatInput:
             self.string_params.update({tmp_key: None})
         # Type 7. list_int
         for tmp_key in list_int_keys:
-            if (tmp_key == "MP_N123"):
+            if tmp_key == "MP_N123":
                 self.list_int_params.update({"MP_N123": [3, 3, 3, 0, 0, 0, 0]})
-            elif (tmp_key == "DOS_DETAIL"):     # Set DOS_DETAIL when JOB=DOS
-                if (self.char_params.get("JOB") == "DOS"):
+            elif tmp_key == "DOS_DETAIL":     # Set DOS_DETAIL when JOB=DOS
+                if self.char_params.get("JOB") == "DOS":
                     self.list_int_params.update({"DOS_DETAIL": [0, 3, 3, 3]})
                 else:
                     self.list_int_params.update({"DOS_DETAIL": None})
@@ -359,38 +359,38 @@ class GeneratePWmatInput:
                 self.list_int_params.update({tmp_key: None})
         # Type 8. list_float
         for tmp_key in list_float_keys:
-            if (tmp_key == "SCF_ITER0_1"):
-                if (self.char_params.get("JOB") == "SCF"):
+            if tmp_key == "SCF_ITER0_1":
+                if self.char_params.get("JOB") == "SCF":
                     self.list_float_params.update(
                         {"SCF_ITER0_1": [6, 4, 3, 0.0, 0.025, 1]})
-                elif (self.char_params.get("JOB") == "NONSCF"):
+                elif self.char_params.get("JOB") == "NONSCF":
                     self.list_float_params.update(
                         {"SCF_ITER0_1": [50, 4, 3, 0.0, 0.025, 1]})
-                elif (self.char_params.get("JOB") == "DOS"):
+                elif self.char_params.get("JOB") == "DOS":
                     self.list_float_params.update(
                         {"SCF_ITER0_1": [50, 4, 3, 0.0, 0.025, 1]})
-                elif (self.char_params.get("JOB") == "RELAX"):
+                elif self.char_params.get("JOB") == "RELAX":
                     self.list_float_params.update(
                         {"SCF_ITER0_1": [6, 4, 3, 0.0, 0.025, 1]})
                 else:
                     self.list_float_params.update({"SCF_ITER0_1": None})
-            elif (tmp_key == "SCF_ITER0_2"):
-                if (self.char_params.get("JOB") == "SCF"):
+            elif tmp_key == "SCF_ITER0_2":
+                if self.char_params.get("JOB") == "SCF":
                     self.list_float_params.update(
                         {"SCF_ITER0_2": [94, 4, 3, 1.0, 0.025, 1]})
-                elif(self.char_params.get("JOB") == "RELAX"):
+                elif self.char_params.get("JOB") == "RELAX":
                     self.list_float_params.update(
                         {"SCF_ITER0_2": [94, 4, 3, 1.0, 0.025, 1]})
                 else:
                     self.list_float_params.update({"SCF_ITER0_2": None})
-            elif (tmp_key == "SCF_ITER1_1"):
-                if (self.char_params.get("JOB") == "RELAX"):
+            elif tmp_key == "SCF_ITER1_1":
+                if self.char_params.get("JOB") == "RELAX":
                     self.list_float_params.update(
                         {"SCF_ITER1_1": [40, 4, 3, 1.0, 0.025, 1]})
                 else:
                     self.list_float_params.update({"SCF_ITER1_1": None})
-            elif (tmp_key == "RELAX_DETAIL"):
-                if (self.char_params.get("JOB") == "RELAX"):
+            elif tmp_key == "RELAX_DETAIL":
+                if self.char_params.get("JOB") == "RELAX":
                     self.list_float_params.update(
                         {"RELAX_DETAIL": [1, 100, 0.01, 1, 0.01]})
                 else:
@@ -398,17 +398,20 @@ class GeneratePWmatInput:
             else:
                 self.list_float_params.update({tmp_key: None})
 
-    def create_inputfiles(self, 
+    def create_inputfiles(self,
                           atoms: Atoms,
                           directory: str = ".",
-                          parallel: List[int] = [4, 1],
+                          parallel: Optional[List[int]] = None,
                           **kwargs) -> None:
         """Generate all inputfiles for PWmat calculation tasks."""
+        if parallel is None:
+            parallel = [4, 1]
+        assert len(parallel) == 2
         self.add_magmom(atoms=atoms, directory=directory)
         self.copy_pspx(atoms=atoms, directory=directory)
         self.write_etot_input(atoms=atoms,
-                              directory=directory, 
-                              parallel=parallel, 
+                              directory=directory,
+                              parallel=parallel,
                               **kwargs)
 
     def add_magmom(self,
@@ -422,8 +425,8 @@ class GeneratePWmatInput:
         if os.path.isfile(tmp_atom_config_path):
             os.remove(tmp_atom_config_path)
 
-        with open(atom_config_path, 'r') as f,\
-            open(tmp_atom_config_path, 'w') as tmp_f:
+        with open(atom_config_path, 'r', encoding='utf-8') as f,\
+            open(tmp_atom_config_path, 'w', encoding='utf-8') as tmp_f:
             for line in f:
                 if "MAGNETIC" not in line.upper():
                     tmp_f.write(line)
@@ -432,15 +435,15 @@ class GeneratePWmatInput:
         os.remove(atom_config_path)
         os.rename(tmp_atom_config_path, atom_config_path)
 
-        with open(atom_config_path, "a") as f:
+        with open(atom_config_path, "a", encoding='utf-8') as f:
             f.write("MAGNETIC\n")
             for atom in atoms:
                 f.write(f"{atom.number} {atom.magmom}\n")
-     
+
     def copy_pspx(self, atoms: Atoms, directory: str = ".") -> None:
         """Helps to copy pseudopotential files to working directory"""
         pwmat_pp_path: str = cfg["PWMAT_PP_PATH"]
-        if (self.char_params.get("XCFUNCTIONAL") == "PBE"):
+        if self.char_params.get("XCFUNCTIONAL") == "PBE":
             pwmat_sg15_path = Path(pwmat_pp_path) / "NCPP-SG15-PBE"
             for symbol in atoms.get_chemical_symbols():
                 shutil.copy(
@@ -449,22 +452,24 @@ class GeneratePWmatInput:
         else:
             raise NotImplementedError
 
-    def write_etot_input(self, 
-                         atoms: Atoms, 
-                         directory: str = "./", 
-                         parallel: List[int] = [4, 1], 
+    def write_etot_input(self,
+                         atoms: Atoms,
+                         directory: str = "./",
+                         parallel: Optional[List[int]] = None,
                          **kwargs) -> None:
         """Writes the etot.input file."""
-        assert (len(parallel) == 2)
-        assert ("job" not in kwargs.keys())
+        if parallel is None:
+            parallel = [4, 1]
+        assert len(parallel) == 2
+        assert "job" not in kwargs
         etot_input_params: Dict[str, Any] = {}
-        
+
         parallel_dct: Dict[str, str] = \
             {"PARALLEL": f"{parallel[0]} {parallel[1]}"}
         etot_input_params.update(parallel_dct)
         # Type 1. float params
         self.float_params.update(
-            {k.upper(): v for k, v in kwargs.items() 
+            {k.upper(): v for k, v in kwargs.items()
              if k.upper() in float_keys})
         float_dct: Dict[str, str] = dict(
             (key, f"{val:{FLOAT_FORMAT}}") for key, val
@@ -539,7 +544,7 @@ class GeneratePWmatInput:
         etot_input_params.update(list_int_dct)
         # Type 8. list_float params
         self.list_float_params.update(
-            {k.upper(): v for k, v in kwargs.items() 
+            {k.upper(): v for k, v in kwargs.items()
              if k.upper() in list_float_keys})
         list_float_dct: Dict[str, str] = dict(
             (key, " ".join([str(tmp_item) for tmp_item in val])) for key, val

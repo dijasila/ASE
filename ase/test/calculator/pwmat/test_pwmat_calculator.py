@@ -1,5 +1,5 @@
-import pytest
 import os
+import pytest
 
 from ase import Atoms
 from ase.io import read
@@ -27,7 +27,7 @@ def test_main():
   16         0.666667           0.833333           0.432343       1  1  1
   16         0.666667           0.833333           0.567657       1  1  1
 """
-    with open("atom.config", 'w') as f:
+    with open("atom.config", 'w', encoding='utf-8') as f:
         f.write(atom_config_str)
     atoms: Atoms = read("atom.config")
     pwmat: PWmat = PWmat(atoms=atoms, job='scf', parallel=[1, 1], directory='.')

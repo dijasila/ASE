@@ -185,22 +185,21 @@ class TestReadPWmat(unittest.TestCase):
     def setUp(self):
         self.atom_config_path: str = "atom.config"
         self.report_path: str = "REPORT"
-        with open(self.atom_config_path, 'w') as f:
+        with open(self.atom_config_path, 'w', encoding='utf-8') as f:
             f.write(atom_config_string)
-        with open(self.report_path, 'w') as f:
+        with open(self.report_path, 'w', encoding='utf-8') as f:
             f.write(report_string)
-            
+
     def test_read_pwmat(self):
         atoms: Atoms = read("atom.config")
         self.assertEqual(len(atoms), 12)
-        
+
     def test_read_report(self):
         report = read(self.report_path, index=-1)   # Get last step of scf
         self.assertEqual(report.get_potential_energy(), -.97010581505657E+04)
-        
+
     def tearDown(self):
         if os.path.isfile(self.atom_config_path):
             os.remove(self.atom_config_path)
         if os.path.isfile(self.report_path):
             os.remove(self.report_path)
-

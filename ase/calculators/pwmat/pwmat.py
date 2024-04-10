@@ -1,7 +1,7 @@
 """Define a calculator for PWmat"""
 from __future__ import annotations
 import io
-import os 
+import os
 import subprocess
 from typing import Union, Optional, List, Dict, Any
 from pathlib import Path
@@ -70,14 +70,13 @@ class PWmat(GeneratePWmatInput, Calculator):
         Custom instructions on how to execute PWmat. Has priority over
         environment variables.
     """
-    
     # Environment commands
     env_commands = ('ASE_PWMAT_COMMAND', 'PWMAT_COMMAND', 'PWMAT_SCRIPT')
-    
+
     def __init__(self,
                  atoms: Optional[Union[Atoms, None]] = None,
                  job: str = "scf",
-                 parallel: List[int] = [4, 1],
+                 parallel: Optional[List[int]] = None,
                  restart: Optional[str] = None,
                  directory: str = ".",
                  label: str = "pwmat",
@@ -85,7 +84,9 @@ class PWmat(GeneratePWmatInput, Calculator):
                  command: Optional[str] = None,
                  txt: Optional[str] = 'pwmat.out',
                  **kwargs):
-        assert(len(parallel) == 2)
+        if parallel is None:
+            parallel = [4, 1]
+        assert len(parallel) == 2
         self.parallel: List[int] = parallel
         self.atoms = atoms
         self.results: Dict[str, Any] = {}
@@ -93,10 +94,10 @@ class PWmat(GeneratePWmatInput, Calculator):
         # Initialize parameter dictionaries
         GeneratePWmatInput.__init__(self, job=job)
         self._store_param_state()   # Initialize an empty parameter state
-        
+
         # Store calculator from vasprun.xml here - None => uninitialized
         self._xml_calc: Optional[SinglePointDFTCalculator] = None
-        
+
         # Set directory and label
         '''
         Examples to explain `directory`, `label`
@@ -117,10 +118,10 @@ class PWmat(GeneratePWmatInput, Calculator):
             self.label: str = label
         else:
             self.prefix: str = label # The label should only contain the prefix
-        
+
         if isinstance(restart, bool):
             restart = self.label if restart is True else None
-                    
+
         Calculator.__init__(
             self,
             restart=restart,
@@ -140,13 +141,15 @@ class PWmat(GeneratePWmatInput, Calculator):
         # current working directory
         if self.directory != os.curdir and not os.path.isdir(self.directory):
             os.makedirs(self.directory)
-        
         self.initialize(atoms)
-        self.create_inputfiles(atoms=atoms, directory=self.directory, parallel=self.parallel, kwargs=self.kwargs)
+        self.create_inputfiles(atoms=atoms,
+                               directory=self.directory,
+                               parallel=self.parallel,
+                               kwargs=self.kwargs)
 
     def initialize(self, atoms: Atoms):
         self.atoms = atoms
-        self.natoms = len(atoms)
+        #self.natoms = len(atoms)
 
     def calculate(self, 
                   atoms: Optional[Atoms] = None, 
@@ -203,7 +206,7 @@ class PWmat(GeneratePWmatInput, Calculator):
                 if env in cfg:
                     cmd = cfg[env].replace("PREFIX", self.prefix)
         return cmd
-    
+
     def read(self, label: Union[str, None] = None):
         """Read results from PWmat output files.
         
@@ -215,11 +218,11 @@ class PWmat(GeneratePWmatInput, Calculator):
         if label is None:
             label = self.label
         Calculator.read(self, label)
-        
+
         # If we restart, self.parameetrs isn't initialized
         if self.parameters is None:
             self.parameters = self.get_default_parameters()
-        
+
         # Check for existence of the necessary output files
         for f in ["REPORT"]:
             file = self._indir(filename=f)
@@ -230,11 +233,11 @@ class PWmat(GeneratePWmatInput, Calculator):
         self.atoms = self.read_pwmat_atoms(filename=self._indir("final.config"))
         # Read parameters. No implementation now.
         # Read results from the calculation. No implementation now.
-            
+
     def _indir(self, filename: str):
         "Prepend current directory to filename"
         return Path(self.directory) / filename
-        
+
     def _store_param_state(self) -> None:
         """Store current parameter state."""
         self.param_state: Dict[str, Dict[str, Any]] = dict(
@@ -295,17 +298,17 @@ class PWmat(GeneratePWmatInput, Calculator):
             elif hasattr(txt, 'write'):
                 out = txt
             else:
-                raise RuntimeError('txt should either be a string'
+                raise RuntimeError(f'txt should either be a string'
                                    'or an I/O stream, got {}'.format(txt))
 
         try:
             if open_and_close:
-                out = open(txt, 'w')
+                out = open(txt, 'w', encoding='utf-8')
             yield out
         finally:
             if open_and_close:
                 out.close()
-    
+
     def read_pwmat_atoms(self, filename: str):
         """Read the atoms from file located in the PWmat
         working directory. Normally called final.config."""

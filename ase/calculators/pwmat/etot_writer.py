@@ -12,7 +12,7 @@ __date__ = "2024-4-7"
 
 def write_etot_input(directory: str, parameters: Dict[str, Any], header=None):
     etot_input_string: str = generate_etot_input_lines(parameters)
-    with open(Path(directory) / "etot.input", "w") as etot_input:
+    with open(Path(directory) / "etot.input", "w", encoding='utf-8') as etot_input:
         if header is not None:
             etot_input.write(header + "\n")
         etot_input.write(etot_input_string)
