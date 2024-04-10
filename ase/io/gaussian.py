@@ -1311,8 +1311,13 @@ def read_gaussian_out(fd, index=-1):
             # CCSD(T) energy
             energy = float(line.split('=')[-1].strip().replace('D', 'e'))
             energy *= Hartree
-        elif line.startswith('Dipole moment'):
+        elif line.startswith('Dipole moment') and energy is not None:
             # dipole moment in `l601.exe`, printed unless `Pop=None`
+            # Skipped if energy is not printed in the same section.
+            # This happens in the last geometry record when `opt` or `irc` is
+            # specified. In this case, the record is compared with the previous
+            # one in `_compare_merge_configs`, and there the dipole moment
+            # from `l601` conflicts with the previous record from `l716`.
             line = fd.readline().strip()
             dipole = np.array([float(_) for _ in line.split()[1:6:2]]) * Debye
         elif _re_l716.match(line):
