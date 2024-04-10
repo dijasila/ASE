@@ -176,7 +176,7 @@ class PWmat(GeneratePWmatInput, Calculator):
         # Read results from calculation: Temporarily not implemented.
                 
     def _run(self, 
-             command: Optional[str]=None, 
+             command: str, 
              out: Optional[io.TextIOWrapper]=None, 
              directory: Optional[str]=None) -> int:
         """Method to explicitly execute PWmat"""
@@ -227,7 +227,7 @@ class PWmat(GeneratePWmatInput, Calculator):
                 raise calculator.ReadError(
                     f'PWmat outputfile {file} was not found')
         # Read atoms
-        self.atoms = self.read_atoms(filename=self._indir("final.config"))
+        self.atoms = self.read_pwmat_atoms(filename=self._indir("final.config"))
         # Read parameters. No implementation now.
         # Read results from the calculation. No implementation now.
             
@@ -306,7 +306,7 @@ class PWmat(GeneratePWmatInput, Calculator):
             if open_and_close:
                 out.close()
     
-    def read_atoms(self, filename: str, restart: Optional[int] = None):
+    def read_pwmat_atoms(self, filename: str):
         """Read the atoms from file located in the PWmat
         working directory. Normally called final.config."""
         return read(filename)

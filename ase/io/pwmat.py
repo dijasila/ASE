@@ -83,13 +83,13 @@ def read_pwmat(fd: io.TextIOWrapper) -> Atoms:
 
 
 @reader
-def read_pwmat_report(fd: io.TextIOWrapper, index: Union[int, List[int]] = -1):
+def read_pwmat_report(fd: io.TextIOWrapper, index = -1):
     """Parse REPORT file
 
     Args:
         fd : io.TextIOWrapper
         
-        index : Union[int, List[int]], optional]
+        index : Union[int, slice], optional]
             Defaults to -1.
     """
     def get_scf_block(fd: io.TextIOWrapper) -> List[str]:
@@ -140,7 +140,7 @@ def read_pwmat_report(fd: io.TextIOWrapper, index: Union[int, List[int]] = -1):
         if isinstance(index, int):
             steps = [calculation[index]]
         else:
-            steps = [calculation[ii] for ii in index]
+            steps = calculation[index]
     else:
         steps = []
 
