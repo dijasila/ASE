@@ -140,7 +140,7 @@ def read_pwmat_report(fd: io.TextIOWrapper, index: Union[int, List[int]] = -1):
         if isinstance(index, int):
             steps = [calculation[index]]
         else:
-            steps = calculation[index]
+            steps = [calculation[ii] for ii in index]
     else:
         steps = []
 

@@ -2,8 +2,8 @@
 from __future__ import annotations
 import os
 import shutil
-from typing import List, Dict, Any, Union
-from pathlib import Path, PosixPath
+from typing import List, Dict, Any, Union, Optional
+from pathlib import Path
 from ase.atoms import Atoms
 from ase.config import cfg
 from ase.calculators.pwmat.etot_writer import write_etot_input
@@ -401,8 +401,8 @@ class GeneratePWmatInput:
         atoms: Atoms,
         directory:str = '.') -> None:
         """Add/Modify magnetic moments at the end of atom.config"""        
-        atom_config_path: PosixPath = Path(directory) / "atom.config"
-        tmp_atom_config_path: PosixPath = Path(directory) / "atom.config_"
+        atom_config_path = Path(directory) / "atom.config"
+        tmp_atom_config_path = Path(directory) / "atom.config_"
         if not os.path.isfile(atom_config_path):
             raise ReadError(f"Cannot read file {atom_config_path}!")
         if os.path.isfile(tmp_atom_config_path):
@@ -426,7 +426,7 @@ class GeneratePWmatInput:
         """Helps to copy pseudopotential files to working directory"""
         pwmat_pp_path: str = cfg["PWMAT_PP_PATH"]
         if (self.char_params.get("XCFUNCTIONAL") == "PBE"):
-            pwmat_sg15_path: PosixPath = Path(pwmat_pp_path) / "NCPP-SG15-PBE"
+            pwmat_sg15_path = Path(pwmat_pp_path) / "NCPP-SG15-PBE"
             for symbol in atoms.get_chemical_symbols():
                 shutil.copy(
                     Path(pwmat_sg15_path) / f"{symbol}.SG15.PBE.UPF",
@@ -440,7 +440,7 @@ class GeneratePWmatInput:
         assert ("job" not in kwargs.keys())
         etot_input_params: Dict[str, Any] = {}
         
-        parallel_dct: Dict[str, List[int]] = {"PARALLEL": f"{parallel[0]} {parallel[1]}"}
+        parallel_dct: Dict[str, str] = {"PARALLEL": f"{parallel[0]} {parallel[1]}"}
         etot_input_params.update(parallel_dct)
         # Type 1. float params
         self.float_params.update({k.upper() : v for k, v in kwargs.items() if k.upper() in float_keys})
@@ -452,7 +452,7 @@ class GeneratePWmatInput:
         etot_input_params.update(float_dct)
         # Type 2. int params
         self.int_params.update({k.upper() : v for k, v in kwargs.items() if k.upper() in int_keys})
-        int_dct: Dict[str, Union[str, None]] = dict(
+        int_dct: Dict[str, Optional[int]] = dict(
             (key, val) for key, val
             in self.int_params.items()
             if val is not None

@@ -72,7 +72,7 @@ class PWmat(GeneratePWmatInput, Calculator):
     """
     
     # Environment commands
-    env_commands: tuple[str] = ('ASE_PWMAT_COMMAND', 'PWMAT_COMMAND', 'PWMAT_SCRIPT')
+    env_commands = ('ASE_PWMAT_COMMAND', 'PWMAT_COMMAND', 'PWMAT_SCRIPT')
     
     def __init__(self,
                  atoms: Optional[Union[Atoms, None]] = None,
@@ -176,9 +176,9 @@ class PWmat(GeneratePWmatInput, Calculator):
         # Read results from calculation: Temporarily not implemented.
                 
     def _run(self, 
-             command: Union[str, None]=None, 
-             out: Union[io.TextIOWrapper, None]=None, 
-             directory: Union[str, None]=None) -> int:
+             command: Optional[str]=None, 
+             out: Optional[io.TextIOWrapper]=None, 
+             directory: Optional[str]=None) -> int:
         """Method to explicitly execute PWmat"""
         if command is None:
             command = self.command
@@ -221,7 +221,7 @@ class PWmat(GeneratePWmatInput, Calculator):
             self.parameters = self.get_default_parameters()
         
         # Check for existence of the necessary output files
-        for f in []:
+        for f in ["REPORT"]:
             file = self._indir(filename=f)
             if not file.is_file():
                 raise calculator.ReadError(
