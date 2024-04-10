@@ -1,5 +1,6 @@
 import numpy as np
 
+from ase import Atoms
 from ase.parallel import world, broadcast
 from ase.geometry import get_distances
 
@@ -15,6 +16,16 @@ def random_unit_vector(rng):
     phi = 2 * np.pi * rng.random()
     st = np.sqrt(1 - ct**2)
     return np.array([st * np.cos(phi), st * np.sin(phi), ct])
+
+
+def randomly_orient(atoms: Atoms, rng=np.random) -> Atoms:
+    """Randomly orient the atoms object"""
+    theta = np.arccos(-1 + 2 * rng.random()) * 180 / np.pi
+    phi = 360 * rng.random()
+    psi = 360 * rng.random()
+    atoms.euler_rotate(
+        phi, theta, psi, center=atoms.get_center_of_mass())
+    return atoms
 
 
 def nearest(atoms1, atoms2, cell=None, pbc=None):
@@ -92,9 +103,7 @@ def attach_randomly(atoms1, atoms2, distance,
     -------
     Joined structure as an atoms object.
     """
-    atoms2 = atoms2.copy()
-    atoms2.rotate('x', random_unit_vector(rng),
-                  center=atoms2.get_center_of_mass())
+    atoms2 = randomly_orient(atoms2.copy(), rng)
     return attach(atoms1, atoms2, distance,
                   direction=random_unit_vector(rng))
 
