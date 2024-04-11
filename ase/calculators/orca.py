@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 
 import ase.io.orca as io
 from ase.calculators.genericfileio import (CalculatorTemplate,
@@ -42,7 +43,7 @@ class OrcaTemplate(CalculatorTemplate):
     def __init__(self):
         super().__init__('orca',
                          implemented_properties=['energy', 'free_energy',
-                                                 'forces'])
+                                                 'forces', 'dipole'])
 
         self.inputname = f'{self._label}.inp'
         self.outputname = f'{self._label}.out'
