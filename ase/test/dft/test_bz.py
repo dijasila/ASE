@@ -9,13 +9,10 @@ datadir = Path(__file__).parent
 
 
 def test_repeat_transpose_bz():
-    """Testint plot_bz
-
-    As I could not write the unit test by comparing the images, I take the another way to test.
-    """
+    """Testint plot_bz."""
 
     hex2d = HEX2D(a=1.0)
-    r = Rotation.from_rotvec([0, 0, 10], degrees=True)
+    r = Rotation.from_rotvec(rotvec=[0, 0, 10], degrees=True)
     fig, ax = plt.subplots()
     hex2d.plot_bz(repeat=(2, 1), transforms=[r])
     fig.savefig(datadir / 'test_bz.png')
