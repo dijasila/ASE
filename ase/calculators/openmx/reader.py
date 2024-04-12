@@ -328,8 +328,10 @@ def read_scfout_file(filename=None):
                    0, zeros(FNAN[0] + 1), axis=0)[:-1]
         ncn = ins(spl(inte(fd.read(4 * np.sum(FNAN[1:] + 1))), cum(FNAN[1:] + 1)),
                   0, np.zeros(FNAN[0] + 1), axis=0)[:-1]
-        tv = ins(floa(fd.read(8 * 3 * 4), shape=(3, 4)), 0, [0, 0, 0, 0], axis=0)
-        rtv = ins(floa(fd.read(8 * 3 * 4), shape=(3, 4)), 0, [0, 0, 0, 0], axis=0)
+        tv = ins(floa(fd.read(8 * 3 * 4), shape=(3, 4)),
+                 0, [0, 0, 0, 0], axis=0)
+        rtv = ins(floa(fd.read(8 * 3 * 4), shape=(3, 4)),
+                  0, [0, 0, 0, 0], axis=0)
         Gxyz = ins(floa(fd.read(8 * (atomnum) * 4), shape=(atomnum, 4)), 0,
                    [0., 0., 0., 0.], axis=0)
         Hks = readHam(SpinP_switch, FNAN, atomnum, Total_NumOrbs, natn, fd)

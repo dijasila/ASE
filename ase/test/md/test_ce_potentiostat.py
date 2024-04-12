@@ -44,13 +44,13 @@ def test_potentiostat(testdir):
     rng = np.random.RandomState(seed)
     MaxwellBoltzmannDistribution(atoms, temperature_K=300, rng=rng)
     with ContourExploration(
-                atoms,
-                **bulk_Al_settings,
-                energy_target=initial_energy,
-                rng=rng,
-                trajectory=name + '.traj',
-                logfile=name + '.log',
-        ) as dyn:
+        atoms,
+        **bulk_Al_settings,
+        energy_target=initial_energy,
+        rng=rng,
+        trajectory=name + '.traj',
+        logfile=name + '.log',
+    ) as dyn:
         print("Energy Above Ground State: {: .4f} eV/atom".format(
             (initial_energy - E0) / len(atoms)))
         for _ in range(5):
@@ -72,16 +72,16 @@ def test_potentiostat_no_fs(testdir):
 
     initial_energy = atoms.get_potential_energy()
     with ContourExploration(
-                atoms,
-                maxstep=0.2,
-                parallel_drift=0.0,
-                remove_translation=False,
-                energy_target=initial_energy,
-                potentiostat_step_scale=None,
-                use_frenet_serret=False,
-                trajectory=name + '.traj',
-                logfile=name + '.log',
-        ) as dyn:
+        atoms,
+        maxstep=0.2,
+        parallel_drift=0.0,
+        remove_translation=False,
+        energy_target=initial_energy,
+        potentiostat_step_scale=None,
+        use_frenet_serret=False,
+        trajectory=name + '.traj',
+        logfile=name + '.log',
+    ) as dyn:
         for _ in range(5):
             dyn.run(10)
             energy_error = (atoms.get_potential_energy() -

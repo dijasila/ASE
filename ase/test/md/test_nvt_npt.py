@@ -49,11 +49,11 @@ def propagate(atoms, asap3, algorithm, algoargs):
     T = []
     p = []
     with algorithm(
-                atoms,
-                timestep=20 * fs,
-                logfile='-',
-                loginterval=1000,
-                **algoargs) as md:
+            atoms,
+            timestep=20 * fs,
+            logfile='-',
+            loginterval=1000,
+            **algoargs) as md:
         # Gather data for 50 ps
         for _ in range(500):
             md.run(5)

@@ -404,8 +404,8 @@ class Database:
         """
 
         for _ in self._select([],
-                                [(key, '=', value)
-                                 for key, value in key_value_pairs.items()]):
+                              [(key, '=', value)
+                               for key, value in key_value_pairs.items()]):
             return None
 
         atoms = Atoms()

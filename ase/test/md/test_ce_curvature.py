@@ -33,13 +33,13 @@ def test_curvature1(testdir):
     atoms.set_velocities([[0, 0, 0], [0, 1, 0]])
 
     with ContourExploration(
-                atoms,
-                maxstep=1.5,
-                parallel_drift=0.0,
-                angle_limit=30,
-                trajectory=name + '.traj',
-                logfile=name + '.log',
-        ) as dyn:
+        atoms,
+        maxstep=1.5,
+        parallel_drift=0.0,
+        angle_limit=30,
+        trajectory=name + '.traj',
+        logfile=name + '.log',
+    ) as dyn:
         print(f"Target Radius (1/curvature) {radius: .6f} Ang")
         for _ in range(5):
             dyn.run(30)
@@ -59,13 +59,13 @@ def test_curvature2(testdir):
     atoms.set_velocities([[0, -1, 0], [0, 1, 0]])
 
     with ContourExploration(
-                atoms,
-                maxstep=1.0,
-                parallel_drift=0.0,
-                angle_limit=30,
-                trajectory=name + '.traj',
-                logfile=name + '.log',
-        ) as dyn:
+        atoms,
+        maxstep=1.0,
+        parallel_drift=0.0,
+        angle_limit=30,
+        trajectory=name + '.traj',
+        logfile=name + '.log',
+    ) as dyn:
         print(f"Target Radius (1/curvature) {radius: .6f} Ang")
         for _ in range(5):
             dyn.run(30)

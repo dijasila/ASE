@@ -597,7 +597,7 @@ class MinModeAtoms:
             old_pos = self.get_original_positions()
             if method is None:
                 method = \
-                        self.control.get_parameter('initial_eigenmode_method')
+                    self.control.get_parameter('initial_eigenmode_method')
             if method.lower() == 'displacement' and (pos - old_pos).any():
                 eigenmode = normalize(pos - old_pos)
             elif method.lower() == 'gauss':
@@ -608,9 +608,9 @@ class MinModeAtoms:
                 self.set_positions(pos)
             else:
                 e = 'initial_eigenmode must use either \'gauss\' or ' + \
-                        '\'displacement\', if the latter is used the atoms ' + \
-                        'must have moved away from the original positions.' + \
-                        f'You have requested \'{method}\'.'
+                    '\'displacement\', if the latter is used the atoms ' + \
+                    'must have moved away from the original positions.' + \
+                    f'You have requested \'{method}\'.'
                 raise NotImplementedError(e)  # NYI
             eigenmodes = [eigenmode]
 

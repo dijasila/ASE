@@ -1511,7 +1511,7 @@ class FixParametricRelations(FixConstraint):
             # Explicitly add leading zeros so when replacing param_1 with 0.0
             # param_11 does not become 0.01
             int_fmt_str = "{:0" + \
-                    str(int(np.ceil(np.log10(len(params) + 1)))) + "d}"
+                str(int(np.ceil(np.log10(len(params) + 1)))) + "d}"
 
             param_dct = {}
             param_map = {}
