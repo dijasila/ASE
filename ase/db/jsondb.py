@@ -78,10 +78,10 @@ class JSONDatabase(Database):
             if self.filename is not sys.stdin:
                 self.filename.seek(0)
 
-        if (not isinstance(bigdct, dict) or 'ids' not in bigdct and 1 not
-            in bigdct):
-                from ase.io.formats import UnknownFileTypeError
-                raise UnknownFileTypeError('Does not resemble ASE JSON database')
+        if not isinstance(bigdct, dict) or ('ids' not in bigdct and 1 not in
+                                            bigdct):
+            from ase.io.formats import UnknownFileTypeError
+            raise UnknownFileTypeError('Does not resemble ASE JSON database')
 
         ids = bigdct.get('ids')
         if ids is None:
