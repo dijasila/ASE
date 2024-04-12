@@ -96,7 +96,8 @@ class DOS:
             self.dos_dict[f'{key}_cum_{atom_and_orbital}down'] = \
                 np.ndarray(number_of_lines)
         else:
-            self.dos_dict[f'{key}{atom_and_orbital}'] = np.ndarray(number_of_lines)
+            self.dos_dict[f'{key}{atom_and_orbital}'] = \
+                np.ndarray(number_of_lines)
             self.dos_dict[f'{key}_cum_{atom_and_orbital}'] = \
                 np.ndarray(number_of_lines)
         with open(filename) as fd:

@@ -1798,7 +1798,7 @@ End CASTEP Interface Documentation
         with open(os.path.join(temp_dir, f'{seed}.castep')) as result_file:
             txt = result_file.read()
             ok_string = (r'.*DRYRUN finished.*No problems found with input '
-                        r'files.*')
+                         r'files.*')
             match = re.match(ok_string, txt, re.DOTALL)
 
             m = re.search(r'Number of kpoints used =\s*([0-9]+)', txt)
