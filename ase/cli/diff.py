@@ -177,8 +177,7 @@ generator.  For hierarchical sorting, see template.""")
                 if not same_length and not one_l_one:
                     raise CLIError(
                         "Trajectory files are not the same length "
-                        "and both > 1\n{}!={}".format(
-                            natoms1, natoms2))
+                        f"and both > 1\n{natoms1}!={natoms2}")
                 elif not same_length and one_l_one:
                     print(
                         "One file contains one image "

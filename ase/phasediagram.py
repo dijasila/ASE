@@ -243,8 +243,7 @@ class Pourbaix:
                 if aq:
                     energy -= entropy
             if verbose:
-                print('{:<5}{:10}{:10.3f}'.format(len(energies),
-                                                  name, energy))
+                print(f'{len(energies):<5}{name:10}{energy:10.3f}')
             energies.append(energy)
             names.append(name)
 
@@ -350,7 +349,7 @@ class PhaseDiagram:
         if not references:
             raise ValueError("You must provide a non-empty list of references"
                              " for the phase diagram! "
-                             "You have provided '{}'".format(references))
+                             f"You have provided '{references}'")
         filter = parse_formula(filter)[0]
 
         self.verbose = verbose

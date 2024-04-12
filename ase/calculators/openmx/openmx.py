@@ -120,9 +120,8 @@ class OpenMX(FileIOCalculator):
             for key in pbs:
                 if key not in self.default_pbs:
                     allowed = ', '.join(list(self.default_pbs.keys()))
-                    raise TypeError('Unexpected keyword "{}" in "pbs" '
-                                    'dictionary.  Must be one of: {}'
-                                    .format(key, allowed))
+                    raise TypeError(f'Unexpected keyword "{key}" in "pbs" '
+                                    f'dictionary.  Must be one of: {allowed}')
             # Put dictionary into python variable
             self.pbs.update(pbs)
             self.__dict__.update(self.pbs)
@@ -135,9 +134,8 @@ class OpenMX(FileIOCalculator):
             for key in mpi:
                 if key not in self.default_mpi:
                     allowed = ', '.join(list(self.default_mpi.keys()))
-                    raise TypeError('Unexpected keyword "{}" in "mpi" '
-                                    'dictionary.  Must be one of: {}'
-                                    .format(key, allowed))
+                    raise TypeError(f'Unexpected keyword "{key}" in "mpi" '
+                                    f'dictionary.  Must be one of: {allowed}')
             # Put dictionary into python variable
             self.mpi.update(mpi)
             self.__dict__.update(self.mpi)
@@ -248,8 +246,7 @@ class OpenMX(FileIOCalculator):
         bashArgs = "#!/bin/bash \n cd $PBS_O_WORKDIR\n"
         jobName = prefix
         cmd = bashArgs + \
-            'mpirun -hostfile $PBS_NODEFILE openmx {} > {}'.format(
-                inputfile, outfile)
+            f'mpirun -hostfile $PBS_NODEFILE openmx {inputfile} > {outfile}'
         echoArgs = ["echo", f"$' {cmd}'"]
         qsubArgs = ["qsub", "-N", jobName, "-l", "nodes=%d:ppn=%d" %
                     (nodes, processes), "-l", "walltime=" + self.walltime]

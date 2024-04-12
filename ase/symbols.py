@@ -122,7 +122,7 @@ class Symbols(collections.abc.Sequence):
         # XXX Delegate the work to the Formula object!
         if mode in ('reduce', 'all') and empirical:
             warnings.warn("Empirical chemical formula not available "
-                          "for mode '{}'".format(mode))
+                          f"for mode '{mode}'")
 
         if len(self) == 0:
             return ''

@@ -78,8 +78,7 @@ def test_verlet_thermostats_asap(asap3, testdir, allraise):
                 temp = np.array(temp)
                 avgtemp = np.mean(temp)
                 fluct = np.std(temp)
-                print("Temperature is {:.2f} K +/- {:.2f} K".format(avgtemp,
-                                                                    fluct))
+                print(f"Temperature is {avgtemp:.2f} K +/- {fluct:.2f} K")
                 assert abs(avgtemp - T_high) < 10.0
 
 

@@ -149,8 +149,7 @@ class Images:
                 step = 1
             for i, img in enumerate(imgs):
                 if isinstance(start, int):
-                    names.append('{}@{}'.format(
-                        actual_filename, start + i * step))
+                    names.append(f'{actual_filename}@{start + i * step}')
                 else:
                     names.append(f'{actual_filename}@{start}')
 
@@ -172,8 +171,8 @@ class Images:
                     quantity = get_quantity()
             except Exception as err:
                 quantity = None
-                errmsg = ('An error occurred while retrieving {} '
-                          'from the calculator: {}'.format(name, err))
+                errmsg = (f'An error occurred while retrieving {name} '
+                          f'from the calculator: {err}')
                 warnings.warn(errmsg)
             return quantity
 

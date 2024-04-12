@@ -157,7 +157,6 @@ class Profeta(ResonantRaman):
             Vel_rcc += self.electronic_me_profeta_rcc(omega, gamma, -1)
         else:
             raise RuntimeError(
-                'Bug: call with {} should not happen!'.format(
-                    self.approximation))
+                f'Bug: call with {self.approximation} should not happen!')
 
         return self.map_to_modes(Vel_rcc)

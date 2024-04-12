@@ -556,8 +556,7 @@ def write_nwchem_in(fd, atoms, properties=None, echo=False, **params):
     scratch = os.path.abspath(params.pop('scratch', label))
     restart_kw = params.get('restart_kw', 'start')
     if restart_kw not in ('start', 'restart'):
-        raise ValueError("Unrecognised restart keyword: {}!"
-                         .format(restart_kw))
+        raise ValueError(f"Unrecognised restart keyword: {restart_kw}!")
     short_label = label.rsplit('/', 1)[-1]
     if echo:
         out = ['echo']

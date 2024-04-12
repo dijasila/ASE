@@ -540,7 +540,7 @@ class BaseCalculator(GetPropertiesMixin):
             # For some reason the calculator was not able to do what we want,
             # and that is OK.
             raise PropertyNotImplementedError(
-                '{} not present in this ' 'calculation'.format(name)
+                f'{name} not present in this ' 'calculation'
             )
 
         result = self.results[name]
@@ -667,8 +667,8 @@ class Calculator(BaseCalculator):
             else:
                 raise ValueError(
                     'Directory redundantly specified though '
-                    'directory="{}" and label="{}".  '
-                    'Please omit "/" in label.'.format(self.directory, label)
+                    f'directory="{self.directory}" and label="{label}".  '
+                    'Please omit "/" in label.'
                 )
 
         if self.parameters is None:

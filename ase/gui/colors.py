@@ -147,7 +147,7 @@ class ColorWindow:
             N = 26
         colorscale, mn, mx = self.gui.colormode_data
         if cmap == 'default':
-            colorscale = ['#{0:02X}80{0:02X}'.format(int(red))
+            colorscale = [f'#{int(red):02X}80{int(red):02X}'
                           for red in np.linspace(0, 250, N)]
         elif cmap == 'old':
             colorscale = [f'#{int(red):02X}AA00'

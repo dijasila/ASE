@@ -456,8 +456,7 @@ class ResonantRaman(Raman):
                 fd.write(f'# approximation: {self._approx}\n')
             for key in self.observation:
                 fd.write(f'# {key}: {self.observation[key]}\n')
-            fd.write('# omega={:g} eV, gamma={:g} eV\n'
-                     .format(omega, gamma))
+            fd.write(f'# omega={omega:g} eV, gamma={gamma:g} eV\n')
             if width is not None:
                 fd.write('# %s folded, width=%g cm^-1\n'
                          % (type.title(), width))

@@ -340,7 +340,7 @@ class SocketServer(IOContext):
                     status = self.proc.poll()
                     if status is not None:
                         raise OSError('Subprocess terminated unexpectedly'
-                                      ' with status {}'.format(status))
+                                      f' with status {status}')
             else:
                 break
 
@@ -377,8 +377,7 @@ class SocketServer(IOContext):
                 # Quantum Espresso seems to always exit with status 128,
                 # even if successful.
                 # Should investigate at some point
-                warnings.warn('Subprocess exited with status {}'
-                              .format(exitcode))
+                warnings.warn(f'Subprocess exited with status {exitcode}')
         # self.log('IPI server closed')
 
     def calculate(self, atoms):

@@ -25,8 +25,7 @@ def test_main(factory):
             dft=dict(convergence=dict(energy=1e-3,
                                       density=1e-2,
                                       gradient=5e-2),
-                     vectors='input atomic output {}'
-                     .format(names[orientation])),
+                     vectors=f'input atomic output {names[orientation]}'),
             charge=0,
             basis='"DZVP2 (DFT Orbital)"'
         )

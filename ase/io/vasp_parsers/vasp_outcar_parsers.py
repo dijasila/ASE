@@ -158,8 +158,7 @@ class VaspChunkPropertyParser(VaspPropertyParser, ABC):
             return self.header[key]
         except KeyError:
             raise ParseError(
-                'Parser requested unavailable key "{}" from header'.format(
-                    key))
+                f'Parser requested unavailable key "{key}" from header')
 
 
 class VaspHeaderPropertyParser(VaspPropertyParser, ABC):
@@ -670,8 +669,7 @@ class OutcarChunkParser(ChunkParser):
                 atoms_kwargs[prop] = results.pop(prop)
             except KeyError:
                 raise ParseError(
-                    'Did not find required property {} during parse.'.format(
-                        prop))
+                    f'Did not find required property {prop} during parse.')
         atoms = Atoms(**atoms_kwargs)
 
         kpts = results.pop('kpts', None)

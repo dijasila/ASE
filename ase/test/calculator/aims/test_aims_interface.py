@@ -29,8 +29,7 @@ def test_aims_interface():
     # behavior of empty init with env variable
     os.environ['ASE_AIMS_COMMAND'] = aims_command_alternative
     calc = Aims()
-    assert calc.command == '{} > {}'.format(
-        aims_command_alternative, outfilename_default)
+    assert calc.command == f'{aims_command_alternative} > {outfilename_default}'
     assert calc.outfilename == outfilename_default
     assert calc.aims_command == aims_command_alternative
 
@@ -74,12 +73,10 @@ def test_aims_interface():
     calc.aims_command = aims_command_alternative
     assert calc.aims_command == aims_command_alternative
     assert calc.outfilename == outfilename_default
-    assert calc.command == '{} > {}'.format(
-        aims_command_alternative, outfilename_default)
+    assert calc.command == f'{aims_command_alternative} > {outfilename_default}'
 
     calc.outfilename = outfilename
-    assert calc.command == '{} > {}'.format(
-        aims_command_alternative, outfilename)
+    assert calc.command == f'{aims_command_alternative} > {outfilename}'
     assert calc.aims_command == aims_command_alternative
     assert calc.outfilename == outfilename
 

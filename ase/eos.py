@@ -457,8 +457,7 @@ class CLICommand:
                 try:
                     v0, e0, B = eos.fit()
                 except ValueError as ex:
-                    print('{:30}{:2}    {}'
-                          .format(name, len(v), ex.message))
+                    print(f'{name:30}{len(v):2}    {ex.message}')
                 else:
                     print('{:30}{:2} {:10.3f}{:10.3f}{:14.3f}'
                           .format(name, len(v), v0, e0, B / kJ * 1.0e24))

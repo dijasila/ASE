@@ -590,8 +590,7 @@ class SQLite3Database(Database):
                 elif isinstance(value, bool):
                     jsonop = '->>'
                     value = str(value).lower()
-                where.append("systems.key_value_pairs {} '{}'{}?"
-                             .format(jsonop, key, op))
+                where.append(f"systems.key_value_pairs {jsonop} '{key}'{op}?")
                 args.append(str(value))
 
             elif isinstance(value, str):
@@ -807,8 +806,8 @@ class SQLite3Database(Database):
 
         taken_names = set(all_tables + all_properties + self.columnnames)
         if name in taken_names:
-            raise ValueError("External table can not be any of {}"
-                             "".format(taken_names))
+            raise ValueError(f"External table can not be any of {taken_names}"
+                             "")
 
         if self._external_table_exists(name):
             return
@@ -859,10 +858,10 @@ class SQLite3Database(Database):
         dtype = self._guess_type(entries)
         expected_dtype = self._get_value_type_of_table(cursor, name)
         if dtype != expected_dtype:
-            raise ValueError("The provided data type for table {} "
-                             "is {}, while it is initialized to "
-                             "be of type {}"
-                             "".format(name, dtype, expected_dtype))
+            raise ValueError(f"The provided data type for table {name} "
+                             f"is {dtype}, while it is initialized to "
+                             f"be of type {expected_dtype}"
+                             "")
 
         # First we check if entries already exists
         cursor.execute(f"SELECT key FROM {name} WHERE id=?", (id,))
@@ -892,7 +891,7 @@ class SQLite3Database(Database):
         if any(t != all_types[0] for t in all_types):
             typenames = [t.__name__ for t in all_types]
             raise ValueError("Inconsistent datatypes in the table. "
-                             "given types: {}".format(typenames))
+                             f"given types: {typenames}")
 
         val = values[0]
         if isinstance(val, int) or np.issubdtype(type(val), np.integer):

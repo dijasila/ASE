@@ -139,8 +139,8 @@ def KIM(model_name, simulator=None, options=None, debug=False):
             )
         else:
             raise KIMCalculatorError(
-                'Unsupported simulator "{}" requested to run KIM '
-                'Portable Model.'.format(simulator)
+                f'Unsupported simulator "{simulator}" requested to run KIM '
+                'Portable Model.'
             )
 
     #######################################################

@@ -135,8 +135,7 @@ def new_app(projects):
             1 / 0
 
         headers = [('Content-Disposition',
-                    'attachment; filename="{project_name}-{id}.{type}"'
-                    .format(project_name=project_name, id=id, type=type))]
+                    f'attachment; filename="{project_name}-{id}.{type}"')]
         txt = fd.getvalue()
         return txt, 200, headers
 

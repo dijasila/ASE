@@ -1029,8 +1029,8 @@ def label_to_symbol(label):
     if test_symbol in chemical_symbols:
         return test_symbol
     else:
-        raise KeyError('Could not parse species from label {}.'
-                       ''.format(label))
+        raise KeyError(f'Could not parse species from label {label}.'
+                       '')
 
 
 def infix_float(text):

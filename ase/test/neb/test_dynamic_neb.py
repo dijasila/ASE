@@ -86,8 +86,7 @@ def test_dynamic_neb():
     # Check force calculation count for default and dynamic NEB implementations
     print(f'\n# Force calls with default NEB: {force_calls[0]}')
     print(f'# Force calls with dynamic NEB: {force_calls[1]}')
-    print('# Force calls with dynamic and scaled NEB: {}\n'.format(
-        force_calls[2]))
+    print(f'# Force calls with dynamic and scaled NEB: {force_calls[2]}\n')
     assert force_calls[2] < force_calls[1] < force_calls[0]
 
     # Assert reaction barriers are within 1 meV of default NEB

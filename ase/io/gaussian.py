@@ -139,12 +139,12 @@ def _check_problem_methods(method):
     ''' Check method string for problem methods and warn appropriately'''
     if method.lower() in _problem_methods:
         warnings.warn(
-            'The requested method, {}, is a composite method. Composite '
+            f'The requested method, {method}, is a composite method. Composite '
             'methods do not have well-defined potential energy surfaces, '
             'so the energies, forces, and other properties returned by '
             'ASE may not be meaningful, or they may correspond to a '
             'different geometry than the one provided. '
-            'Please use these methods with caution.'.format(method)
+            'Please use these methods with caution.'
         )
 
 
@@ -634,8 +634,7 @@ def _get_nuclear_props(line):
                     warnings.warn("Fragments are not "
                                   "currently supported.")
                 warnings.warn("The following nuclear properties "
-                              "could not be saved: {}".format(
-                                  {key: value}))
+                              f"could not be saved: {({key: value})}")
             else:
                 updated_nuclear_props[key] = value
         nuclear_props = updated_nuclear_props
@@ -706,10 +705,10 @@ def _read_zmatrix(zmatrix_contents, zmatrix_vars=None):
                          "Gaussian input file: ", e)
     except KeyError as e:
         raise ParseError("Failed to read Z-matrix from "
-                         "Gaussian input file, as symbol: {}"
+                         f"Gaussian input file, as symbol: {e}"
                          "could not be recognised. Please make "
                          "sure you use element symbols, not "
-                         "atomic numbers in the element labels.".format(e))
+                         "atomic numbers in the element labels.")
     positions = atoms.positions
     symbols = atoms.get_chemical_symbols()
     return positions, symbols
@@ -809,7 +808,7 @@ def _get_atoms_from_molspec(molspec_section):
     except (IndexError, ValueError, KeyError) as e:
         raise ParseError("ERROR: Could not read the Gaussian input file, "
                          "due to a problem with the molecule "
-                         "specification: {}".format(e))
+                         f"specification: {e}")
 
     nuclear_props = _get_nuclear_props_for_all_atoms(nuclear_props)
 
@@ -918,8 +917,7 @@ def _validate_params(parameters):
             if v is not None and s in str(v):
                 raise ParseError(
                     "ERROR: Could not read the Gaussian input file"
-                    ", as the option: {} is currently unsupported."
-                    .format(s))
+                    f", as the option: {s} is currently unsupported.")
 
     for k in list(parameters.keys()):
         if "popt" in k:

@@ -223,7 +223,7 @@ class Dftb(FileIOCalculator):
                 symbols = set(self.atoms.get_chemical_symbols())
                 for symbol in symbols:
                     path = os.path.join(self.slako_dir,
-                                        '{0}-{0}.skf'.format(symbol))
+                                        f'{symbol}-{symbol}.skf')
                     l = read_max_angular_momentum(path)
                     params[s + symbol] = '"{}"'.format('spdf'[l])
 

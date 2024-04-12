@@ -399,8 +399,7 @@ def test_cif_writer_label_numbers(cif_atoms):
     # cannot use atoms.symbols as K is missing there
     elements = atoms1.info['_atom_site_type_symbol']
     build_labels = [
-        "{:}{:}".format(
-            x, i) for x in set(elements) for i in range(
+        f"{x}{i}" for x in set(elements) for i in range(
             1, elements.count(x) + 1)]
     assert build_labels.sort() == labels.sort()
 
@@ -479,11 +478,11 @@ def test_bad_occupancies(cif_atoms):
 )
 def test_spacegroup_named_setting(setting_name, ref_setting):
     """The rhombohedral crystal system signifies setting=2"""
-    blocks = parse_string("""\
+    blocks = parse_string(f"""\
 data_test
-_space_group_crystal_system {}
+_space_group_crystal_system {setting_name}
 _symmetry_space_group_name_H-M         'R-3m'
-""".format(setting_name))
+""")
 
     assert len(blocks) == 1
     spg = blocks[0].get_spacegroup(False)

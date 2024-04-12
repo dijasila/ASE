@@ -255,15 +255,13 @@ def write_castep_cell(fd, atoms, positions_frac=False, force_write=False,
             if mass_dict:
                 # no custom species need to be created
                 if len(mass_dict) == 1 and not default:
-                    mass_block.append('{} {}'.format(
-                        el, list(mass_dict.keys())[0]))
+                    mass_block.append(f'{el} {list(mass_dict.keys())[0]}')
                 # for each custom mass, create new species and change names to
                 # match in 'elems' list
                 else:
                     warnings.warn(
                         'Custom mass specified for '
-                        'standard species {}, creating custom species'
-                        .format(el))
+                        f'standard species {el}, creating custom species')
 
                     for i, vals in enumerate(mass_dict.items()):
                         mass_val, idxs = vals
@@ -273,8 +271,7 @@ def write_castep_cell(fd, atoms, positions_frac=False, force_write=False,
                                 custom_species_name, str(mass_dict)))
                         for idx in idxs:
                             elems[idx] = custom_species_name
-                        mass_block.append('{} {}'.format(
-                            custom_species_name, mass_val))
+                        mass_block.append(f'{custom_species_name} {mass_val}')
 
         cell.species_mass = mass_block
 
@@ -495,8 +492,8 @@ def read_castep_cell(fd, index=None, calculator_args={}, find_spg=False,
             u = cell_units.get(usymb, 1)
             if usymb not in cell_units:
                 warnings.warn('read_cell: Warning - ignoring invalid '
-                              'unit specifier in %BLOCK {} '
-                              '(assuming Angstrom instead)'.format(blockname))
+                              f'unit specifier in %BLOCK {blockname} '
+                              '(assuming Angstrom instead)')
             line_tokens = line_tokens[1:]
         return u, line_tokens
 
@@ -633,8 +630,7 @@ def read_castep_cell(fd, index=None, calculator_args={}, find_spg=False,
             if len(token_pos_list) == 0:
                 warnings.warn(
                     'read_cell: Warning - ignoring unused '
-                    'species mass {} in %BLOCK SPECIES_MASS'.format(
-                        tokens[0]))
+                    f'species mass {tokens[0]} in %BLOCK SPECIES_MASS')
             for idx in token_pos_list:
                 aargs['masses'][idx] = tokens[1]
 

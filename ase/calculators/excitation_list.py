@@ -39,7 +39,7 @@ class Excitation:
                     string += f' {m:g}'
             else:
                 for m in me:
-                    string += ' {0.real:g}{0.imag:+g}j'.format(m)
+                    string += f' {m.real:g}{m.imag:+g}j'
             return string
 
         string += '  ' + format_me(self.mur)

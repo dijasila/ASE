@@ -310,9 +310,9 @@ xz and yz are the tilt of the lattice vectors, all to be edited.
 
         if change:
             cell_cmd = ('change_box all     '
-                        'x final 0 {} y final 0 {} z final 0 {}      '
-                        'xy final {} xz final {} yz final {} units box'
-                        ''.format(xhi, yhi, zhi, xy, xz, yz))
+                        f'x final 0 {xhi} y final 0 {yhi} z final 0 {zhi}      '
+                        f'xy final {xy} xz final {xz} yz final {yz} units box'
+                        '')
             if self.parameters.post_changebox_cmds is not None:
                 for cmd in self.parameters.post_changebox_cmds:
                     self.lmp.command(cmd)

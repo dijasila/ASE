@@ -957,8 +957,7 @@ class MinModeAtoms:
             mod_para = False
             for key in parameters:
                 if parameters[key] != self.control.get_parameter(key):
-                    lp += 'MINMODE:DISP: {} = {}\n'.format(str(key),
-                                                           str(parameters[key]))
+                    lp += f'MINMODE:DISP: {str(key)} = {str(parameters[key])}\n'
                     mod_para = True
             if mod_para:
                 l = lp

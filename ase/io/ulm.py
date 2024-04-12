@@ -598,8 +598,7 @@ class Reader:
             if verbose and isinstance(value, NDArrayReader):
                 value = value.read()
             if isinstance(value, NDArrayReader):
-                s = '<ndarray shape={} dtype={}>'.format(value.shape,
-                                                         value.dtype)
+                s = f'<ndarray shape={value.shape} dtype={value.dtype}>'
             elif isinstance(value, Reader):
                 s = value.tostr(verbose, indent + '    ')
             else:

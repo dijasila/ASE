@@ -147,8 +147,7 @@ class QChem(FileIOCalculator):
             # Default charge of 0 is defined in default_parameters
             fileobj.write('   %d %d\n' % (self.parameters['charge'], mult))
             for a in atoms:
-                fileobj.write('   {}  {:f}  {:f}  {:f}\n'.format(a.symbol,
-                                                                 a.x, a.y, a.z))
+                fileobj.write(f'   {a.symbol}  {a.x:f}  {a.y:f}  {a.z:f}\n')
             fileobj.write('$end\n\n')
 
             if self.basisfile is not None:

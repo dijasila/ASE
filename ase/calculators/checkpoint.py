@@ -100,13 +100,13 @@ class Checkpoint:
         else:
             self.checkpoint_id[-1] += 1
         self.logfile.write('Entered checkpoint region '
-                           '{}.\n'.format(self.checkpoint_id))
+                           f'{self.checkpoint_id}.\n')
 
         self.in_checkpointed_region = True
 
     def _decrease_checkpoint_id(self):
         self.logfile.write('Leaving checkpoint region '
-                           '{}.\n'.format(self.checkpoint_id))
+                           f'{self.checkpoint_id}.\n')
         if not self.in_checkpointed_region:
             self.checkpoint_id = self.checkpoint_id[:-1]
             assert len(self.checkpoint_id) >= 1
@@ -156,7 +156,7 @@ class Checkpoint:
                 i += 1
 
         self.logfile.write('Successfully restored checkpoint '
-                           '{}.\n'.format(self.checkpoint_id))
+                           f'{self.checkpoint_id}.\n')
         self._decrease_checkpoint_id()
         if len(retvals) == 1:
             return retvals[0]
@@ -196,7 +196,7 @@ class Checkpoint:
                      data=data)
 
         self.logfile.write('Successfully stored checkpoint '
-                           '{}.\n'.format(self.checkpoint_id))
+                           f'{self.checkpoint_id}.\n')
 
     def flush(self, *args, **kwargs):
         """

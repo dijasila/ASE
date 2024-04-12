@@ -410,8 +410,8 @@ class LAMMPS(Calculator):
         exitcode = lmp_handle.poll()
         if exitcode and exitcode != 0:
             raise RuntimeError(
-                "LAMMPS exited in {} with exit code: {}."
-                "".format(tempdir, exitcode)
+                f"LAMMPS exited in {tempdir} with exit code: {exitcode}."
+                ""
             )
 
         # A few sanity checks

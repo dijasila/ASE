@@ -6,7 +6,7 @@ from ase.optimize.gpmin.kernel import SquaredExponential
 from ase.optimize.gpmin.prior import ZeroPrior
 
 
-class GaussianProcess():
+class GaussianProcess:
     """Gaussian Process Regression
     It is recommended to be used with other Priors and Kernels from
     ase.optimize.gpmin

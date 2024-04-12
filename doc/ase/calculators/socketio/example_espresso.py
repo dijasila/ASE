@@ -27,8 +27,7 @@ unixsocket = 'ase_espresso'
 #
 #    https://www.quantum-espresso.org/Doc/pw_user_guide/node13.html
 #
-command = ('pw.x < PREFIX.pwi --ipi {unixsocket}:UNIX > PREFIX.pwo'
-           .format(unixsocket=unixsocket))
+command = (f'pw.x < PREFIX.pwi --ipi {unixsocket}:UNIX > PREFIX.pwo')
 
 espresso = Espresso(command=command,
                     ecutwfc=30.0,

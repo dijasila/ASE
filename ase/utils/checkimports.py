@@ -40,7 +40,7 @@ def exec_and_check_modules(expression: str) -> Set[str]:
                " modules = list(sys.modules);"
                " import json; print(json.dumps(modules))")
     proc = run([sys.executable, '-c', command],
-               capture_output=True, universal_newlines=True,
+               capture_output=True, text=True,
                check=True)
     return set(json.loads(proc.stdout))
 

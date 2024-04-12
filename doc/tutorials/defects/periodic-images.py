@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-class CellFigure():
+class CellFigure:
 
     def __init__(self, dim):
         """

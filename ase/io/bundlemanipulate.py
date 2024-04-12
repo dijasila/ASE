@@ -156,8 +156,8 @@ def read_bundle_info(name):
                 "Found obsolete metadata in unsecure Pickle format.  "
                 "Refusing to load.")
         else:
-            raise OSError("'{}' does not appear to be a BundleTrajectory "
-                          "(no {})".format(name, metaname))
+            raise OSError(f"'{name}' does not appear to be a BundleTrajectory "
+                          f"(no {metaname})")
 
     with open(metaname) as fd:
         mdata = json.load(fd)

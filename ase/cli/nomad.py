@@ -53,10 +53,9 @@ class CLICommand:
                     token = fd.readline().strip()
             except OSError as err:  # py2/3 discrepancy
                 from ase.cli.main import CLIError
-                msg = ('Could not find authentication token in {}.  '
+                msg = (f'Could not find authentication token in {tokenfile}.  '
                        'Use the --token option to specify a token.  '
-                       'Original error: {}'
-                       .format(tokenfile, err))
+                       f'Original error: {err}')
                 raise CLIError(msg)
 
         cmd = ('tar cf - {} | '

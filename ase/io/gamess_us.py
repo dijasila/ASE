@@ -36,7 +36,7 @@ def _write_geom(atoms, basis_spec):
                 basis = basis_spec.get(atom.symbol)
             if basis is None:
                 raise ValueError('Could not find an appropriate basis set '
-                                 'for atom number {}!'.format(i))
+                                 f'for atom number {i}!')
             out += [basis, '']
     out.append(' $END')
     return '\n'.join(out)
@@ -51,7 +51,7 @@ def _write_ecp(atoms, ecp):
             out.append(ecp[symbol])
         else:
             raise ValueError('Could not find an appropriate ECP for '
-                             'atom number {}!'.format(i))
+                             f'atom number {i}!')
     out.append(' $END')
     return '\n'.join(out)
 

@@ -305,7 +305,7 @@ def key_val_dict_to_str(dct, sep=' '):
                 # if this fails, let give up
             except TypeError:
                 warnings.warn('Skipping unhashable information '
-                              '{}'.format(key))
+                              f'{key}')
                 continue
 
         key = escape(key)  # escape and quote key
@@ -442,11 +442,10 @@ def _read_xyz_frame(lines, natoms, properties_parser=key_val_str_to_dict,
             try:
                 n = int(entry[0][3:])
             except ValueError as e:
-                raise XYZError('Expected VEC{}, got VEC{}'
-                               .format(ln + 1, entry[0][3:])) from e
+                raise XYZError(
+                    f'Expected VEC{ln + 1}, got VEC{entry[0][3:]}') from e
             if n != ln + 1:
-                raise XYZError('Expected VEC{}, got VEC{}'
-                               .format(ln + 1, n))
+                raise XYZError(f'Expected VEC{ln + 1}, got VEC{n}')
 
             cell[ln] = np.array([float(x) for x in entry[1:]])
             pbc[ln] = True
@@ -691,8 +690,7 @@ def read_xyz(fileobj, index=-1, properties_parser=key_val_str_to_dict):
         try:
             natoms = int(line)
         except ValueError as err:
-            raise XYZError('ase.io.extxyz: Expected xyz header but got: {}'
-                           .format(err))
+            raise XYZError(f'ase.io.extxyz: Expected xyz header but got: {err}')
         fileobj.readline()  # read comment line
         for i in range(natoms):
             fileobj.readline()

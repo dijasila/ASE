@@ -701,8 +701,7 @@ def _write(filename, fd, format, io, images, parallel=None, append=False,
 
     if io.single:
         if len(images) > 1:
-            raise ValueError('{}-format can only store 1 Atoms object.'
-                             .format(format))
+            raise ValueError(f'{format}-format can only store 1 Atoms object.')
         images = images[0]
 
     if not io.can_write:
@@ -731,8 +730,7 @@ def _write(filename, fd, format, io, images, parallel=None, append=False,
                 fd.close()
     else:
         if fd is not None:
-            raise ValueError("Can't write {}-format to file-descriptor"
-                             .format(format))
+            raise ValueError(f"Can't write {format}-format to file-descriptor")
         if io.can_append:
             return io.write(filename, images, append=append, **kwargs)
         elif append:

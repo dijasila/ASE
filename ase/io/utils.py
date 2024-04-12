@@ -292,7 +292,7 @@ def verify_cell_for_export(cell, check_orthorhombric=True):
                          'orthorhombic.')
     if cell.rank < 3:
         raise ValueError('To export to this format, the cell size needs '
-                         'to be set: current cell is {}.'.format(cell))
+                         f'to be set: current cell is {cell}.')
 
 
 def verify_dictionary(atoms, dictionary, dictionary_name):

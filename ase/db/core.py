@@ -142,10 +142,10 @@ def check(key_value_pairs):
             pass
         else:
             warnings.warn(
-                'It is best not to use keys ({0}) that are also a '
-                'chemical formula.  If you do a "db.select({0!r})",'
+                f'It is best not to use keys ({key}) that are also a '
+                f'chemical formula.  If you do a "db.select({key!r})",'
                 'you will not find rows with your key.  Instead, you wil get '
-                'rows containing the atoms in the formula!'.format(key))
+                'rows containing the atoms in the formula!')
         if not isinstance(value, (numbers.Real, str, np.bool_)):
             raise ValueError(f'Bad value for {key!r}: {value}')
         if isinstance(value, str):
@@ -683,8 +683,7 @@ def o2b(obj: Any, parts: List[bytes]):
         dct = o2b(obj.todict(), parts)
         dct['__ase_objtype__'] = objtype
         return dct
-    raise ValueError('Objects of type {type} not allowed'
-                     .format(type=type(obj)))
+    raise ValueError(f'Objects of type {type(obj)} not allowed')
 
 
 def b2o(obj: Any, b: bytes) -> Any:

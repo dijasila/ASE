@@ -2,7 +2,7 @@ import numpy as np
 import numpy.linalg as la
 
 
-class Kernel():
+class Kernel:
     def __init__(self):
         pass
 

@@ -203,7 +203,7 @@ def write_gromacs(fileobj, atoms):
         # cell[0,1] cell[0,2] cell[1,0] v1(y) v1(z) v2(x) fv1[0 1 2]
         # cell[1,2] cell[2,0] cell[2,1] v2(z) v3(x) v3(y) fv2[0 1 2]
         grocell = atoms.cell.flat[[0, 4, 8, 1, 2, 3, 5, 6, 7]] * 0.1
-        fileobj.write(''.join(['{:10.5f}'.format(x) for x in grocell]))
+        fileobj.write(''.join([f'{x:10.5f}' for x in grocell]))
         fileobj.write('\n')
     else:
         # When we do not have a cell, the cell is specified as an empty line

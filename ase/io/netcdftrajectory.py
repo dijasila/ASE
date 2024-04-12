@@ -293,8 +293,8 @@ class NetCDFTrajectory:
                     # data remains consistent.
                     if np.any(self._get_variable(array) != data):
                         raise ValueError('Trying to write Atoms object with '
-                                         'incompatible data for the {} '
-                                         'array.'.format(array))
+                                         f'incompatible data for the {array} '
+                                         'array.')
                 else:
                     self._add_array(atoms, array, data.dtype, data.shape)
                     self._get_variable(array)[i] = data
@@ -318,8 +318,8 @@ class NetCDFTrajectory:
                 # data remains consistent.
                 if np.any(self._get_variable(array) != data):
                     raise ValueError('Trying to write Atoms object with '
-                                     'incompatible data for the {} '
-                                     'array.'.format(array))
+                                     f'incompatible data for the {array} '
+                                     'array.')
             else:
                 self._add_array(atoms, array, data.dtype, data.shape)
                 self._get_variable(array)[frame] = data
@@ -434,8 +434,8 @@ class NetCDFTrajectory:
             if name in self.nc.variables:
                 return self.nc.variables[name]
             if exc:
-                raise RuntimeError('Variables {} was found in the NetCDF '
-                                   'trajectory.'.format(name))
+                raise RuntimeError(f'Variables {name} was found in the NetCDF '
+                                   'trajectory.')
         return None
 
     def _has_variable(self, name):

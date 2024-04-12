@@ -42,7 +42,7 @@ def test_random(it):
     assert_allclose(rcell, R, atol=TOL)
 
 
-class TestKnownUnimodularMatrix():
+class TestKnownUnimodularMatrix:
 
     def setup_method(self):
         cell = np.array([[1, 1, 2], [0, 1, 4], [0, 0, 1]])

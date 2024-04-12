@@ -239,14 +239,12 @@ special_points={GNPSS1XYY1Z}, kpts=[51x3])
                                  .format(label, *points[label])
                                  for label in labels])
 
-        string = """\
-{repr}
-  {variant}
+        string = f"""\
+{str(self)}
+  {self._variant}
   Special point coordinates:
-{special_points}
-""".format(repr=str(self),
-           variant=self._variant,
-           special_points=coordstring)
+{coordstring}
+"""
         return string
 
     @classmethod
@@ -442,8 +440,7 @@ class BCT(BravaisLattice):
 
 def check_orc(a, b, c):
     if not a < b < c:
-        raise UnconventionalLattice('Expected a < b < c, got {}, {}, {}'
-                                    .format(a, b, c))
+        raise UnconventionalLattice(f'Expected a < b < c, got {a}, {b}, {c}')
 
 
 class Orthorhombic(BravaisLattice):
@@ -620,8 +617,8 @@ class RHL(BravaisLattice):
 
     def __init__(self, a, alpha):
         if alpha >= 120:
-            raise UnconventionalLattice('Need alpha < 120 degrees, got {}'
-                                        .format(alpha))
+            raise UnconventionalLattice(
+                f'Need alpha < 120 degrees, got {alpha}')
         super().__init__(a=a, alpha=alpha)
 
     def _cell(self, a, alpha):
@@ -672,8 +669,7 @@ class RHL(BravaisLattice):
 def check_mcl(a, b, c, alpha):
     if not (b <= c and alpha < 90):
         raise UnconventionalLattice('Expected b <= c, alpha < 90; '
-                                    'got a={}, b={}, c={}, alpha={}'
-                                    .format(a, b, c, alpha))
+                                    f'got a={a}, b={b}, c={c}, alpha={alpha}')
 
 
 @bravaisclass('primitive monoclinic', 'monoclinic', 'monoclinic', 'mP',

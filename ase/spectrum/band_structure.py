@@ -80,7 +80,7 @@ def calculate_band_structure(atoms, path=None, scf_kwargs=None,
     if kpts_err > kpts_tol:
         raise RuntimeError('Kpoints of calculator differ from those '
                            'of the band path we just used; '
-                           'err={} > tol={}'.format(kpts_err, kpts_tol))
+                           f'err={kpts_err} > tol={kpts_tol}')
 
     bs = get_band_structure(atoms, path=path, reference=eref)
     return bs

@@ -26,7 +26,7 @@ def test_versionnumber():
     configfile = os.path.join(asedir, 'pyproject.toml')
     if os.path.isfile(configfile):
         # Parse it without requiring new dependencies.
-        with open(configfile, "rt") as toml:
+        with open(configfile) as toml:
             projectsection = False
             tomlversion = 'version not found in pyproject.toml'
             for line in toml:

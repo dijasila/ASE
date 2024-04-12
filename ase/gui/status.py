@@ -53,8 +53,8 @@ class Status:  # Status is used as a mixin in GUI
                             quantity = get_quantity()
                     except Exception as err:
                         quantity = None
-                        errmsg = ('An error occurred while retrieving {} '
-                                  'from the calculator: {}'.format(name, err))
+                        errmsg = (f'An error occurred while retrieving {name} '
+                                  f'from the calculator: {err}')
                         warnings.warn(errmsg)
                     return quantity
 
@@ -81,12 +81,10 @@ class Status:  # Status is used as a mixin in GUI
             magmoms = get_magmoms(self.atoms)
             if magmoms.any():
                 # TRANSLATORS: mom refers to magnetic moment
-                text += _(' mom={:1.2f}'.format(
-                    magmoms[indices][0]))
+                text += _(f' mom={magmoms[indices][0]:1.2f}')
             charges = self.atoms.get_initial_charges()
             if charges.any():
-                text += _(' q={:1.2f}'.format(
-                    charges[indices][0]))
+                text += _(f' q={charges[indices][0]:1.2f}')
             haveit = ['numbers', 'positions', 'forces', 'momenta',
                       'initial_charges', 'initial_magmoms']
             for key in atoms.arrays:

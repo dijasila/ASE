@@ -116,8 +116,8 @@ def create_ase_object(objtype, dct):
         from ase.vibrations import VibrationsData
         obj = VibrationsData.fromdict(dct)
     else:
-        raise ValueError('Do not know how to decode object type {} '
-                         'into an actual object'.format(objtype))
+        raise ValueError(f'Do not know how to decode object type {objtype} '
+                         'into an actual object')
     assert obj.ase_objtype == objtype
     return obj
 

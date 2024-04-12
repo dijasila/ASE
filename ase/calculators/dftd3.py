@@ -472,10 +472,10 @@ class DFTD3Output:
                                'for the list of known functionals '
                                'and their spelling.')
                 else:
-                    message = ('dftd3 failed! Please check the {} '
+                    message = (f'dftd3 failed! Please check the {outname} '
                                'output file and report any errors '
                                'to the ASE developers.'
-                               ''.format(outname))
+                               '')
                 raise RuntimeError(message)
 
             if line.startswith(' Edisp'):
@@ -490,7 +490,7 @@ class DFTD3Output:
                 return e_dftd3
 
         raise RuntimeError('Could not parse energy from dftd3 '
-                           'output, see file {}'.format(outname))
+                           f'output, see file {outname}')
 
     def parse_forces(self, fd):
         forces = []

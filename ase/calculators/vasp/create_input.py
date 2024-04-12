@@ -88,7 +88,7 @@ def set_magmom(ispin, spinpol, atoms, magmom_input, sorting):
             lst[-1][0] += 1
         else:
             lst.append([1, magmom[n]])
-    line = ' '.join(['{:d}*{:.4f}'.format(mom[0], mom[1])
+    line = ' '.join([f'{mom[0]:d}*{mom[1]:.4f}'
                      for mom in lst])
     magmom_dct['magmom'] = line
     return spinpol, magmom_dct
@@ -1409,8 +1409,8 @@ class GenerateVaspInput:
             elif str(m) in setups:
                 special_setup_index = str(m)  # type: ignore[assignment]
             else:
-                raise Exception("Having trouble with special setup index {}."
-                                " Please use an int.".format(m))
+                raise Exception(f"Having trouble with special setup index {m}."
+                                " Please use an int.")
             potcar = join(pp_folder, setups[special_setup_index], 'POTCAR')
             for path in pppaths:
                 filename = join(path, potcar)
@@ -1443,13 +1443,13 @@ class GenerateVaspInput:
                     ppp_list.append(filename + '.Z')
                     break
             else:
-                msg = ("""Looking for PP for {}
+                msg = (f"""Looking for PP for {potcar}
                         The pseudopotentials are expected to be in:
                         LDA:  $VASP_PP_PATH/potpaw/
                         PBE:  $VASP_PP_PATH/potpaw_PBE/
                         PW91: $VASP_PP_PATH/potpaw_GGA/
 
-                        No pseudopotential for {}!""".format(potcar, symbol))
+                        No pseudopotential for {symbol}!""")
                 raise RuntimeError(msg)
         return ppp_list
 
@@ -1556,11 +1556,11 @@ class GenerateVaspInput:
 
             if not src or not isfile(src):
                 warnings.warn(
-                    ('vdW has been enabled, however no'
-                     ' location for the {} file'
-                     ' has been specified.'
-                     ' Set {} environment variable to'
-                     ' copy the vdW kernel.').format(kernel, vdw_env))
+                    'vdW has been enabled, however no'
+                    f' location for the {kernel} file'
+                    ' has been specified.'
+                    f' Set {vdw_env} environment variable to'
+                    ' copy the vdW kernel.')
             else:
                 shutil.copyfile(src, dst)
 

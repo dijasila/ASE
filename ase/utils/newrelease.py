@@ -68,8 +68,7 @@ def main():
     try:
         current_version = get_version()
     except Exception as err:
-        p.error('Cannot get version: {}.  Are you in the root directory?'
-                .format(err))
+        p.error(f'Cannot get version: {err}.  Are you in the root directory?')
 
     print(f'Current version: {current_version}')
 
@@ -221,9 +220,9 @@ News
     print('git checkout master')
     print(f'git merge {branchname}')
     print('twine upload '
-          'dist/ase-{v}.tar.gz '
-          'dist/ase-{v}-py3-none-any.whl '
-          'dist/ase-{v}.tar.gz.asc'.format(v=version))
+          f'dist/ase-{version}.tar.gz '
+          f'dist/ase-{version}-py3-none-any.whl '
+          f'dist/ase-{version}.tar.gz.asc')
     print('git push --tags origin master  # Assuming your remote is "origin"')
 
 

@@ -301,7 +301,7 @@ class Vasp(GenerateVaspInput, Calculator):  # type: ignore[misc]
                 out = txt
             else:
                 raise RuntimeError('txt should either be a string'
-                                   'or an I/O stream, got {}'.format(txt))
+                                   f'or an I/O stream, got {txt}')
 
         try:
             if open_and_close:
@@ -1363,4 +1363,4 @@ def check_atoms_type(atoms: ase.Atoms) -> None:
     if not isinstance(atoms, ase.Atoms):
         raise calculator.CalculatorSetupError(
             'Expected an Atoms object, '
-            'instead got object of type {}'.format(type(atoms)))
+            f'instead got object of type {type(atoms)}')

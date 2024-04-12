@@ -124,8 +124,7 @@ class KIMModelData:
             species_map[spec] = codes[i]
             if self.debug:
                 print(
-                    "Species {} is supported and its code is: {}".format(
-                        spec, codes[i])
+                    f"Species {spec} is supported and its code is: {codes[i]}"
                 )
 
         return species_map

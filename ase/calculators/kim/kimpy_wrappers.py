@@ -740,7 +740,7 @@ class SimulatorModel:
         if num_supported_species == 0:
             raise KIMModelInitializationError(
                 "Unable to determine supported species of "
-                "simulator model {}.".format(self.model_name)
+                f"simulator model {self.model_name}."
             )
         return num_supported_species
 
@@ -781,7 +781,7 @@ class SimulatorModel:
         except (KeyError, IndexError):
             raise KIMModelInitializationError(
                 "Unable to determine supported units of "
-                "simulator model {}.".format(self.model_name)
+                f"simulator model {self.model_name}."
             )
 
         return supported_units

@@ -229,8 +229,7 @@ class Cell:
 
     def __array__(self, dtype=float):
         if dtype != float:
-            raise ValueError('Cannot convert cell to array of type {}'
-                             .format(dtype))
+            raise ValueError(f'Cannot convert cell to array of type {dtype}')
         return self.array
 
     def __bool__(self):

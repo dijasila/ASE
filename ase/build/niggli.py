@@ -186,8 +186,7 @@ def _niggli_reduce(g0, eps):
             break
     else:
         raise RuntimeError('Niggli reduction not done in 10000 steps!\n'
-                           'g={}\n'
-                           'operation={}'
-                           .format(g.tolist(), C.tolist()))
+                           f'g={g.tolist()}\n'
+                           f'operation={C.tolist()}')
 
     return g, C

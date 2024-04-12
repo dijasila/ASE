@@ -66,8 +66,7 @@ def write_cube(file_obj, atoms, data=None, origin=None, comment=None):
     numbers = atoms.numbers
     for Z, (x, y, z) in zip(numbers, positions):
         file_obj.write(
-            "{:5}{:12.6f}{:12.6f}{:12.6f}{:12.6f}\n".format(
-                Z, 0.0, x, y, z)
+            f"{Z:5}{0.0:12.6f}{x:12.6f}{y:12.6f}{z:12.6f}\n"
         )
 
     data.tofile(file_obj, sep="\n", format="%e")

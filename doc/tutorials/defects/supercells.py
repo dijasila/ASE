@@ -24,7 +24,7 @@ def vertices(cell):
     return vert1
 
 
-class CellFigure():
+class CellFigure:
 
     def __init__(self, dim, azim, elev):
         """

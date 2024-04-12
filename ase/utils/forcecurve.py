@@ -78,9 +78,9 @@ class ForceFit(namedtuple('ForceFit', ['path', 'energies', 'fit_path',
         Ef = max(self.energies) - self.energies[0]
         Er = max(self.energies) - self.energies[-1]
         dE = self.energies[-1] - self.energies[0]
-        ax.set_title(r'$E_\mathrm{{f}} \approx$ {:.3f} eV; '
-                     r'$E_\mathrm{{r}} \approx$ {:.3f} eV; '
-                     r'$\Delta E$ = {:.3f} eV'.format(Ef, Er, dE))
+        ax.set_title(rf'$E_\mathrm{{f}} \approx$ {Ef:.3f} eV; '
+                     rf'$E_\mathrm{{r}} \approx$ {Er:.3f} eV; '
+                     rf'$\Delta E$ = {dE:.3f} eV')
         return ax
 
 

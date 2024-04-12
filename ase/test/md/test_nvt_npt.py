@@ -63,8 +63,7 @@ def propagate(atoms, asap3, algorithm, algoargs):
     Tmean = np.mean(T)
     p = np.array(p)
     pmean = np.mean(p)
-    print('Temperature: {:.2f} K +/- {:.2f} K  (N={})'.format(
-        Tmean, np.std(T), len(T)))
+    print(f'Temperature: {Tmean:.2f} K +/- {np.std(T):.2f} K  (N={len(T)})')
     print('Center-of-mass corrected temperature: {:.2f} K'.format(
         Tmean * len(atoms) / (len(atoms) - 1)))
     print('Pressure: {:.2f} bar +/- {:.2f} bar  (N={})'.format(

@@ -178,18 +178,18 @@ class VibrationsData:
 
         if two_d:
             ref_shape = [n_atoms * 3, n_atoms * 3]
-            ref_shape_txt = '{n:d}x{n:d}'.format(n=(n_atoms * 3))
+            ref_shape_txt = f'{n_atoms * 3:d}x{n_atoms * 3:d}'
 
         else:
             ref_shape = [n_atoms, 3, n_atoms, 3]
-            ref_shape_txt = '{n:d}x3x{n:d}x3'.format(n=n_atoms)
+            ref_shape_txt = f'{n_atoms:d}x3x{n_atoms:d}x3'
 
         if (isinstance(hessian, np.ndarray)
                 and hessian.shape == tuple(ref_shape)):
             return n_atoms
         else:
             raise ValueError("Hessian for these atoms should be a "
-                             "{} numpy array.".format(ref_shape_txt))
+                             f"{ref_shape_txt} numpy array.")
 
     def get_atoms(self) -> Atoms:
         return self._atoms.copy()

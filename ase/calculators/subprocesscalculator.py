@@ -133,8 +133,7 @@ class PythonSubProcessCalculator(Calculator):
             raise RuntimeError('No setting things for now, thanks')
 
     def __repr__(self):
-        return '{}({})'.format(type(self).__name__,
-                               self.calc_input)
+        return f'{type(self).__name__}({self.calc_input})'
 
     def __enter__(self):
         assert self.protocol is None

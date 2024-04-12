@@ -65,8 +65,8 @@ class NeighborList:
             print(f"Number of cutoffs: {model_cutoffs.size}")
             print(f"Model cutoffs: {model_cutoffs}")
             print(
-                "Calculator cutoffs (including skin distance): {}"
-                "".format(self.cutoffs)
+                f"Calculator cutoffs (including skin distance): {self.cutoffs}"
+                ""
             )
             print(
                 "Model needs neighbors of padding atoms: {}"
@@ -328,8 +328,7 @@ class ASENeighborList(NeighborList):
             ]
         except KeyError as e:
             raise RuntimeError(
-                "Species not supported by KIM model; {}".format(
-                    str(e)))
+                f"Species not supported by KIM model; {str(e)}")
 
         self.last_update_positions = orig_atoms.get_positions()
 
@@ -416,8 +415,7 @@ class KimpyNeighborList(NeighborList):
             )
         except KeyError as e:
             raise RuntimeError(
-                "Species not supported by KIM model; {}".format(
-                    str(e)))
+                f"Species not supported by KIM model; {str(e)}")
 
         if pbc.any():  # Need padding atoms
             # Create padding atoms

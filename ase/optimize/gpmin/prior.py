@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class Prior():
+class Prior:
     """Base class for all priors for the bayesian optimizer.
 
     The __init__ method and the prior method are implemented here.

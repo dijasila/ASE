@@ -100,8 +100,7 @@ class DOSData(metaclass=ABCMeta):
             x1 = -0.5 * ((x - x0) / width)**2
             return np.exp(x1) / (np.sqrt(2 * np.pi) * width)
         else:
-            msg = 'Requested smearing type not recognized. Got {}'.format(
-                smearing)
+            msg = f'Requested smearing type not recognized. Got {smearing}'
             raise ValueError(msg)
 
     @staticmethod

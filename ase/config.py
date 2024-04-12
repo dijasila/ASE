@@ -103,11 +103,7 @@ class Config(Mapping):
             def tickmark(thing):
                 return "[ ]" if thing is None else "[x]"
 
-            msg = "  {configured} {installed} {fullname}".format(
-                configured=tickmark(codeconfig),
-                installed=tickmark(version),
-                fullname=fullname,
-            )
+            msg = f"  {tickmark(codeconfig)} {tickmark(version)} {fullname}"
             print(msg)
 
     def print_everything(self):

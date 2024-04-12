@@ -107,7 +107,7 @@ class H2MorseCalculator(MorsePotential):
         return ov
 
 
-class H2MorseExcitedStatesCalculator():
+class H2MorseExcitedStatesCalculator:
     """First singlet excited states of H2 from Morse potentials"""
 
     def __init__(self, nstates=3):

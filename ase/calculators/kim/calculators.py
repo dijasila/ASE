@@ -62,7 +62,7 @@ def LAMMPSRunCalculator(
             if species not in atomic_numbers:
                 raise KIMCalculatorError(
                     "Could not determine mass of unknown species "
-                    "{} listed as supported by model".format(species)
+                    f"{species} listed as supported by model"
                 )
             massstr = str(
                 convert(
@@ -187,19 +187,19 @@ def ASAPCalculator(model_name, model_type, options, **kwargs):
         if len(model_defn) == 0:
             raise KIMCalculatorError(
                 "model-defn is an empty list in metadata file of "
-                "Simulator Model {}".format(model_name)
+                f"Simulator Model {model_name}"
             )
         elif len(model_defn) > 1:
             raise KIMCalculatorError(
                 "model-defn should contain only one entry for an ASAP "
-                "model (found {} lines)".format(len(model_defn))
+                f"model (found {len(model_defn)} lines)"
             )
 
         if "" in model_defn:
             raise KIMCalculatorError(
                 "model-defn contains an empty string in metadata "
                 "file of Simulator "
-                "Model {}".format(model_name)
+                f"Model {model_name}"
             )
 
         model_defn = model_defn[0].strip()
@@ -230,8 +230,7 @@ def ASAPCalculator(model_name, model_type, options, **kwargs):
 
         if not model_defn_is_valid:
             raise KIMCalculatorError(
-                'Unknown model "{}" requested for simulator asap.'.format(
-                    model_defn)
+                f'Unknown model "{model_defn}" requested for simulator asap.'
             )
 
         # Disable undocumented feature for the EMT self.calculators to
@@ -254,10 +253,10 @@ def _check_conflict_options(options, options_not_allowed, simulator):
         options_in_not_allowed = ", ".join([f'"{s}"' for s in common])
 
         msg = (
-            'Simulator "{}" does not support argument(s): '
-            '{} provided in "options", '
+            f'Simulator "{simulator}" does not support argument(s): '
+            f'{options_in_not_allowed} provided in "options", '
             "because it is (they are) determined internally within the KIM "
-            "calculator".format(simulator, options_in_not_allowed)
+            "calculator"
         )
 
         raise KIMCalculatorError(msg)

@@ -135,5 +135,4 @@ def write_v_sim(fd, atoms):
     # Add atoms (scaled positions)
     for position, symbol in zip(atoms.get_scaled_positions(),
                                 atoms.get_chemical_symbols()):
-        fd.write('{} {} {} {}\n'.format(
-            position[0], position[1], position[2], symbol))
+        fd.write(f'{position[0]} {position[1]} {position[2]} {symbol}\n')

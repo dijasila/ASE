@@ -1354,10 +1354,8 @@ End CASTEP Interface Documentation
                                   .format(elem))
             elif not len(pps) == 1:
                 raise RuntimeError(
-                    'Pseudopotential for species ''{} not unique!\n'
-                    .format(elem)
-                    + 'Found the following files in {}\n'
-                    .format(self._castep_pp_path)
+                    'Pseudopotential for species 'f'{elem} not unique!\n'
+                    + f'Found the following files in {self._castep_pp_path}\n'
                     + '\n'.join([f'    {pp}' for pp in pps]) +
                     '\nConsider a stricter search pattern in `find_pspots()`.')
             else:
@@ -1573,8 +1571,7 @@ End CASTEP Interface Documentation
         self._calls += 1
 
         # run castep itself
-        stdout, stderr = shell_stdouterr('{} {}'.format(self._castep_command,
-                                                        self._seed),
+        stdout, stderr = shell_stdouterr(f'{self._castep_command} {self._seed}',
                                          cwd=self._directory)
         if stdout:
             print(f'castep call stdout:\n{stdout}')
@@ -2655,9 +2652,9 @@ class CastepInputFile:
             for c in cset:
                 if (c in self._options and self._options[c].value):
                     warnings.warn(
-                        'option "{attr}" conflicts with "{conflict}" in '
-                        'calculator. Setting "{conflict}" to '
-                        'None.'.format(attr=attr, conflict=c))
+                        f'option "{attr}" conflicts with "{c}" in '
+                        f'calculator. Setting "{c}" to '
+                        'None.')
                     self._options[c].value = None
 
         if hasattr(self, attrparse):

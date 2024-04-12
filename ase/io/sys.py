@@ -64,7 +64,7 @@ def write_sys(fileobj, atoms):
     an = list(set(atm_nm))
 
     for i, s in enumerate(set(ch_sym)):
-        fileobj.write(('species {}{} {}.xml \n').format(s, an[i], s))
+        fileobj.write(f'species {s}{an[i]} {s}.xml \n')
     for i, (S, Z, (x, y, z)) in enumerate(zip(ch_sym, atm_nm, a_pos)):
         fileobj.write(('atom {:5} {:5}  {:12.6f} {:12.6f} {:12.6f}\
         bohr\n').format(S + str(i + 1), S + str(Z), x / Bohr, y / Bohr,

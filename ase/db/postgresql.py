@@ -141,10 +141,10 @@ class PostgreSQLDatabase(SQLite3Database):
         else:
             schema = schema[0]
 
-        cur.execute("""
+        cur.execute(f"""
         SELECT EXISTS(select * from information_schema.tables where
-        table_name='information' and table_schema='{}');
-        """.format(schema))
+        table_name='information' and table_schema='{schema}');
+        """)
 
         if not cur.fetchone()[0]:  # information schema doesn't exist.
             # Initialize database:

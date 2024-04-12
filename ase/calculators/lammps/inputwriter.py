@@ -39,17 +39,15 @@ def lammps_create_atoms(fileobj, parameters, atoms, prismobj):
 
     if parameters["always_triclinic"] or prismobj.is_skewed():
         fileobj.write(
-            "region asecell prism 0.0 {} 0.0 {} 0.0 {} ".format(
-                xhi, yhi, zhi
-            )
+            f"region asecell prism 0.0 {xhi} 0.0 {yhi} 0.0 {zhi} "
         )
         fileobj.write(
             f"{xy} {xz} {yz} side in units box\n"
         )
     else:
         fileobj.write(
-            "region asecell block 0.0 {} 0.0 {} 0.0 {} "
-            "side in units box\n".format(xhi, yhi, zhi)
+            f"region asecell block 0.0 {xhi} 0.0 {yhi} 0.0 {zhi} "
+            "side in units box\n"
         )
 
     symbols = atoms.get_chemical_symbols()
@@ -63,7 +61,7 @@ def lammps_create_atoms(fileobj, parameters, atoms, prismobj):
     species_i = {s: i + 1 for i, s in enumerate(species)}
 
     fileobj.write(
-        "create_box {} asecell\n" "".format(len(species))
+        f"create_box {len(species)} asecell\n" ""
     )
     for sym, pos in zip(symbols, atoms.get_positions()):
         # Convert position from ASE units to LAMMPS units
@@ -110,11 +108,11 @@ def write_lammps_in(lammps_in, parameters, atoms, prismobj,
 
     # Write variables
     fileobj.write(
-        (
-            "clear\n"
-            'variable dump_file string "{}"\n'
-            'variable data_file string "{}"\n'
-        ).format(lammps_trj, lammps_data)
+
+        "clear\n"
+        f'variable dump_file string "{lammps_trj}"\n'
+        f'variable data_file string "{lammps_data}"\n'
+
     )
 
     if "package" in parameters:
@@ -131,9 +129,7 @@ def write_lammps_in(lammps_in, parameters, atoms, prismobj,
         style = style_type + "_style"
         if style in parameters:
             fileobj.write(
-                '{} {} \n'.format(
-                    style,
-                    parameters[style]))
+                f'{style} {parameters[style]} \n')
 
     # write initialization lines needed for some LAMMPS potentials
     if 'model_init' in parameters:
@@ -194,7 +190,7 @@ def write_lammps_in(lammps_in, parameters, atoms, prismobj,
         fileobj.write(f"pair_style {pair_style} \n")
         for pair_coeff in parameters["pair_coeff"]:
             fileobj.write(
-                "pair_coeff {} \n" "".format(pair_coeff)
+                f"pair_coeff {pair_coeff} \n" ""
             )
         write_model_post_and_masses(fileobj, parameters)
 

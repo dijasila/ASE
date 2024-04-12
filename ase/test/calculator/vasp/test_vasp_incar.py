@@ -34,7 +34,7 @@ def check_written_incar(
     calc_factory = vaspinput_factory(**parameters)
     calc_factory.initialize(atoms)
     calc_factory.write_incar(atoms, tmpdir)
-    with open(tmpdir / 'INCAR', 'r') as written_incar:
+    with open(tmpdir / 'INCAR') as written_incar:
         assert written_incar.read() == expected_output
 
 

@@ -38,7 +38,7 @@ def parse_siesta_version(output: bytes) -> str:
 
     if match is None:
         raise RuntimeError('Could not get Siesta version info from output '
-                           '{!r}'.format(output))
+                           f'{output!r}')
 
     string = match.group(1).decode('ascii')
     return string
@@ -282,8 +282,8 @@ class Siesta(FileIOCalculator):
             if value is None:
                 continue
             if not (isinstance(value, (float, int)) and value > 0):
-                mess = "'{}' must be a positive number(in eV), \
-                    got '{}'".format(arg, value)
+                mess = f"'{arg}' must be a positive number(in eV), \
+                    got '{value}'"
                 raise ValueError(mess)
 
         # Check the functional input.

@@ -34,5 +34,4 @@ def parse_xray(filename):
             E_trans) * Hartree, np.array(osc_strength), np.array(trans_dip)
 
     else:
-        raise ReadError('The file {} does not exist'
-                        .format(filename))
+        raise ReadError(f'The file {filename} does not exist')

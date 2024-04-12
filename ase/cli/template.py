@@ -238,12 +238,9 @@ class TableFormat:
                 self.columnwidth,
                 self.precision - 1,
                 self.representation),
-            'int': "{{:^{}n}}".format(
-                self.columnwidth),
-            'str': "{{:^{}s}}".format(
-                self.columnwidth),
-            'conv': "{{:^{}h}}".format(
-                self.columnwidth)}
+            'int': f"{{:^{self.columnwidth}n}}",
+            'str': f"{{:^{self.columnwidth}s}}",
+            'conv': f"{{:^{self.columnwidth}h}}"}
         fmt = {}
         signed_floats = [
             'dx',

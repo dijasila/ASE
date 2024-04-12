@@ -107,9 +107,8 @@ def read_proteindatabank(fileobj, index=-1, read_arrays=True):
             if len(array) == 0:
                 pass
             elif len(array) != len(atoms):
-                warnings.warn('Length of {} array, {}, '
-                              'different from number of atoms {}'.
-                              format(name, len(array), len(atoms)))
+                warnings.warn(f'Length of {name} array, {len(array)}, '
+                              f'different from number of atoms {len(atoms)}')
             else:
                 atoms.set_array(name, np.array(array))
         return atoms

@@ -1626,14 +1626,12 @@ class FixParametricRelations(FixConstraint):
     def __repr__(self):
         """The str representation of the constraint"""
         if len(self.indices) > 1:
-            indices_str = "[{:d}, ..., {:d}]".format(
-                self.indices[0], self.indices[-1])
+            indices_str = f"[{self.indices[0]:d}, ..., {self.indices[-1]:d}]"
         else:
             indices_str = f"[{self.indices[0]:d}]"
 
         if len(self.params) > 1:
-            params_str = "[{:s}, ..., {:s}]".format(
-                self.params[0], self.params[-1])
+            params_str = f"[{self.params[0]:s}, ..., {self.params[-1]:s}]"
         elif len(self.params) == 1:
             params_str = f"[{self.params[0]:s}]"
         else:

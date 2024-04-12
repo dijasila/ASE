@@ -91,8 +91,7 @@ class PBSQueueRun:
             submitted to the queing system. """
         confs = self.dc.get_all_candidates_in_queue()
         for c in confs:
-            fdone = '{}/cand{}_done.traj'.format(self.tmp_folder,
-                                                 c)
+            fdone = f'{self.tmp_folder}/cand{c}_done.traj'
             if os.path.isfile(fdone) and os.path.getsize(fdone) > 0:
                 try:
                     a = []

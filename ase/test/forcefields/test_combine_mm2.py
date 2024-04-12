@@ -67,5 +67,4 @@ def test_combine_mm2(testdir):
         with FIRE(atoms, logfile=tag + 'log', trajectory=tag + 'traj') as opt:
             opt.run(fmax=0.05)
         assert (abs(atoms.positions - tip3_pos) < 1e-8).all()
-        print('{}: {!s:>28s}: Same Geometry as TIP3P'
-              .format(atoms.calc.name, idx))
+        print(f'{atoms.calc.name}: {idx!s:>28s}: Same Geometry as TIP3P')
