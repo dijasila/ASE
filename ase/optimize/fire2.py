@@ -46,7 +46,7 @@ class FIRE2(Optimizer):
         master: Optional[bool] = None,
         position_reset_callback: Optional[Callable] = None,
         force_consistent=Optimizer._deprecated,
-        abc: Optional[bool] = False
+        use_abc: Optional[bool] = False
     ):
         """Parameters:
 
@@ -68,11 +68,21 @@ class FIRE2(Optimizer):
         dt: float
             Initial time step. Defualt value is 0.1
 
+        maxstep: float
+            Used to set the maximum distance an atom can move per
+            iteration (default value is 0.2). Note that for ABC-FIRE the
+            check is done independently for each cartesian direction.
+
         dtmax: float
             Maximum time step. Default value is 1.0
 
         dtmin: float
             Minimum time step. Default value is 2e-3
+
+        Nmin: int
+            Number of steps to wait after the last time the dot product of
+            the velocity and force is negative (P in The FIRE article) before
+            increasing the time step. Default value is 20.
 
         finc: float
             Factor to increase the time step. Default value is 1.1
@@ -81,27 +91,12 @@ class FIRE2(Optimizer):
             Factor to decrease the time step. Default value is 0.5
 
         astart: float
-            Initial value of the parameter a. a is the Coefficcient for
+            Initial value of the parameter a. a is the Coefficient for
             mixing the velocity and the force. Called alpha in the FIRE article.
             Default value 0.25.
 
         fa: float
             Factor to decrease the parameter alpha. Default value is 0.99
-
-        Nmin: int
-            Number of steps to wait after the last time the dot product of
-            the velocity and force is negative (P in The FIRE article) before
-            increasing the time step. Default value is 20.
-
-        maxstep: float
-            Used to set the maximum distance an atom can move per
-            iteration (default value is 0.2). Note that for ABC-FIRE the
-            check is done independently for each cartesian direction.
-
-        abc: bool
-            If True, the Accelerated Bias-Corrected FIRE algorithm is
-            used (ABC-FIRE).
-            Default value is False.
 
         master: boolean
             Defaults to None, which causes only rank 0 to save files.  If
@@ -112,7 +107,18 @@ class FIRE2(Optimizer):
             *r* that the optimizer will revert to, current energy *e* and
             energy of last step *e_last*. This is only called if e > e_last.
 
-        """
+        force_consistent: boolean or None
+            Use force-consistent energy calls (as opposed to the energy
+            extrapolated to 0 K).  If force_consistent=None, uses
+            force-consistent energies if available in the calculator, but
+            falls back to force_consistent=False if not.
+
+        use_abc: bool
+            If True, the Accelerated Bias-Corrected FIRE algorithm is
+            used (ABC-FIRE).
+            Default value is False.
+
+       """
         Optimizer.__init__(self, atoms, restart, logfile, trajectory,
                            master, force_consistent=force_consistent)
 
@@ -134,7 +140,7 @@ class FIRE2(Optimizer):
         self.fa = fa
         self.a = astart
         self.position_reset_callback = position_reset_callback
-        self.abc = abc
+        self.use_abc = use_abc
 
     def initialize(self):
         self.v = None
@@ -173,7 +179,7 @@ class FIRE2(Optimizer):
         f = optimizable.get_forces()
         self.v += self.dt * f
 
-        if self.abc:
+        if self.use_abc:
             self.a = max(self.a, 1e-10)
             abc_multiplier = 1. / (1. - (1. - self.a)**(self.Nsteps + 1))
             v_mix = ((1.0 - self.a) * self.v + self.a * f / np.sqrt(
@@ -203,7 +209,7 @@ class FIRE2(Optimizer):
 
         # Verifying if the maximum distance an atom moved
         #  step is larger than maxstep, for FIRE2.
-        if not self.abc:
+        if not self.use_abc:
             normdr = np.sqrt(np.vdot(dr, dr))
             if normdr > self.maxstep:
                 dr = self.maxstep * dr / normdr

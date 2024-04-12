@@ -8,7 +8,7 @@ from ase.optimize import FIRE2
 
 @pytest.mark.optimize
 @pytest.mark.slow
-def test_fire():
+def test_fire2():
     def system_setup():
         a = bulk('Au')
         a *= (2, 2, 2)
@@ -41,7 +41,7 @@ def test_fire():
         reset_history.append([e - e_last])
 
     opt = FIRE2(a,
-                abc=True,
+                use_abc=True,
                 position_reset_callback=callback,
                 **fire_parameters)
     opt.run(fmax=0.001)
