@@ -337,16 +337,9 @@ class BandPath:
         This is useful for converting the band path to another cell.
         The operation will typically be a permutation/flipping
         established by a function such as Niggli reduction."""
-        # XXX acceptable operations are probably only those
-        # who come from Niggli reductions (permutations etc.)
-        #
-        # We should insert a check.
-        # I wonder which operations are valid?  They won't be valid
-        # if they change lengths, volume etc.
-        special_points = {}
-        for name, value in self.special_points.items():
-            special_points[name] = value @ op
-
+        special_points = {
+            name: value @ op for name, value in self.special_points.items()
+        }
         return BandPath(op.T @ self.cell, kpts=self.kpts @ op,
                         special_points=special_points,
                         path=self.path)

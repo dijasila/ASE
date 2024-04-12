@@ -508,7 +508,7 @@ class NetCDFTrajectory:
         if 0 <= i < N:
             # Non-periodic boundaries have cell_length == 0.0
             cell_lengths = \
-                np.array(self.nc.variables[self._cell_lengths_var][i][:])
+                    np.array(self.nc.variables[self._cell_lengths_var][i][:])
             pbc = np.abs(cell_lengths > 1e-6)
 
             # Do we have a cell origin?
@@ -564,11 +564,10 @@ class NetCDFTrajectory:
             if momenta is not None:
                 momenta *= self.masses.reshape(-1, 1)
 
-            # Fill info dict with additional data found in the NetCDF file
-            info = {}
-            for name in self.extra_per_frame_atts:
-                info[name] = np.array(self.nc.variables[name][i])
-
+            info = {
+                name: np.array(self.nc.variables[name][i])
+                for name in self.extra_per_frame_atts
+            }
             # Create atoms object
             atoms = ase.Atoms(
                 positions=positions,
