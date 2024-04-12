@@ -49,13 +49,13 @@ def propagate(atoms, asap3, algorithm, algoargs):
     T = []
     p = []
     with algorithm(
-            atoms,
-            timestep=20 * fs,
-            logfile='-',
-            loginterval=1000,
-            **algoargs) as md:
+                atoms,
+                timestep=20 * fs,
+                logfile='-',
+                loginterval=1000,
+                **algoargs) as md:
         # Gather data for 50 ps
-        for i in range(500):
+        for _ in range(500):
             md.run(5)
             T.append(atoms.get_temperature())
             pres = - atoms.get_stress(include_ideal_gas=True)[:3].sum() / 3

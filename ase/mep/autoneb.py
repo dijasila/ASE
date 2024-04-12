@@ -288,7 +288,7 @@ class AutoNEB:
             spring_lengths = []
             for j in range(n_cur - 1):
                 spring_vec = self.all_images[j + 1].get_positions() - \
-                    self.all_images[j].get_positions()
+                        self.all_images[j].get_positions()
                 spring_lengths.append(np.linalg.norm(spring_vec))
             jmax = np.argmax(spring_lengths)
 
@@ -303,7 +303,7 @@ class AutoNEB:
                 n_between = 1
 
             toInterpolate = [self.all_images[jmax]]
-            for i in range(n_between):
+            for _ in range(n_between):
                 toInterpolate += [toInterpolate[0].copy()]
             toInterpolate += [self.all_images[jmax + 1]]
 
@@ -359,11 +359,11 @@ class AutoNEB:
             spring_lengths = []
             for j in range(n_cur - 1):
                 spring_vec = self.all_images[j + 1].get_positions() - \
-                    self.all_images[j].get_positions()
+                        self.all_images[j].get_positions()
                 spring_lengths.append(np.linalg.norm(spring_vec))
 
             total_vec = self.all_images[0].get_positions() - \
-                self.all_images[-1].get_positions()
+                    self.all_images[-1].get_positions()
             tl = np.linalg.norm(total_vec)
 
             fR = max(spring_lengths) / tl
@@ -451,13 +451,13 @@ class AutoNEB:
         for i in range(peak):
             v = (self.all_images[i].get_positions() +
                  self.all_images[i + 1].get_positions()) / 2 - \
-                self.all_images[0].get_positions()
+                    self.all_images[0].get_positions()
             x1.append(np.linalg.norm(v))
 
         for i in range(peak, len(self.all_images) - 1):
             v = (self.all_images[i].get_positions() +
                  self.all_images[i + 1].get_positions()) / 2 - \
-                self.all_images[0].get_positions()
+                    self.all_images[0].get_positions()
             x2.append(np.linalg.norm(v))
         k_tmp = []
         for x in x1:
