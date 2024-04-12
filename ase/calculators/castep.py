@@ -34,13 +34,10 @@ from typing import Any, Dict, List, Optional, Set
 import numpy as np
 
 from ase import Atoms, units
-from ase.calculators.calculator import (
-    BaseCalculator,
-    compare_atoms,
-    kpts2sizeandoffsets,
-)
+from ase.calculators.calculator import (BaseCalculator, compare_atoms,
+                                        kpts2sizeandoffsets)
 from ase.config import cfg
-from ase.constraints import FixConstraint, FixAtoms, FixCartesian
+from ase.constraints import FixAtoms, FixCartesian, FixConstraint
 from ase.dft.kpoints import BandPath
 from ase.io.castep import read_bands, read_param
 from ase.parallel import paropen
@@ -860,7 +857,7 @@ End CASTEP Interface Documentation
         if record_starts == []:
             warnings.warn('Could not find CASTEP label in result file: %s.'
                           ' Are you sure this is a .castep file?' % castep_file)
-            return
+            return None
 
         # search for regular end of file
         end_found = False
@@ -1786,7 +1783,7 @@ End CASTEP Interface Documentation
         # interface
         if not os.path.isfile(os.path.join(temp_dir, f'{seed}.cell')):
             warnings.warn(f'{seed}.cell not written - aborting dryrun')
-            return
+            return None
         write_param(os.path.join(temp_dir, f'{seed}.param'), self.param, )
 
         stdout, stderr = shell_stdouterr(('{} {} {}'.format(
@@ -2450,7 +2447,7 @@ class CastepOption:
         try:
             value = _tf_table[str(value).strip().title()]
         except (KeyError, ValueError):
-            raise ValueError()
+            raise ValueError
         return value
 
     @staticmethod
@@ -2479,7 +2476,7 @@ class CastepOption:
         value = np.array(value)
 
         if value.shape != (3,) or value.dtype != int:
-            raise ValueError()
+            raise ValueError
 
         return list(value)
 
@@ -2494,7 +2491,7 @@ class CastepOption:
         value = np.array(value) * 1.0
 
         if value.shape != (3,) or value.dtype != float:
-            raise ValueError()
+            raise ValueError
 
         return list(value)
 
@@ -2514,14 +2511,14 @@ class CastepOption:
             try:
                 value = (float(value[0]), '')
             except (TypeError, ValueError):
-                raise ValueError()
+                raise ValueError
         elif l == 2:
             try:
                 value = (float(value[0]), value[1])
             except (TypeError, ValueError, IndexError):
-                raise ValueError()
+                raise ValueError
         else:
-            raise ValueError()
+            raise ValueError
 
         return value
 
@@ -2533,7 +2530,7 @@ class CastepOption:
         elif hasattr(value, '__getitem__'):
             return '\n'.join(value)  # Arrays of lines
         else:
-            raise ValueError()
+            raise ValueError
 
     def __repr__(self):
         if self._value:
@@ -2670,7 +2667,7 @@ class CastepInputFile:
 
     def __getattr__(self, name):
         if name[0] == '_' or self._perm == 0:
-            raise AttributeError()
+            raise AttributeError
 
         if self._perm == 1:
             warnings.warn(f'Option {(name)} is not known, returning None')
@@ -2829,7 +2826,7 @@ class CastepCell(CastepInputFile):
            or not value[1].shape[1:] == (3,) \
            or not value[0].shape[0] == value[1].shape[0]:
             warnings.warn('Invalid symmetry_ops block, skipping')
-            return
+            return None
         # Now on to print...
         text_block = ''
         for op_i, (op_rot, op_tranls) in enumerate(zip(*value)):

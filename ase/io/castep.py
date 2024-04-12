@@ -276,7 +276,7 @@ def write_castep_cell(fd, atoms, positions_frac=False, force_write=False,
                         mass_block.append('{} {}'.format(
                             custom_species_name, mass_val))
 
-        setattr(cell, 'species_mass', mass_block)
+        cell.species_mass = mass_block
 
     if atoms.has('castep_labels'):
         labels = atoms.get_array('castep_labels')
@@ -1430,7 +1430,6 @@ def read_seed(seed, new_seed=None, ignore_internal_keys=False):
     else:
         # There are cases where we only want to restore a calculator/atoms
         # setting without a castep file...
-        pass
         # No print statement required in these cases
         warnings.warn(
             'Corresponding *.castep file not found. '
