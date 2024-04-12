@@ -1615,7 +1615,8 @@ class GenerateVaspInput:
 
         # string_params
         string_dct = {
-            key: val for key, val in self.string_params.items() if val is not None
+            key: val for key, val in self.string_params.items() if val is not
+            None
         }
         incar_params.update(string_dct)
 
@@ -1677,7 +1678,8 @@ class GenerateVaspInput:
 
         # special params
         special_dct = {
-            key: val for key, val in self.special_params.items() if val is not None
+            key: val for key, val in self.special_params.items() if val is not
+            None
         }
         if 'lreal' in special_dct.keys():
             if isinstance(special_dct['lreal'], bool):
