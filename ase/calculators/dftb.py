@@ -7,12 +7,14 @@ Initial development: markus.kaukonen@iki.fi
 """
 
 import os
-
+from pathlib import Path
 import numpy as np
-
+from ase.io import read
 from ase.calculators.calculator import (FileIOCalculator, kpts2ndarray,
                                         kpts2sizeandoffsets)
-from ase.units import Bohr, Hartree
+from ase.calculators.singlepoint import SinglePointCalculator
+from ase.units import Hartree, Bohr, fs
+from ase.constraints import FixAtoms
 
 
 class Dftb(FileIOCalculator):
@@ -503,6 +505,102 @@ class Dftb(FileIOCalculator):
         """
         self.pcpot = PointChargePotential(mmcharges, self.directory)
         return self.pcpot
+
+    def optimize(self, atoms, fmax, steps=None):
+        """Relax internally with dftb
+
+        atoms: atoms object
+        fmax: maximal force
+        steps: maximal number of relaxation steps
+        """
+        params = {'Driver_': 'LBFGS',
+                  'Driver_MaxForceComponent': fmax * Bohr / Hartree}
+        if steps:
+            params.update({'Driver_MaxSteps': steps})
+        self.parameters.update(params)
+        self.parameters.update(params_constraints(atoms))
+
+        # runs relaxation
+        atoms.get_potential_energy()
+
+        relaxed_positions = read(Path(self.directory)
+                                 .joinpath('geo_end.gen')).positions
+        self.atoms.set_positions(relaxed_positions, apply_constraint=False)
+
+    def md(self, atoms, timestep, temperature, trajectory, steps):
+        """Internal MD propagation
+
+        atoms: atoms object
+        timestep: time step in ase units
+        temperature: initial temperature
+        trajectory: Trajectory object open for writing
+        steps: numer of steps to propagate
+        """
+        params = {
+            'Driver_Steps': steps - 1,
+            'Driver_TimeStep': 41.3413733 * timestep / fs,
+            'Driver_Thermostat_InitialTemperature': temperature / Hartree}
+        params['Driver_'] = self.parameters.get('Driver_', 'VelocityVerlet')
+        params['Driver_Thermostat_'] = self.parameters.get(
+            'Driver_Thermostat_', 'None')
+        self.parameters.update(params)
+        self.parameters.update(params_constraints(atoms))
+
+        # runs md
+        atoms.get_potential_energy()
+
+        direc = Path(self.directory)
+        structures = read(direc.joinpath('geo_end.xyz'), ':')
+        with open(direc.joinpath('md.out')) as out:
+            lines = out.readlines()
+
+        for i, structure in enumerate(structures):
+            imd = int(lines.pop(0).split()[-1])
+            assert i == imd
+
+            results = {}
+            lines.pop(0)  # Potential Energy
+            lines.pop(0)  # MD Kinetic Energy
+            results['energy'] = float(lines.pop(0).split()[5])
+            lines.pop(0)  # MD Temperature
+
+            # Dipole moment
+            line = lines.pop(0).replace('au', '')
+            dipole = [float(w) for w in line.split()[-3:]]
+            results['dipole'] = np.array(dipole) * Bohr
+
+            lines.pop(0)  # Dipole moment Debye
+
+            structure.calc = SinglePointCalculator(structure, **results)
+            structure.calc.name = self.name
+            params = self.parameters.copy()
+            params['timestep'] = timestep
+            structure.calc.parameters = params
+            trajectory.write(structure)
+
+
+def params_constraints(atoms):
+    """Translate constraint objects into parameters"""
+    params = {}
+    for constraint in atoms.constraints:
+        if isinstance(constraint, FixAtoms):
+            indices = constraint.get_indices()
+            ranges = []
+            start = False
+            for i, a in enumerate(atoms):
+                if i in indices:
+                    if start:
+                        ranges.append(':'.join([start, str(i)]))
+                        start = False
+                else:
+                    if not start:
+                        start = str(i + 1)
+            if start:
+                ranges.append(':'.join([start, str(i + 1)]))
+            params['Driver_MovedAtoms'] = ' '.join(ranges)
+        else:
+            assert 0, 'Can not translate constraint {}'.format(constraint)
+    return params
 
 
 class PointChargePotential:
