@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from math import cos, pi, sin
-from typing import Any, List, Dict, Tuple, Iterator, Union
+from typing import Any
 from itertools import product
 import numpy as np
 from ase.cell import Cell
@@ -85,7 +85,7 @@ class SpacePlot:
     """Helper class for ordinary (3D) Brillouin zone plots."""
 
     axis_dim = 3
-    point_options: Dict[str, Any] = {}
+    point_options: dict[str, Any] = {}
 
     def __init__(self, *, azim: float | None = None, elev: float | None = None):
         class Arrow3D(FancyArrowPatch):
@@ -193,9 +193,9 @@ def bz_plot(
     elev: float | None = None,
     scale=1,
     interactive: bool = False,
-    transforms: List | None = None,
-    repeat: Union[Tuple[int, int], Tuple[int, int, int]] = (1, 1, 1),
-    pointstyle: Dict | None = None,
+    transforms: list | None = None,
+    repeat: tuple[int, int] | tuple[int, int, int] = (1, 1, 1),
+    pointstyle: dict | None = None,
     ax=None,
     show=False,
     **kwargs,
@@ -204,14 +204,14 @@ def bz_plot(
 
     Parameters
     ----------
-    cell: (Cell)
+    cell: Cell
         Cell object for BZ drawing.
     vectors : bool
         if True, show the vector.
-    paths : [TODO:type]
-        [TODO:description]
-    points : [TODO:type]
-        [TODO:description]
+    paths : list[tuple[str, np.ndarray]] | None
+        Special point name and its coordinate position
+    points : np.ndarray
+        Coordinate points along the paths.
     azim : float | None
         Azimuthal angle in radian for viewing 3D BZ.
     elev : float | None
@@ -221,7 +221,7 @@ def bz_plot(
     interactive : bool
         Not effectively works. To be removed?
     transforms: List
-        List of linear transformation object, typically scipy.spatial.transform.Rotation
+        List of linear transformation (scipy.spatial.transform.Rotation)
     repeat: Tuple[int, int] | Tuple[int, int, int]
         Set the repeating draw of BZ. default is (1, 1, 1), no repeat.
     pointstyle : Dict
@@ -258,11 +258,11 @@ def bz_plot(
     kpoints = points
     bz1 = bz_vertices(icell, dim=dimensions)
     if len(repeat) == 2:
-        repeat = (*repeat, 1)
+        repeat = (repeat[0], repeat[1], 1)
 
     maxp = 0.0
     minp = 0.0
-    for bz_i in _bz_index(repeat):
+    for bz_i in bz_index(repeat):
         for points, normal in bz1:
             shift = np.dot(np.array(icell).T, np.array(bz_i))
             for transform in transforms:
@@ -333,7 +333,7 @@ def bz_plot(
     return ax
 
 
-def _bz_index(repeat: Tuple[int, int, int]) -> Iterator[Tuple[int, int, int]]:
+def bz_index(repeat):
     """BZ index from the repeat
 
     A helper function to iterating drawing BZ.
@@ -352,6 +352,9 @@ def _bz_index(repeat: Tuple[int, int, int]) -> Iterator[Tuple[int, int, int]]:
     [(0, 0, 0), (0, 0, -1), (0, 1, 0), (0, 1, -1)]
 
     """
+    if len(repeat) == 2:
+        repeat = (repeat[0], repeat[1], 1)
+    assert len(repeat) == 3
     assert repeat[0] != 0
     assert repeat[1] != 0
     assert repeat[2] != 0
@@ -365,9 +368,3 @@ def _bz_index(repeat: Tuple[int, int, int]) -> Iterator[Tuple[int, int, int]]:
         range(0, repeat[2]) if repeat[2] > 0 else range(0, repeat[2], -1)
     )
     return product(repeat_along_a, repeat_along_b, repeat_along_c)
-
-
-if __name__ == '__main__':
-    import doctest
-
-    doctest.testmod()
