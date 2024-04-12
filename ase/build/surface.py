@@ -530,6 +530,7 @@ def graphene(formula='C2', a=2.460, thickness=0.0,
 
 
 def _all_surface_functions():
+    # Convenient for debugging.
     d = {
         func.__name__: func
         for func in [
