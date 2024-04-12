@@ -121,6 +121,7 @@ class Espresso(GenericFileIOCalculator):
         directory='.',
         parallel_info=None,
         parallel=True,
+        template=None,
         **kwargs,
     ):
         """
@@ -212,7 +213,8 @@ class Espresso(GenericFileIOCalculator):
 
             warnings.warn(compatibility_msg, FutureWarning)
 
-        template = EspressoTemplate()
+        if template is None:
+            template = EspressoTemplate()
         super().__init__(
             profile=profile,
             template=template,

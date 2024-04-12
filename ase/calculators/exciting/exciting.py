@@ -260,6 +260,7 @@ class ExcitingGroundStateCalculator(GenericFileIOCalculator):
         title='ASE-generated input',
         parallel=None,
         parallel_info=None,
+        template=None,
     ):
         self.runner = runner
         # Package data to be passed to
@@ -273,6 +274,9 @@ class ExcitingGroundStateCalculator(GenericFileIOCalculator):
         }
         self.directory = Path(directory)
 
+        if template is None:
+            template = ExcitingGroundStateTemplate()
+
         # GenericFileIOCalculator expects a `profile`
         # containing machine-specific settings, however, in exciting's case,
         # the species file are defined in the input XML (hence passed in the
@@ -282,7 +286,7 @@ class ExcitingGroundStateCalculator(GenericFileIOCalculator):
         # BinaryRunner in the place of a profile.
         super().__init__(
             profile=runner,
-            template=ExcitingGroundStateTemplate(),
+            template=template,
             directory=directory,
             parameters=self.exciting_inputs,
             parallel_info=parallel_info,

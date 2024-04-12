@@ -91,14 +91,16 @@ class Octopus(GenericFileIOCalculator):
                  directory='.',
                  parallel_info=None,
                  parallel=True,
+                 template=None,
                  **kwargs):
         """Create Octopus calculator.
 
         Label is always taken as a subdirectory.
         Restart is taken to be a label."""
-
+        if template is None:
+            template = OctopusTemplate()
         super().__init__(profile=profile,
-                         template=OctopusTemplate(),
+                         template=template,
                          directory=directory,
                          parameters=kwargs,
                          parallel_info=parallel_info,

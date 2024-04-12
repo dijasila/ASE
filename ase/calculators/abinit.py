@@ -118,6 +118,7 @@ class Abinit(GenericFileIOCalculator):
         directory='.',
         parallel_info=None,
         parallel=True,
+        template=None,
         **kwargs,
     ):
         """Construct ABINIT-calculator object.
@@ -137,9 +138,10 @@ class Abinit(GenericFileIOCalculator):
         >>> e = h.get_potential_energy()
 
         """
-
+        if template is None:
+            template = AbinitTemplate()
         super().__init__(
-            template=AbinitTemplate(),
+            template=template,
             profile=profile,
             directory=directory,
             parallel_info=parallel_info,

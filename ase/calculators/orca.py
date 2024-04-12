@@ -77,7 +77,7 @@ class ORCA(GenericFileIOCalculator):
     """
 
     def __init__(self, *, profile=None, directory='.', parallel_info=None,
-                 parallel=None, **kwargs):
+                 parallel=None, template=None, **kwargs):
         """Construct ORCA-calculator object.
 
         Parameters
@@ -111,7 +111,9 @@ class ORCA(GenericFileIOCalculator):
             'ORCA does not support keyword parallel - use orcablocks'
         assert parallel_info is None, \
             'ORCA does not support keyword parallel_info - use orcablocks'
+        if template is None:
+            template = OrcaTemplate()
 
-        super().__init__(template=OrcaTemplate(),
+        super().__init__(template=template,
                          profile=profile, directory=directory,
                          parameters=kwargs)

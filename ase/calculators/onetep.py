@@ -151,12 +151,13 @@ class Onetep(GenericFileIOCalculator):
             directory='.',
             parallel_info=None,
             parallel=True,
+            template=None,
             **kwargs):
 
         self.keywords = kwargs.get('keywords', None)
         self.template = OnetepTemplate(
             append=kwargs.pop('append', False)
-        )
+        ) if template is None else template
 
         if 'ASE_ONETEP_COMMAND' in environ and profile is None:
             import warnings
