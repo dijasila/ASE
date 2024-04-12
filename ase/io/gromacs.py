@@ -176,7 +176,7 @@ def write_gromacs(fileobj, atoms):
     # (EDH: link seems broken as of 2020-02-21)
     #    1WATER  OW1    1   0.126   1.624   1.679  0.1227 -0.0580  0.0434
     for count, (resnb, resname, atomtype, xyz, vxyz) in enumerate(zip(residuenumbers, gromacs_residuenames, gromacs_atomtypes,
-                      pos, vel), start=1):
+                                                                      pos, vel), start=1):
 
         # THIS SHOULD BE THE CORRECT, PYTHON FORMATTING, EQUIVALENT TO THE
         # C FORMATTING GIVEN IN THE GROMACS DOCUMENTATION:

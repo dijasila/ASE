@@ -706,7 +706,8 @@ class TurbomoleParameters(dict):
         params = {}
         pdgs = {
             p: parse_data_group(
-                read_data_group(self.parameter_group[p]), self.parameter_group[p]
+                read_data_group(
+                    self.parameter_group[p]), self.parameter_group[p]
             )
             for p in self.parameter_group
             if self.parameter_group[p] and self.parameter_key[p]

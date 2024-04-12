@@ -508,7 +508,7 @@ class NetCDFTrajectory:
         if 0 <= i < N:
             # Non-periodic boundaries have cell_length == 0.0
             cell_lengths = \
-                    np.array(self.nc.variables[self._cell_lengths_var][i][:])
+                np.array(self.nc.variables[self._cell_lengths_var][i][:])
             pbc = np.abs(cell_lengths > 1e-6)
 
             # Do we have a cell origin?

@@ -136,7 +136,8 @@ class OFPComparator:
             except TypeError:
                 newkey = str(key)
             if isinstance(val, dict):
-                fingerprints_encoded[newkey] = {str(key2): val2 for key2, val2 in val.items()}
+                fingerprints_encoded[newkey] = {
+                    str(key2): val2 for key2, val2 in val.items()}
             else:
                 fingerprints_encoded[newkey] = val
         typedic_encoded = {}
