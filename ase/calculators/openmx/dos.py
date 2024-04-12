@@ -84,7 +84,7 @@ class DOS:
             key = 'p'
             atom_and_orbital = str(atom_index) + orbital
         key += 'dos'
-        self.dos_dict[key + '_energies_' + atom_and_orbital] = np.ndarray(
+        self.dos_dict[f'{key}_energies_{atom_and_orbital}'] = np.ndarray(
             number_of_lines)
         if spin_polarization:
             self.dos_dict[f'{key}{atom_and_orbital}up'] = \
