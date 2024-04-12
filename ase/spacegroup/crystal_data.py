@@ -49,7 +49,7 @@ _point_groups = ['Ø']
 for i, (start, pg) in enumerate(_point_group_ranges[:-1]):
     next_start, _ = _point_group_ranges[i + 1]
     count = next_start - start
-    for _ in range(start, start + count):
+    for j in range(start, start + count):
         _point_groups.append(pg)
 
 
