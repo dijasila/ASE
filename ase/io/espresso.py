@@ -349,7 +349,7 @@ def read_espresso_out(fileobj, index=slice(None), results_required=True):
                         if len(bands) > 0:
                             eigenvalues[spin].append(bands)
                             bands = []
-                    elif L == ['occupation', 'numbers']:
+                    elif ['occupation', 'numbers'] == L:
                         # Skip the lines with the occupation numbers
                         bands_index += len(eigenvalues[spin][0]) // 8 + 1
                     elif L[0] == 'k' and L[1].startswith('='):
@@ -610,7 +610,7 @@ def get_atomic_positions(lines, n_atoms, cell=None, alat=None):
     positions = None
     # no blanks or comment lines, can the consume n_atoms lines for positions
     trimmed_lines = (line for line in lines
-                     if line.strip() and not line[0] == '#')
+                     if line.strip() and line[0] != '#')
 
     for line in trimmed_lines:
         if line.strip().startswith('ATOMIC_POSITIONS'):
@@ -725,7 +725,7 @@ def get_cell_parameters(lines, alat=None):
     cell_alat = None
     # no blanks or comment lines, can take three lines for cell
     trimmed_lines = (line for line in lines
-                     if line.strip() and not line[0] == '#')
+                     if line.strip() and line[0] != '#')
 
     for line in trimmed_lines:
         if line.strip().startswith('CELL_PARAMETERS'):

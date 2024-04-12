@@ -204,9 +204,8 @@ class DimerEigenmodeSearch:
 
             # Post rotation stop criteria
             if not stoprot:
-                if self.control.get_counter('rotcount') >= max_num_rot:
-                    stoprot = True
-                elif norm(f_rot_A) <= f_rot_max:
+                if (self.control.get_counter('rotcount') >= max_num_rot or
+                    norm(f_rot_A) <= f_rot_max):
                     stoprot = True
 
     def log(self, f_rot_A, angle):

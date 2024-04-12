@@ -661,7 +661,7 @@ class Wannier:
         # Update large rotation matrix V (from rotation U and coeff C)
         for k, M in enumerate(self.fixedstates_k):
             self.V_knw[k, :M] = self.U_kww[k, :M]
-            if M < self.nwannier:
+            if self.nwannier > M:
                 self.V_knw[k, M:] = self.C_kul[k] @ self.U_kww[k, M:]
             # else: self.V_knw[k, M:] = 0.0
 

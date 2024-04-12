@@ -420,9 +420,7 @@ class Spacegroup:
                     inds = np.argwhere(mask).flatten()
                     for ind in inds:
                         # then we would just add the same thing again -> skip
-                        if kinds[ind] == kind:
-                            pass
-                        elif onduplicates == 'keep':
+                        if kinds[ind] == kind or onduplicates == 'keep':
                             pass
                         elif onduplicates == 'replace':
                             kinds[ind] = kind

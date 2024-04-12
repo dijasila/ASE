@@ -751,7 +751,7 @@ class SQLite3Database(Database):
                         format(table, ', '.join([str(id) for id in ids])))
 
     def vacuum(self):
-        if not self.type == 'db':
+        if self.type != "db":
             return
 
         with self.managed_connection() as con:

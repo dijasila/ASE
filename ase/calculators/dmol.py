@@ -465,7 +465,7 @@ class DMol3(FileIOCalculator):
         for n, line in enumerate(lines):
             if line.startswith('Energy components'):
                 m = n + 1
-                while not lines[m].strip() == '':
+                while lines[m].strip() != '':
                     energies[lines[m].split('=')[0].strip()] = \
                         float(re.findall(
                             r"[-+]?\d*\.\d+|\d+", lines[m])[0]) * Hartree

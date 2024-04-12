@@ -480,7 +480,7 @@ class CP2K(Calculator, AbstractContextManager):
         subsys = root.get_subsection('FORCE_EVAL/SUBSYS').subsections
         kinds = {s.params: s for s in subsys if s.name == "KIND"}
         for elem in set(self.atoms.get_chemical_symbols()):
-            if elem not in kinds.keys():
+            if elem not in kinds:
                 s = InputSection(name='KIND', params=elem)
                 subsys.append(s)
                 kinds[elem] = s

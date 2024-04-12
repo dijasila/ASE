@@ -25,7 +25,7 @@ def _forbid_maxmove(args: List, kwargs: Dict[str, Any]) -> bool:
 
     if len(args) > maxstep_index and args[maxstep_index] is None:
         value = args[maxstep_index] = _pop_arg("maxmove")
-    elif kwargs.get("maxstep", None) is None:
+    elif kwargs.get("maxstep") is None:
         value = kwargs["maxstep"] = _pop_arg("maxmove")
     else:
         return False

@@ -661,7 +661,7 @@ def read_castep_cell(fd, index=None, calculator_args={}, find_spg=False,
         line_tokens = [line.split() for line in lines]
 
         for tokens in line_tokens:
-            if not len(tokens) == 6:
+            if len(tokens) != 6:
                 continue
             _, species, nic, x, y, z = tokens
             # convert xyz to floats
@@ -1041,7 +1041,7 @@ def read_castep_phonon(fd, index=None, read_vib_data=False,
 
     # header
     L = 0
-    while L < len(lines):
+    while len(lines) > L:
 
         line = lines[L]
 

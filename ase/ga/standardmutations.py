@@ -306,7 +306,7 @@ class MirrorMutation(OffspringCreator):
             p_use = []
             n_use = []
             for (i, d) in D:
-                if num[i] not in nu_taken.keys():
+                if num[i] not in nu_taken:
                     nu_taken[num[i]] = 0
                 if nu_taken[num[i]] < nu[num[i]] / 2.:
                     p_use.append(pos[i])

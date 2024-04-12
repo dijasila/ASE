@@ -263,7 +263,7 @@ def write_abinit_in(fd, atoms, param=None, species=None, pseudos=None):
     types = []
     for Z in atoms.numbers:
         for n, Zs in enumerate(species):
-            if Z == Zs:
+            if Zs == Z:
                 types.append(n + 1)
     n_entries_int = 20  # integer entries per line
     for n, type in enumerate(types):
@@ -713,13 +713,7 @@ def get_ppp_list(atoms, species, raise_exception, xc, pps,
                 elif pps == 'hgh':
                     # Lowest valence electron count
                     filenames[0] = min(filenames)
-                elif pps == 'hgh.k':
-                    # Semicore - highest electron count
-                    filenames[0] = max(filenames)
-                elif pps == 'tm':
-                    # Semicore - highest electron count
-                    filenames[0] = max(filenames)
-                elif pps == 'hgh.sc':
+                elif pps == 'hgh.k' or pps == 'tm' or pps == 'hgh.sc':
                     # Semicore - highest electron count
                     filenames[0] = max(filenames)
 

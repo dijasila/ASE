@@ -54,7 +54,7 @@ def set_magmom(ispin, spinpol, atoms, magmom_input, sorting):
     """Helps to set the magmom tag in the INCAR file with correct formatting"""
     magmom_dct = {}
     if magmom_input is not None:
-        if not len(magmom_input) == len(atoms):
+        if len(magmom_input) != len(atoms):
             msg = ('Expected length of magmom tag to be'
                    ' {}, i.e. 1 value per atom, but got {}').format(
                 len(atoms), len(magmom_input))
@@ -1617,11 +1617,11 @@ class GenerateVaspInput:
         # int params
         int_dct = dict((key, val) for key, val in self.int_params.items()
                        if val is not None)
-        if 'ichain' in int_dct.keys():
+        if 'ichain' in int_dct:
             ichain_dict = check_ichain(
                 ichain=int_dct['ichain'],
                 ediffg=self.exp_params.get('ediffg', None),
-                iopt=int_dct.get('iopt', None),
+                iopt=int_dct.get('iopt'),
             )
             int_dct.update(ichain_dict)
         incar_params.update(int_dct)
@@ -1663,7 +1663,7 @@ class GenerateVaspInput:
         special_dct = dict(
             (key, val) for key, val in self.special_params.items()
             if val is not None)
-        if 'lreal' in special_dct.keys():
+        if 'lreal' in special_dct:
             if isinstance(special_dct['lreal'], bool):
                 special_dct['lreal'] = _to_vasp_bool(special_dct['lreal'])
         incar_params.update(special_dct)
@@ -1671,7 +1671,7 @@ class GenerateVaspInput:
         # dict params
         dict_dct = dict((key, val) for key, val in self.dict_params.items()
                         if val is not None)
-        if 'ldau_luj' in dict_dct.keys():
+        if 'ldau_luj' in dict_dct:
             ldau_dict = set_ldau(
                 ldau_param=self.bool_params['ldau'],
                 luj_params=dict_dct['ldau_luj'],
@@ -1769,9 +1769,7 @@ class GenerateVaspInput:
                 line = line.replace("#", "# ")
                 data = line.split()
                 # Skip empty and commented lines.
-                if len(data) == 0:
-                    continue
-                elif data[0][0] in ['#', '!']:
+                if len(data) == 0 or data[0][0] in ['#', '!']:
                     continue
                 key = data[0].lower()
                 if '<Custom ASE key>' in line:
@@ -1939,7 +1937,7 @@ class GenerateVaspInput:
         # Values of parameter LEXCH and corresponding XC-functional
         xc_dict = {'PE': 'PBE', '91': 'PW91', 'CA': 'LDA'}
 
-        if xc_flag not in xc_dict.keys():
+        if xc_flag not in xc_dict:
             raise ValueError('Unknown xc-functional flag found in POTCAR,'
                              ' LEXCH=%s' % xc_flag)
 

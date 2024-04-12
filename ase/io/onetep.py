@@ -607,7 +607,7 @@ def read_onetep_out(fd, index=-1, improving=False, **kwargs):
     ]
 
     # Find all matches append them to the dictionary
-    breg = "|".join([i.pattern.replace("(?i)", "") for i in output.keys()])
+    breg = "|".join([i.pattern.replace("(?i)", "") for i in output])
     prematch = {}
 
     for idx, line in enumerate(fdo_lines):
@@ -616,7 +616,7 @@ def read_onetep_out(fd, index=-1, improving=False, **kwargs):
             prematch[idx] = matches.group(0)
 
     for key, value in prematch.items():
-        for reg in output.keys():
+        for reg in output:
             if re.search(reg, value):
                 output[reg].append(key)
                 break

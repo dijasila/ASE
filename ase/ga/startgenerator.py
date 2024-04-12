@@ -449,7 +449,7 @@ class StartGenerator:
                     dist[j, i] += bl
 
             L = np.max(dist)
-            if L > Lmin:
+            if Lmin < L:
                 Lmin = L
 
         # Generate a suitable unit cell

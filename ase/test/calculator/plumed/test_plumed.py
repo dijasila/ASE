@@ -128,7 +128,7 @@ def test_CVs(factory):
                      9.0000e-06, 1.0000e-06, 0.0000e+00, 0.0000e+00,
                      0.0000e+00, 0.0000e+00, 0.0000e+00])
     CPlumed = colvar['COLVAR_test1'][2]
-    assert CASE == approx(CPlumed, abs=1E-5), "Error in coordination number"
+    assert approx(CPlumed, abs=1E-5) == CASE, "Error in coordination number"
 
     # this compares the distance between center of mass and geometrical center
     # calculated by ASE and plumed

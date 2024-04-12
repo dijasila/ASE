@@ -113,7 +113,7 @@ class SiestaParameters(Parameters):
 
 
 def _nonpolarized_alias(_: List, kwargs: Dict[str, Any]) -> bool:
-    if kwargs.get("spin", None) == "UNPOLARIZED":
+    if kwargs.get("spin") == "UNPOLARIZED":
         kwargs["spin"] = "non-polarized"
         return True
     return False

@@ -411,7 +411,7 @@ minimize        1.0e-14 1.0e-5 100000 100000
             # search for l-i-j-k
             indicesi, offsetsi = self.nl.get_neighbors(i)
             for L, offsetl in zip(indicesi, offsetsi):
-                if L == j:
+                if j == L:
                     continue  # avoid double count
                 lname = types[tags[L]]
                 cut = cutoffs.value(iname, lname)
@@ -430,7 +430,7 @@ minimize        1.0e-14 1.0e-5 100000 100000
             # search for i-j-k-l
             indicesk, offsetsk = self.nl.get_neighbors(k)
             for L, offsetl in zip(indicesk, offsetsk):
-                if L == j:
+                if j == L:
                     continue  # avoid double count
                 lname = types[tags[L]]
                 cut = cutoffs.value(kname, lname)

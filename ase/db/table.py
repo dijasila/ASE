@@ -173,9 +173,7 @@ class Row:
         for value, column in zip(self.values, columns):
             if column == 'formula' and subscript:
                 value = subscript.sub(r'<sub>\1</sub>', value)
-            elif isinstance(value, dict):
-                value = str(value)
-            elif isinstance(value, list):
+            elif isinstance(value, dict) or isinstance(value, list):
                 value = str(value)
             elif isinstance(value, np.ndarray):
                 value = str(value.tolist())

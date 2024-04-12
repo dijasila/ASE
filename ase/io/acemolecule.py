@@ -28,7 +28,7 @@ def parse_geometry(filename):
                 start_line = i
             if start_line != 0 and len(line.split('=')) > 3:
                 end_line = i
-                if not start_line == end_line:
+                if start_line != end_line:
                     break
         atoms = []
         positions = []

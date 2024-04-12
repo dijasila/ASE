@@ -619,7 +619,7 @@ End CASTEP Interface Documentation
             if not hasattr(self, '_castep_version'):
                 warnings.warn('No castep version found')
                 return
-            if not local_castep_version == self._castep_version:
+            if local_castep_version != self._castep_version:
                 warnings.warn(
                     'The options module was generated from version %s '
                     'while your are currently using CASTEP version %s' %
@@ -1352,7 +1352,7 @@ End CASTEP Interface Documentation
                 if self._pedantic:
                     warnings.warn('Pseudopotential for species {} not found!'
                                   .format(elem))
-            elif not len(pps) == 1:
+            elif len(pps) != 1:
                 raise RuntimeError(
                     'Pseudopotential for species ''{} not unique!\n'
                     .format(elem)
@@ -1428,13 +1428,13 @@ End CASTEP Interface Documentation
         # from all that I can tell we need to compare against atoms instead of
         # self.atoms
         # if not self.atoms == self._old_atoms:
-        if not atoms == self._old_atoms:
+        if atoms != self._old_atoms:
             return True
         if self._old_param is None or self._old_cell is None:
             return True
-        if not self.param._options == self._old_param._options:
+        if self.param._options != self._old_param._options:
             return True
-        if not self.cell._options == self._old_cell._options:
+        if self.cell._options != self._old_cell._options:
             return True
         return False
 
@@ -1852,7 +1852,7 @@ End CASTEP Interface Documentation
                 if line:
                     pspots[line[0]] = line[1]
         for species in self.atoms.get_chemical_symbols():
-            if not pspots or species not in pspots.keys():
+            if not pspots or species not in pspots:
                 if self._build_missing_pspots:
                     if self._pedantic:
                         warnings.warn(
@@ -2643,7 +2643,7 @@ class CastepInputFile:
             attr = attr.lower()
             opt = self._options[attr]
 
-        if not opt.type.lower() == 'block' and isinstance(value, str):
+        if opt.type.lower() != 'block' and isinstance(value, str):
             value = value.replace(':', ' ')
 
         # If it is, use the appropriate parser, unless a custom one is defined
@@ -2821,10 +2821,10 @@ class CastepCell(CastepInputFile):
 
     def _parse_symmetry_ops(self, value):
         if not isinstance(value, tuple) \
-           or not len(value) == 2 \
-           or not value[0].shape[1:] == (3, 3) \
-           or not value[1].shape[1:] == (3,) \
-           or not value[0].shape[0] == value[1].shape[0]:
+           or len(value) != 2 \
+           or value[0].shape[1:] != (3, 3) \
+           or value[1].shape[1:] != (3,) \
+           or value[0].shape[0] != value[1].shape[0]:
             warnings.warn('Invalid symmetry_ops block, skipping')
             return None
         # Now on to print...

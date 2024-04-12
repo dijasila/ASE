@@ -162,7 +162,7 @@ class SetupSurfaceSlab:
         ortho_warn_even = _('Please enter an even value for orthogonal cell')
 
         struct = self.structure.value
-        if struct == _('BCC(111)') and (not (y % 2 == 0) and ortho):
+        if struct == _('BCC(111)') and (y % 2 != 0 and ortho):
             self.y_warn.text = ortho_warn_even
             return None
         if struct == _('BCC(110)') and (not (y % 2 == 0) and ortho):

@@ -113,9 +113,7 @@ class SiestaLRTDDFT:
         if not self.initialize:
             self.tddft = tddft_iter(**self.lrtddft_params)
 
-        if isinstance(omega, float):
-            freq = np.array([omega])
-        elif isinstance(omega, list):
+        if isinstance(omega, float) or isinstance(omega, list):
             freq = np.array([omega])
         elif isinstance(omega, np.ndarray):
             freq = omega

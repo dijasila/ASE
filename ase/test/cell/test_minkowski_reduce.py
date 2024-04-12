@@ -36,7 +36,7 @@ def test_random(it):
 
     # Test idempotency
     _, _H = minkowski_reduce(R)
-    assert (_H == np.eye(3).astype(int)).all()
+    assert (np.eye(3).astype(int) == _H).all()
 
     rcell, _ = Cell(B).minkowski_reduce()
     assert_allclose(rcell, R, atol=TOL)

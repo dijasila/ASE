@@ -187,9 +187,7 @@ class DOSCollection(collections.abc.Sequence):
 
     def _almost_equals(self, other: Any) -> bool:
         """Compare with another DOSCollection for testing purposes"""
-        if not isinstance(other, type(self)):
-            return False
-        elif not len(self) == len(other):
+        if not isinstance(other, type(self)) or len(self) != len(other):
             return False
         else:
             return all(a._almost_equals(b) for a, b in zip(self, other))

@@ -539,9 +539,7 @@ def write_control(fd, atoms, parameters, verbose_header=False):
                     "k_offset",
                     tuple(dk),
                     "%f %f %f"))
-        elif key in ("species_dir", "tier"):
-            continue
-        elif key == "plus_u":
+        elif key in ("species_dir", "tier") or key == "plus_u":
             continue
         elif key == "smearing":
             name = parameters["smearing"][0].lower()
@@ -956,15 +954,15 @@ class AimsOutHeaderChunk(AimsOutChunk):
     @lazyproperty
     def is_md(self):
         """Determine if calculation is a molecular dynamics calculation"""
-        return LINE_NOT_FOUND != self.reverse_search_for(
+        return self.reverse_search_for(
             ["Complete information for previous time-step:"]
-        )
+        ) != LINE_NOT_FOUND
 
     @lazyproperty
     def is_relaxation(self):
         """Determine if the calculation is a geometry optimization or not"""
-        return LINE_NOT_FOUND != self.reverse_search_for(
-            ["Geometry relaxation:"])
+        return self.reverse_search_for(
+            ["Geometry relaxation:"]) != LINE_NOT_FOUND
 
     @lazymethod
     def _parse_k_points(self):

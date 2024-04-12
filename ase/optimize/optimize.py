@@ -224,11 +224,7 @@ class Dynamics(IOContext):
             self.log()
 
             # we write a trajectory file if it is None
-            if self.trajectory is None:
-                self.call_observers()
-            # We do not write on restart w/ an existing trajectory file
-            # present. This duplicates the same entry twice
-            elif len(self.trajectory) == 0:
+            if self.trajectory is None or len(self.trajectory) == 0:
                 self.call_observers()
 
         # check convergence

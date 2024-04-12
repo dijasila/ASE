@@ -23,9 +23,8 @@ def read_geom_orcainp(fd):
         if line[1:].startswith('xyz '):
             startline = index + 1
             stopline = -1
-        elif (line.startswith('end') and stopline == -1):
-            stopline = index
-        elif (line.startswith('*') and stopline == -1):
+        elif ((line.startswith('end') and stopline == -1) or
+              (line.startswith('*') and stopline == -1)):
             stopline = index
     # Format and send to read_xyz.
     xyz_text = '%i\n' % (stopline - startline)

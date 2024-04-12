@@ -92,9 +92,9 @@ def test_lammpslib_simple(
     F2 = NiH.get_forces()
     S2 = NiH.get_stress()
 
-    assert E == pytest.approx(E2, rel=1e-4)
-    assert F == pytest.approx(F2, rel=1e-4)
-    assert S == pytest.approx(S2, rel=1e-4)
+    assert pytest.approx(E2, rel=1e-4) == E
+    assert pytest.approx(F2, rel=1e-4) == F
+    assert pytest.approx(S2, rel=1e-4) == S
 
     NiH.rattle(stdev=0.2)
     E3 = NiH.get_potential_energy()

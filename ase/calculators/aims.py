@@ -79,7 +79,7 @@ class AimsTemplate(CalculatorTemplate):
         }
         # Ensure FHI-aims will calculate all desired properties
         for property in properties:
-            aims_name = property_flags.get(property, None)
+            aims_name = property_flags.get(property)
             if aims_name is not None:
                 parameters[aims_name] = True
 

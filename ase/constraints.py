@@ -1503,9 +1503,9 @@ class FixParametricRelations(FixConstraint):
 
             # Convert subtraction to addition
             expression = expression.replace("-", "+(-1.0)*")
-            if "+" == expression[0]:
+            if expression[0] == "+":
                 expression = expression[1:]
-            elif "(+" == expression[:2]:
+            elif expression[:2] == "(+":
                 expression = "(" + expression[2:]
 
             # Explicitly add leading zeros so when replacing param_1 with 0.0
@@ -1943,9 +1943,7 @@ class Hookean(FixConstraint):
     def get_indices(self):
         if self._type == 'two atoms':
             return self.indices
-        elif self._type == 'point':
-            return self.index
-        elif self._type == 'plane':
+        elif self._type == 'point' or self._type == 'plane':
             return self.index
 
     def index_shuffle(self, atoms, ind):

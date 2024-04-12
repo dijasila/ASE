@@ -74,18 +74,18 @@ def test_logging(testdir):
             lineparts = [float(part) for part in line.split()]
 
             log_energy_target = lineparts[1]
-            assert 0 == pytest.approx(
-                log_energy_target - energy_targets[i], abs=1e-5)
+            assert pytest.approx(
+                log_energy_target - energy_targets[i], abs=1e-5) == 0
 
             log_energy = lineparts[2]
-            assert 0 == pytest.approx(
-                log_energy - im.get_potential_energy(), abs=1e-5)
+            assert pytest.approx(
+                log_energy - im.get_potential_energy(), abs=1e-5) == 0
 
             log_curvature = lineparts[3]
-            assert 0 == pytest.approx(log_curvature - curvatures[i], abs=1e-5)
+            assert pytest.approx(log_curvature - curvatures[i], abs=1e-5) == 0
 
             log_step_size = lineparts[4]
-            assert 0 == pytest.approx(log_step_size - stepsizes[i], abs=1e-5)
+            assert pytest.approx(log_step_size - stepsizes[i], abs=1e-5) == 0
 
             log_dev = lineparts[5]
-            assert 0 == pytest.approx(log_dev - deviation_per_atom[i], abs=1e-5)
+            assert pytest.approx(log_dev - deviation_per_atom[i], abs=1e-5) == 0

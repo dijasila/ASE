@@ -265,9 +265,8 @@ class Turbomole(Calculator):
         if self.atoms != atoms:
             return True
         for prop in properties:
-            if prop == 'energy' and self.e_total is None:
-                return True
-            elif prop == 'forces' and self.forces is None:
+            if (prop == 'energy' and self.e_total is None or prop == 'forces'
+                and self.forces is None):
                 return True
         return False
 

@@ -39,7 +39,7 @@ class Albrecht(ResonantRaman):
         if approx in ['albrecht', 'albrecht b', 'albrecht c', 'albrecht bc']:
             if not self.overlap:
                 raise ValueError('Overlaps are needed')
-        elif not approx == 'albrecht a':
+        elif approx != 'albrecht a':
             raise ValueError('Please use "Albrecht" or "Albrecht A/B/C/BC"')
         self._approx = value
 

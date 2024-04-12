@@ -132,10 +132,10 @@ def test_fundamental_params():
     assert 'C C.usp' in mock_ccell.species_pot.value
     symops = (np.eye(3)[None], np.zeros(3)[None])
     mock_ccell.symmetry_ops = symops
-    assert """1.0 0.0 0.0
+    assert mock_ccell.symmetry_ops.value.strip() == """1.0 0.0 0.0
 0.0 1.0 0.0
 0.0 0.0 1.0
-0.0 0.0 0.0""" == mock_ccell.symmetry_ops.value.strip()
+0.0 0.0 0.0"""
 
 
 def test_castep_option(testing_keywords):

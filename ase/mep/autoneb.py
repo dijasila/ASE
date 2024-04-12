@@ -26,7 +26,7 @@ def _forbid_optimizer_string(args: List, kwargs: Dict[str, Any]) -> bool:
         ):
             args[11] = {'BFGS': BFGS, 'FIRE': FIRE}[args[arg_position]]
 
-        elif isinstance(kwargs.get("optimizer", None), str):
+        elif isinstance(kwargs.get("optimizer"), str):
             kwargs["optimizer"] = {
                 'BFGS': BFGS, 'FIRE': FIRE}[kwargs["optimizer"]]
         else:
