@@ -1043,7 +1043,7 @@ class Atoms:
                 constraint = self.constraints[0]
             else:
                 constraint = self.constraints
-            tokens.append(f'constraint={repr(constraint)}')
+            tokens.append(f'constraint={constraint!r}')
 
         if self._calc is not None:
             tokens.append('calculator={}(...)'
@@ -1156,6 +1156,12 @@ class Atoms:
         return atoms
 
     def __delitem__(self, i):
+        """Delete specified atom(s)
+
+        Notes
+        -----
+        If a calculator is assigned, results are reset.
+        """
         from ase.constraints import FixAtoms
         for c in self._constraints:
             if not isinstance(c, FixAtoms):
@@ -1183,6 +1189,9 @@ class Atoms:
         mask[i] = False
         for name, a in self.arrays.items():
             self.arrays[name] = a[mask]
+
+        if self.calc is not None:
+            self.calc.results = {}
 
     def pop(self, i=-1):
         """Remove and return atom at index *i* (default last)."""
