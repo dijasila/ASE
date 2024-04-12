@@ -107,7 +107,7 @@ class FIRE(Optimizer):
             Factor to decrease the parameter alpha. Default value is 0.99
 
         a: float
-            Coefficient for mixing the velocity and the force. Called 
+            Coefficient for mixing the velocity and the force. Called
             alpha in the FIRE article. Default value 0.1.
 
         master: boolean
