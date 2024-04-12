@@ -37,7 +37,7 @@ class AddAtoms:
 
         from ase.collections import g2
         labels = sorted(name for name in g2.names
-                             if len(g2[name]) > 1)
+                        if len(g2[name]) > 1)
         values = labels
 
         combobox = ui.ComboBox(labels, values)
