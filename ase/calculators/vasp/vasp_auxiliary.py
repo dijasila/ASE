@@ -99,11 +99,11 @@ class VaspChargeDensity:
                 self._read_chg(fd, chg, atoms.get_volume())
                 self.chg.append(chg)
                 self.atoms.append(atoms)
-                # Check if the file has a spin-polarized charge density part, and
-                # if so, read it in.
+                # Check if the file has a spin-polarized charge density part,
+                # and if so, read it in.
                 fl = fd.tell()
-                # First check if the file has an augmentation charge part (CHGCAR
-                # file.)
+                # First check if the file has an augmentation charge part
+                # (CHGCAR file.)
                 line1 = fd.readline()
                 if line1 == '':
                     break

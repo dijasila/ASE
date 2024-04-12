@@ -160,9 +160,9 @@ def test_rotate(gui):
     gui.rotate_window()
 
 
-def test_open_and_save(gui, testdir):
+def test_open_and_save(gui):
     mol = molecule('H2O')
-    for _ in range(3):
+    for i in range(3):
         mol.write('h2o.json')
     gui.open(filename='h2o.json')
     save_dialog(gui, 'h2o.cif@-1')
@@ -172,7 +172,7 @@ def test_open_and_save(gui, testdir):
     None, 'output.png', 'output.eps',
     'output.pov', 'output.traj', 'output.traj@0',
 ])
-def test_export_graphics(gui, testdir, with_bulk_ti, monkeypatch, filename):
+def test_export_graphics(gui, monkeypatch, filename):
     # Monkeypatch the blocking dialog:
     monkeypatch.setattr(ui.SaveFileDialog, 'go', lambda event: filename)
     gui.save()
@@ -181,13 +181,13 @@ def test_export_graphics(gui, testdir, with_bulk_ti, monkeypatch, filename):
         assert Path(realfilename).is_file()
 
 
-def test_fracocc(gui, testdir):
+def test_fracocc(gui):
     with open('./fracocc.cif', 'w') as fd:
         fd.write(content)
     gui.open(filename='fracocc.cif')
 
 
-def test_povray(gui, testdir):
+def test_povray(gui):
     mol = molecule('H2O')
     gui.new_atoms(mol)  # not gui.set_atoms(mol)
     n = gui.render_window()
@@ -216,12 +216,12 @@ def with_bulk_ti(gui):
 
 
 @pytest.fixture()
-def modify(gui, with_bulk_ti):
+def modify(gui):
     gui.images.selected[:4] = True
     return gui.modify_atoms()
 
 
-def test_select_atoms(gui, with_bulk_ti):
+def test_select_atoms(gui):
     gui.select_all()
     assert all(gui.images.selected)
     gui.invert_selection()
