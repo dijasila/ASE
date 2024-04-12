@@ -45,8 +45,10 @@ def read_gpw(filename):
 
     if kpts is not None:
         atoms.calc.kpts = []
-        for spin, (eps_kn, f_kn) in enumerate(zip(wfs.eigenvalues, wfs.occupations)):
-            for kpt, (weight, eps_n, f_n) in enumerate(zip(kpts.weights, eps_kn, f_kn)):
+        for spin, (eps_kn, f_kn) in enumerate(zip(wfs.eigenvalues,
+                                                  wfs.occupations)):
+            for kpt, (weight, eps_n, f_n) in enumerate(zip(kpts.weights,
+                                                           eps_kn, f_kn)):
                 atoms.calc.kpts.append(
                     SinglePointKPoint(weight, spin, kpt, eps_n, f_n))
     reader.close()
