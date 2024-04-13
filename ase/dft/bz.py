@@ -232,7 +232,6 @@ def bz_plot(cell: Cell, vectors: bool = False, paths=None, points=None,
     if ax is None:
         ax = plotter.new_axes(plt.gcf())
 
-
     assert not np.array(cell)[dimensions:, :].any()
     assert not np.array(cell)[:, dimensions:].any()
 
