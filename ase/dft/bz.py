@@ -1,9 +1,9 @@
 from __future__ import annotations
-
 from math import cos, pi, sin
-from typing import Any
-from itertools import product
+from typing import Any, Dict
+
 import numpy as np
+from itertools import product
 from ase.cell import Cell
 
 from scipy.spatial.transform import Rotation
@@ -30,7 +30,7 @@ def bz_vertices(icell, dim=3):
     for vertices, points in zip(vor.ridge_vertices, vor.ridge_points):
         if -1 not in vertices and 13 in points:
             normal = G[points].sum(0)
-            normal /= (normal**2).sum() ** 0.5
+            normal /= (normal**2).sum()**0.5
             bz1.append((vor.vertices[vertices], normal))
     return bz1
 
@@ -56,17 +56,12 @@ class FlatPlot:
         ax.set_aspect('equal')
 
     def draw_arrow(self, ax, vector, **kwargs):
-        ax.arrow(
-            0,
-            0,
-            vector[0],
-            vector[1],
-            lw=1,
-            length_includes_head=True,
-            head_width=0.03,
-            head_length=0.05,
-            **kwargs,
-        )
+        ax.arrow(0, 0, vector[0], vector[1],
+                 lw=1,
+                 length_includes_head=True,
+                 head_width=0.03,
+                 head_length=0.05,
+                 **kwargs)
 
     def label_options(self, point):
         ha_s = ['right', 'left', 'right']
@@ -83,9 +78,8 @@ class FlatPlot:
 
 class SpacePlot:
     """Helper class for ordinary (3D) Brillouin zone plots."""
-
     axis_dim = 3
-    point_options: dict[str, Any] = {}
+    point_options: Dict[str, Any] = {}
 
     def __init__(self, *, azim: float | None = None, elev: float | None = None):
         class Arrow3D(FancyArrowPatch):
@@ -96,9 +90,8 @@ class SpacePlot:
 
             def draw(self, renderer):
                 xs3d, ys3d, zs3d = self._verts3d
-                xs, ys, zs = proj3d.proj_transform(
-                    xs3d, ys3d, zs3d, self.ax.axes.M
-                )
+                xs, ys, zs = proj3d.proj_transform(xs3d, ys3d,
+                                                   zs3d, self.ax.axes.M)
                 self.set_positions((xs[0], ys[0]), (xs[1], ys[1]))
                 FancyArrowPatch.draw(self, renderer)
 
@@ -123,17 +116,14 @@ class SpacePlot:
         return fig.add_subplot(projection='3d')
 
     def draw_arrow(self, ax: Axes3D, vector, **kwargs):
-        ax.add_artist(
-            self.arrow3d(
-                ax,
-                [0, vector[0]],
-                [0, vector[1]],
-                [0, vector[2]],
-                mutation_scale=20,
-                arrowstyle='-|>',
-                **kwargs,
-            )
-        )
+        ax.add_artist(self.arrow3d(
+            ax,
+            [0, vector[0]],
+            [0, vector[1]],
+            [0, vector[2]],
+            mutation_scale=20,
+            arrowstyle='-|>',
+            **kwargs))
 
     def adjust_view(self, ax, minp, maxp, symmetric=True):
         import matplotlib.pyplot as plt
@@ -184,22 +174,13 @@ def normalize_name(name):
     return name
 
 
-def bz_plot(
-    cell: Cell,
-    vectors: bool = False,
-    paths=None,
-    points=None,
-    azim: float | None = None,
-    elev: float | None = None,
-    scale=1,
-    interactive: bool = False,
-    transforms: list | None = None,
-    repeat: tuple[int, int] | tuple[int, int, int] = (1, 1, 1),
-    pointstyle: dict | None = None,
-    ax=None,
-    show=False,
-    **kwargs,
-):
+def bz_plot(cell: Cell, vectors: bool = False, paths=None, points=None,
+            azim: float | None = None, elev: float | None = None,
+            scale=1, interactive: bool = False,
+            transforms: list | None = None,
+            repeat: tuple[int, int] | tuple[int, int, int] = (1, 1, 1),
+            pointstyle: dict | None = None,
+            ax=None, show=False, **kwargs,):
     """Plot the Brillouin zone of the Cell
 
     Parameters
@@ -251,8 +232,10 @@ def bz_plot(
     if ax is None:
         ax = plotter.new_axes(plt.gcf())
 
-    assert not np.array(cell)[dimensions:, :].any()
-    assert not np.array(cell)[:, dimensions:].any()
+    assert not cell[dimensions:, :].any()
+    assert not cell[:, dimensions:].any()
+
+
 
     icell = cell.reciprocal()
     kpoints = points
@@ -300,26 +283,22 @@ def bz_plot(
         for names, points in paths:
             for transform in transforms:
                 points = transform.apply(points)
-            coords = np.array(points).T[: plotter.axis_dim, :]
+            coords = np.array(points).T[:plotter.axis_dim, :]
             ax.plot(*coords, c='r', ls='-')
 
             for name, point in zip(names, points):
                 name = normalize_name(name)
                 for transform in transforms:
                     point = transform.apply(point)
-                point = point[: plotter.axis_dim]
-                ax.text(
-                    *point,
-                    rf'$\mathrm{{{name}}}$',
-                    color='g',
-                    **plotter.label_options(point),
-                )
+                point = point[:plotter.axis_dim]
+                ax.text(*point, rf'$\mathrm{{{name}}}$',
+                        color='g', **plotter.label_options(point))
 
     if kpoints is not None:
         kw = {'c': 'b', **plotter.point_options, **pointstyle}
         for transform in transforms:
             kpoints = transform.apply(kpoints)
-        ax.scatter(*kpoints[:, : plotter.axis_dim].T, **kw)
+        ax.scatter(*kpoints[:, :plotter.axis_dim].T, **kw)
 
     ax.set_axis_off()
 
