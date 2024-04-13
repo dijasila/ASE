@@ -20,7 +20,7 @@ def test_repeat_transpose_bz(testdir: Path) -> None:
     r = Rotation.from_rotvec([0, 0, np.deg2rad(10)])
     fig, ax = plt.subplots()
     hex2d.plot_bz(repeat=(2, 1), transforms=[r], ax=ax)
-    fig.savefig(testdir / "test_bz.png")
-    img1: Path = testdir.parent / "testdata" / "rotated_bz.png"
-    img2: Path = testdir / "test_bz.png"
+    fig.savefig(testdir / 'test_bz.png')
+    img1: Path = testdir.parent / 'testdata' / 'rotated_bz.png'
+    img2: Path = testdir / 'test_bz.png'
     compare_images(str(img1), str(img2), 0.1)
