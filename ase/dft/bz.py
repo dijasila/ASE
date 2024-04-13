@@ -100,8 +100,10 @@ class SpacePlot:
     ----------
     azim : float
         Azimuthal angle in radian for viewing 3D BZ.
+        default value is pi/5
     elev : float
         Elevation angle in radian for viewing 3D BZ.
+        default value is pi/6
 
     """
     axis_dim = 3
@@ -131,8 +133,8 @@ class SpacePlot:
                 return 0
 
         self.arrow3d = Arrow3D
-        self.azim: float = azim if azim else pi / 5
-        self.elev: float = elev if elev else pi / 6
+        self.azim: float = pi / 5 if azim is None else azim
+        self.elev: float = pi / 6 if elev is None else elev
         self.view = [
             sin(self.azim) * cos(self.elev),
             cos(self.azim) * cos(self.elev),
