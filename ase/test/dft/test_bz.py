@@ -17,6 +17,6 @@ def test_repeat_transpose_bz():
     fig, ax = plt.subplots()
     hex2d.plot_bz(repeat=(2, 1), transforms=[r], ax=ax)
     fig.savefig(datadir / 'test_bz.png')
-    img1 = datadir / 'baseline' / 'rotated_bz.png'
+    img1 = datadir.parent / 'testdata' / 'rotated_bz.png'
     img2 = datadir / 'test_bz.png'
     compare_images(str(img1), str(img2), 0.1)
