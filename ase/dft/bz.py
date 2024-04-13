@@ -1,6 +1,5 @@
-from __future__ import annotations
 from math import cos, pi, sin
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
 from itertools import product
@@ -45,14 +44,32 @@ class FlatPlot:
         return fig.gca()
 
     def adjust_view(self, ax, minp, maxp, symmetric: bool = True):
+        """Ajusting view property of the drawn BZ. (1D/2D)
+
+        Parameters
+        ----------
+        ax: Axes
+            matplotlib Axes object.
+        minp: float
+            minimum value for the plotting region, which detemines the
+            bottom left corner of the figure. if symmetric is set as True,
+            this value is ignored.
+        maxp: float
+            maximum value for the plotting region, which detemines the
+            top right corner of the figure.
+        symmetric: bool
+            if True, set the (0,0) position (Gamma-bar position) at the center
+            of the figure.
+
+        """
         ax.autoscale_view(tight=True)
         s = maxp * 1.05
         if symmetric:
             ax.set_xlim(-s, s)
             ax.set_ylim(-s, s)
         else:
-            ax.set_xlim(minp * 1.05, maxp * 1.05)
-            ax.set_ylim(minp * 1.05, maxp * 1.05)
+            ax.set_xlim(minp * 1.05, s)
+            ax.set_ylim(minp * 1.05, s)
         ax.set_aspect('equal')
 
     def draw_arrow(self, ax, vector, **kwargs):
@@ -77,11 +94,21 @@ class FlatPlot:
 
 
 class SpacePlot:
-    """Helper class for ordinary (3D) Brillouin zone plots."""
+    """Helper class for ordinary (3D) Brillouin zone plots.
+
+    Attributes
+    ----------
+    azim : float
+        Azimuthal angle in radian for viewing 3D BZ.
+    elev : float
+        Elevation angle in radian for viewing 3D BZ.
+
+    """
     axis_dim = 3
     point_options: Dict[str, Any] = {}
 
-    def __init__(self, *, azim: float | None = None, elev: float | None = None):
+    def __init__(self, *, azim: Optional[float] = None,
+                 elev: Optional[float] = None):
         class Arrow3D(FancyArrowPatch):
             def __init__(self, ax, xs, ys, zs, *args, **kwargs):
                 FancyArrowPatch.__init__(self, (0, 0), (0, 0), *args, **kwargs)
@@ -104,8 +131,8 @@ class SpacePlot:
                 return 0
 
         self.arrow3d = Arrow3D
-        self.azim: float = pi / 5 if azim is None else azim
-        self.elev: float = pi / 6 if elev is None else elev
+        self.azim: float = azim if azim else pi / 5
+        self.elev: float = elev if elev else pi / 6
         self.view = [
             sin(self.azim) * cos(self.elev),
             cos(self.azim) * cos(self.elev),
@@ -126,6 +153,24 @@ class SpacePlot:
             **kwargs))
 
     def adjust_view(self, ax, minp, maxp, symmetric=True):
+        """Ajusting view property of the drawn BZ. (3D)
+
+        Parameters
+        ----------
+        ax: Axes
+            matplotlib Axes object.
+        minp: float
+            minimum value for the plotting region, which detemines the
+            bottom left corner of the figure. if symmetric is set as True,
+            this value is ignored.
+        maxp: float
+            maximum value for the plotting region, which detemines the
+            top right corner of the figure.
+        symmetric: bool
+            Currently, this is not used, just for keeping consistency with 2D
+            version.
+
+        """
         import matplotlib.pyplot as plt
 
         # ax.set_aspect('equal') <-- won't work anymore in 3.1.0
@@ -175,11 +220,11 @@ def normalize_name(name):
 
 
 def bz_plot(cell: Cell, vectors: bool = False, paths=None, points=None,
-            azim: float | None = None, elev: float | None = None,
+            azim: Optional[float] = None, elev: Optional[float] = None,
             scale=1, interactive: bool = False,
-            transforms: list | None = None,
-            repeat: tuple[int, int] | tuple[int, int, int] = (1, 1, 1),
-            pointstyle: dict | None = None,
+            transforms: Optional[list] = None,
+            repeat: Union[Tuple[int, int], Tuple[int, int, int]] = (1, 1, 1),
+            pointstyle: Optional[dict] = None,
             ax=None, show=False, **kwargs,):
     """Plot the Brillouin zone of the Cell
 
@@ -224,7 +269,7 @@ def bz_plot(cell: Cell, vectors: bool = False, paths=None, points=None,
 
     dimensions = cell.rank
     if dimensions == 3:
-        plotter: SpacePlot | FlatPlot = SpacePlot(azim=azim, elev=elev)
+        plotter: Union[SpacePlot, FlatPlot] = SpacePlot(azim=azim, elev=elev)
     else:
         plotter = FlatPlot()
     assert dimensions > 0, 'No BZ for 0D!'
@@ -323,7 +368,6 @@ def bz_index(repeat):
     Returns
     -------
     Iterator[Tuple[int, int, int]]
-        [TODO:description]
 
     >>> list(_bz_index((1, 2, -2)))
     [(0, 0, 0), (0, 0, -1), (0, 1, 0), (0, 1, -1)]
