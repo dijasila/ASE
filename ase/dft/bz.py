@@ -174,7 +174,7 @@ class SpacePlot:
         import matplotlib.pyplot as plt
 
         # ax.set_aspect('equal') <-- won't work anymore in 3.1.0
-        ax.view_init(azim=np.deg2rad(self.azim), elev=np.deg2rad(self.elev))
+        ax.view_init(azim=np.rad2deg(self.azim), elev=np.rad2deg(self.elev))
         # We want aspect 'equal', but apparently there was a bug in
         # matplotlib causing wrong behaviour.  Matplotlib raises
         # NotImplementedError as of v3.1.0.  This is a bit unfortunate
