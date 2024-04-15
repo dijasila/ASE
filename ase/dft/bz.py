@@ -371,7 +371,7 @@ def bz_index(repeat):
 
     Parameters
     ----------
-    repeat:
+    repeat: Tuple[int, int] | Tuple[int, int, int]
         repeating for drawing BZ
 
     Returns
