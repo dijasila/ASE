@@ -227,7 +227,7 @@ def bz_plot(cell: Cell, vectors: bool = False, paths=None, points=None,
             transforms: Optional[list] = None,
             repeat: Union[Tuple[int, int], Tuple[int, int, int]] = (1, 1, 1),
             pointstyle: Optional[dict] = None,
-            ax=None, show=False, **kwargs,):
+            ax=None, show=False, **kwargs):
     """Plot the Brillouin zone of the Cell
 
     Parameters
@@ -258,6 +258,13 @@ def bz_plot(cell: Cell, vectors: bool = False, paths=None, points=None,
         matplolib Axes (Axes3D in 3D) object
     show : bool
         If true, show the figure.
+    **kwargs
+        Additional keyword arguments to pass to ax.plot
+
+    Returns
+    -------
+    ax
+        A matplotlib axis object.
     """
     import matplotlib.pyplot as plt
 
