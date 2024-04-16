@@ -1226,6 +1226,22 @@ def _compare_merge_configs(configs, new):
     oldres.update(newres)
 
 
+def _read_charges(fd):
+    fd.readline()
+    charges = []
+    magmoms = []
+    while True:
+        line = fd.readline()
+        if not line.strip()[0].isdigit():
+            break
+        charges.append(float(line.split()[2]))
+        if len(line.split()) > 3:
+            magmoms.append(float(line.split()[3]))
+    if len(magmoms) == 0:
+        return {'charges': charges}
+    return {'charges': charges, 'magmoms': magmoms}
+
+
 def read_gaussian_out(fd, index=-1):
     """Reads a gaussian output file and returns an Atoms object."""
     configs = []
@@ -1307,29 +1323,11 @@ def read_gaussian_out(fd, index=-1):
             # CCSD(T) energy
             energy = float(line.split('=')[-1].strip().replace('D', 'e'))
             energy *= Hartree
-        elif line in ('Mulliken charges:', 'Lowdin Atomic Charges:'):
+        elif (line in ('Mulliken charges:', 'Lowdin Atomic Charges:')
+              or line.startswith('Hirshfeld charges, spin densities,')):
             # Löwdin is printed after Mulliken and overwrites `charges`.
-            fd.readline()
-            charges = []
-            while True:
-                line = fd.readline()
-                if not line.strip()[0].isdigit():
-                    break
-                charges.append(float(line.split()[-1]))
-            results['charges'] = charges
-        elif line.startswith('Hirshfeld charges,'):
             # Hirshfeld is printed after Mulliken and overwrites `charges`.
-            fd.readline()
-            charges = []
-            magmoms = []
-            while True:
-                line = fd.readline()
-                if line.strip().startswith('Tot'):
-                    break
-                charges.append(float(line.split()[2]))
-                magmoms.append(float(line.split()[3]))
-            results['charges'] = charges
-            results['magmoms'] = magmoms
+            results.update(_read_charges(fd))
         elif line.startswith('Dipole moment') and energy is not None:
             # dipole moment in `l601.exe`, printed unless `Pop=None`
             # Skipped if energy is not printed in the same section.
