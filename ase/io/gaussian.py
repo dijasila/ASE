@@ -1323,8 +1323,11 @@ def read_gaussian_out(fd, index=-1):
             # CCSD(T) energy
             energy = float(line.split('=')[-1].strip().replace('D', 'e'))
             energy *= Hartree
-        elif (line in ('Mulliken charges:', 'Lowdin Atomic Charges:')
-              or line.startswith('Hirshfeld charges, spin densities,')):
+        elif (
+            line.startswith('Mulliken charges')
+            or line.startswith('Lowdin Atomic Charges')
+            or line.startswith('Hirshfeld charges, spin densities,')
+        ):
             # Löwdin is printed after Mulliken and overwrites `charges`.
             # Hirshfeld is printed after Mulliken and overwrites `charges`.
             results.update(_read_charges(fd))

@@ -82,6 +82,31 @@ BUF_H2O_L716 = r"""
  -------------------------------------------------------------------
 """  # noqa: E501
 
+BUF_O2 = r"""
+                          Input orientation:
+ ---------------------------------------------------------------------
+ Center     Atomic      Atomic             Coordinates (Angstroms)
+ Number     Number       Type             X           Y           Z
+ ---------------------------------------------------------------------
+      1          8           0        0.000000    0.000000    0.622978
+      2          8           0        0.000000    0.000000   -0.622978
+ ---------------------------------------------------------------------
+
+...
+
+ SCF Done:  E(UHF) =  -149.541919412     A.U. after   10 cycles
+"""
+
+BUF_O2_MULLIKEN = r"""
+ (Enter /opt/bwhpc/common/chem/gaussian/g16.C.01/x86_64-Intel-avx2-source/g16/l601.exe)
+...
+ Mulliken charges and spin densities:
+               1          2
+     1  O    0.000000   1.000000
+     2  O   -0.000000   1.000000
+ Sum of Mulliken charges =  -0.00000   2.00000
+"""  # noqa: E501
+
 BUF_F2_RHF = r"""
  Entering Gaussian System, Link 0=g16
 ...
@@ -288,6 +313,16 @@ def test_gaussian_out_hirshfeld():
     assert atoms.get_charges() == charges_ref
 
     assert atoms.get_magnetic_moments() == pytest.approx(np.zeros(3))
+
+
+def test_spin_polarized():
+    """Test if spin polarized calculations are parsed correctly."""
+    buf = BUF_O2 + BUF_O2_MULLIKEN
+    atoms = read(StringIO(buf), format='gaussian-out')
+
+    assert atoms.get_charges() == pytest.approx(np.zeros(2))
+
+    assert atoms.get_magnetic_moments() == pytest.approx(np.ones(2))
 
 
 def test_mp2():
