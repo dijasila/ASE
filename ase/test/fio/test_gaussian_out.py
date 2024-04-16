@@ -38,6 +38,13 @@ BUF_H2O = r"""
 BUF_H2O_L601 = r"""
  (Enter /opt/bwhpc/common/chem/gaussian/g16.C.01/x86_64-Intel-avx2-source/g16/l601.exe)
 ...
+ Mulliken charges:
+               1
+     1  O   -0.792441
+     2  H    0.396221
+     3  H    0.396221
+ Sum of Mulliken charges =  -0.00000
+...
  Dipole moment (field-independent basis, Debye):
     X=              0.0000    Y=             -0.0000    Z=             -2.6431  Tot=              2.6431
 """  # noqa: E501
@@ -211,6 +218,9 @@ def test_gaussian_out_l601():
 
     energy = atoms.get_potential_energy()
     assert energy / units.Ha == pytest.approx(-75.9834173665)
+
+    charges_ref = pytest.approx(np.array([-0.792441, +0.396221, +0.396221]))
+    assert atoms.get_charges() == charges_ref
 
     dipole_moment_ref = pytest.approx(np.array([+0.0000, -0.0000, -2.6431]))
     assert atoms.get_dipole_moment() / units.Debye == dipole_moment_ref

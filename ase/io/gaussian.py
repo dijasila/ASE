@@ -1231,6 +1231,7 @@ def read_gaussian_out(fd, index=-1):
     configs = []
     atoms = None
     energy = None
+    charges = None
     dipole = None
     forces = None
     orientation = None  # Orientation of the coordinates stored in atoms
@@ -1264,6 +1265,7 @@ def read_gaussian_out(fd, index=-1):
             atoms = None
             orientation = line.split()[0]  # Store the orientation
             energy = None
+            charges = None
             dipole = None
             forces = None
 
@@ -1310,6 +1312,14 @@ def read_gaussian_out(fd, index=-1):
             # CCSD(T) energy
             energy = float(line.split('=')[-1].strip().replace('D', 'e'))
             energy *= Hartree
+        elif line.startswith('Mulliken charges:'):
+            fd.readline()
+            charges = []
+            while True:
+                line = fd.readline()
+                if line.strip().startswith('Sum of Mulliken charges ='):
+                    break
+                charges.append(float(line.split()[-1]))
         elif line.startswith('Dipole moment') and energy is not None:
             # dipole moment in `l601.exe`, printed unless `Pop=None`
             # Skipped if energy is not printed in the same section.
@@ -1363,7 +1373,11 @@ def read_gaussian_out(fd, index=-1):
             forces = np.array(forces) * Hartree / Bohr
     if atoms is not None:
         atoms.calc = SinglePointCalculator(
-            atoms, energy=energy, dipole=dipole, forces=forces,
+            atoms,
+            energy=energy,
+            forces=forces,
+            charges=charges,
+            dipole=dipole,
         )
         _compare_merge_configs(configs, atoms)
     return configs[index]
