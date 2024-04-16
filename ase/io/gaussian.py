@@ -1321,12 +1321,15 @@ def read_gaussian_out(fd, index=-1):
             # Hirshfeld is printed after Mulliken and overwrites `charges`.
             fd.readline()
             charges = []
+            magmoms = []
             while True:
                 line = fd.readline()
                 if line.strip().startswith('Tot'):
                     break
                 charges.append(float(line.split()[2]))
+                magmoms.append(float(line.split()[3]))
             results['charges'] = charges
+            results['magmoms'] = magmoms
         elif line.startswith('Dipole moment') and energy is not None:
             # dipole moment in `l601.exe`, printed unless `Pop=None`
             # Skipped if energy is not printed in the same section.

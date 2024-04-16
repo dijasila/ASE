@@ -287,6 +287,8 @@ def test_gaussian_out_hirshfeld():
     charges_ref = pytest.approx(np.array([-0.338600, +0.169300, +0.169300]))
     assert atoms.get_charges() == charges_ref
 
+    assert atoms.get_magnetic_moments() == pytest.approx(np.zeros(3))
+
 
 def test_mp2():
     """Test if the MP2 energy is parsed correctly."""
