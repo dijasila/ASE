@@ -1231,9 +1231,7 @@ def read_gaussian_out(fd, index=-1):
     configs = []
     atoms = None
     energy = None
-    charges = None
-    dipole = None
-    forces = None
+    results = {}
     orientation = None  # Orientation of the coordinates stored in atoms
     for line in fd:
         line = line.strip()
@@ -1255,19 +1253,16 @@ def read_gaussian_out(fd, index=-1):
                 #  which is the orientation for forces.
                 #  If there are forces and the orientation of atoms is not
                 #  the input coordinate system, warn the user
-                if orientation != "Input" and forces is not None:
+                if orientation != "Input" and 'forces' in results:
                     logger.warning('Configuration geometry is not in the input'
                                    f'orientation. It is {orientation}')
-                atoms.calc = SinglePointCalculator(
-                    atoms, energy=energy, dipole=dipole, forces=forces,
-                )
+                calc = SinglePointCalculator(atoms, energy=energy, **results)
+                atoms.calc = calc
                 _compare_merge_configs(configs, atoms)
             atoms = None
             orientation = line.split()[0]  # Store the orientation
             energy = None
-            charges = None
-            dipole = None
-            forces = None
+            results = {}
 
             numbers = []
             positions = []
@@ -1321,6 +1316,7 @@ def read_gaussian_out(fd, index=-1):
                 if not line.strip()[0].isdigit():
                     break
                 charges.append(float(line.split()[-1]))
+            results['charges'] = charges
         elif line.startswith('Hirshfeld charges,'):
             # Hirshfeld is printed after Mulliken and overwrites `charges`.
             fd.readline()
@@ -1330,6 +1326,7 @@ def read_gaussian_out(fd, index=-1):
                 if line.strip().startswith('Tot'):
                     break
                 charges.append(float(line.split()[2]))
+            results['charges'] = charges
         elif line.startswith('Dipole moment') and energy is not None:
             # dipole moment in `l601.exe`, printed unless `Pop=None`
             # Skipped if energy is not printed in the same section.
@@ -1339,6 +1336,7 @@ def read_gaussian_out(fd, index=-1):
             # from `l601` conflicts with the previous record from `l716`.
             line = fd.readline().strip()
             dipole = np.array([float(_) for _ in line.split()[1:6:2]]) * Debye
+            results['dipole'] = dipole
         elif _re_l716.match(line):
             # Sometimes Gaussian will print "Rotating derivatives to
             # standard orientation" after the matched line (which looks like
@@ -1369,7 +1367,7 @@ def read_gaussian_out(fd, index=-1):
                 continue
             # this dipole moment is printed in atomic units, e-Bohr
             # ASE uses e-Angstrom for dipole moments.
-            dipole = np.array(dipole) * Bohr
+            results['dipole'] = np.array(dipole) * Bohr
         elif _re_forceblock.match(line):
             # skip 2 irrelevant lines
             fd.readline()
@@ -1380,14 +1378,8 @@ def read_gaussian_out(fd, index=-1):
                 if match is None:
                     break
                 forces.append(list(map(float, match.group(2, 3, 4))))
-            forces = np.array(forces) * Hartree / Bohr
+            results['forces'] = np.array(forces) * Hartree / Bohr
     if atoms is not None:
-        atoms.calc = SinglePointCalculator(
-            atoms,
-            energy=energy,
-            forces=forces,
-            charges=charges,
-            dipole=dipole,
-        )
+        atoms.calc = SinglePointCalculator(atoms, energy=energy, **results)
         _compare_merge_configs(configs, atoms)
     return configs[index]
