@@ -124,6 +124,12 @@ class DFTD3(BaseCalculator):
         assert set(properties) <= set(results)
         return results
 
+    def write(self, *args, **kwargs):
+        if hasattr(self.dft, 'write'):
+            return self.dft.write(*args, **kwargs)
+        else:
+            raise AttributeError('DFTD3.calc object has no attribute write')
+
 
 class PureDFTD3(FileIOCalculator):
     """DFTD3 calculator without corresponding DFT contribution.
