@@ -49,6 +49,15 @@ BUF_H2O_L601 = r"""
     X=              0.0000    Y=             -0.0000    Z=             -2.6431  Tot=              2.6431
 """  # noqa: E501
 
+BUF_H2O_HIRSHFELD = r"""
+ Hirshfeld charges, spin densities, dipoles, and CM5 charges using IRadAn=      5:
+              Q-H        S-H        Dx         Dy         Dz        Q-CM5
+     1  O   -0.338600   0.000000   0.000000  -0.000000  -0.367327  -0.665793
+     2  H    0.169300   0.000000  -0.000000   0.161888  -0.145504   0.332897
+     3  H    0.169300   0.000000  -0.000000  -0.161888  -0.145504   0.332897
+       Tot  -0.000000   0.000000  -0.000000  -0.000000  -0.658335  -0.000000
+"""  # noqa: E501
+
 BUF_H2O_L716 = r"""
  (Enter /opt/bwhpc/common/chem/gaussian/g16.C.01/x86_64-Intel-avx2-source/g16/l716.exe)
  Dipole        = 3.27065103D-16-1.33226763D-15-1.03989005D+00
@@ -241,6 +250,18 @@ def test_gaussian_out_l716():
     assert atoms.get_dipole_moment() / units.Bohr == pytest.approx(np.array(
         [+3.27065103e-16, -1.33226763e-15, -1.03989005e+00],
     ))
+
+
+def test_gaussian_out_hirshfeld():
+    """Test if Hirshfeld charges are parsed correctly from `l601.exe`.
+
+    This corresponds to the options with `Pop=Hirshfeld`.
+    """
+    buf = BUF_H2O + BUF_H2O_MULLIKEN + BUF_H2O_HIRSHFELD
+    atoms = read(StringIO(buf), format='gaussian-out')
+
+    charges_ref = pytest.approx(np.array([-0.338600, +0.169300, +0.169300]))
+    assert atoms.get_charges() == charges_ref
 
 
 def test_mp2():

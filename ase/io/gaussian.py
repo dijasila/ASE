@@ -1320,6 +1320,15 @@ def read_gaussian_out(fd, index=-1):
                 if line.strip().startswith('Sum of Mulliken charges ='):
                     break
                 charges.append(float(line.split()[-1]))
+        elif line.startswith('Hirshfeld charges,'):
+            # Hirshfeld is printed after Mulliken and overwrites `charges`.
+            fd.readline()
+            charges = []
+            while True:
+                line = fd.readline()
+                if line.strip().startswith('Tot'):
+                    break
+                charges.append(float(line.split()[2]))
         elif line.startswith('Dipole moment') and energy is not None:
             # dipole moment in `l601.exe`, printed unless `Pop=None`
             # Skipped if energy is not printed in the same section.
