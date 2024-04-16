@@ -1312,12 +1312,13 @@ def read_gaussian_out(fd, index=-1):
             # CCSD(T) energy
             energy = float(line.split('=')[-1].strip().replace('D', 'e'))
             energy *= Hartree
-        elif line.startswith('Mulliken charges:'):
+        elif line in ('Mulliken charges:', 'Lowdin Atomic Charges:'):
+            # Löwdin is printed after Mulliken and overwrites `charges`.
             fd.readline()
             charges = []
             while True:
                 line = fd.readline()
-                if line.strip().startswith('Sum of Mulliken charges ='):
+                if not line.strip()[0].isdigit():
                     break
                 charges.append(float(line.split()[-1]))
         elif line.startswith('Hirshfeld charges,'):

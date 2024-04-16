@@ -35,7 +35,7 @@ BUF_H2O = r"""
  SCF Done:  E(RHF) =  -75.9834173665     A.U. after   10 cycles
 """
 
-BUF_H2O_L601 = r"""
+BUF_H2O_MULLIKEN = r"""
  (Enter /opt/bwhpc/common/chem/gaussian/g16.C.01/x86_64-Intel-avx2-source/g16/l601.exe)
 ...
  Mulliken charges:
@@ -44,7 +44,18 @@ BUF_H2O_L601 = r"""
      2  H    0.396221
      3  H    0.396221
  Sum of Mulliken charges =  -0.00000
-...
+"""  # noqa: E501
+
+BUF_H2O_LOWDIN = r"""
+ Lowdin Atomic Charges:
+               1
+     1  O   -0.584488
+     2  H    0.292244
+     3  H    0.292244
+ Sum of Lowdin charges  =  -0.00000
+"""
+
+BUF_H2O_L601_DIPOLE = r"""
  Dipole moment (field-independent basis, Debye):
     X=              0.0000    Y=             -0.0000    Z=             -2.6431  Tot=              2.6431
 """  # noqa: E501
@@ -215,7 +226,8 @@ def test_gaussian_out_l601():
     Test also if dipole moment is parsed correctly from `l601.exe`.
     This corresponds to the options without `Forces` and `Pop=None`.
     """
-    atoms = read(StringIO(BUF_H2O + BUF_H2O_L601), format='gaussian-out')
+    buf = BUF_H2O + BUF_H2O_MULLIKEN + BUF_H2O_L601_DIPOLE
+    atoms = read(StringIO(buf), format='gaussian-out')
     assert str(atoms.symbols) == 'OH2'
     assert atoms.positions == pytest.approx(np.array([
         [+0.000000, +0.000000, +0.119262],
@@ -250,6 +262,18 @@ def test_gaussian_out_l716():
     assert atoms.get_dipole_moment() / units.Bohr == pytest.approx(np.array(
         [+3.27065103e-16, -1.33226763e-15, -1.03989005e+00],
     ))
+
+
+def test_gaussian_out_lowdin():
+    """Test if Löwdin charges are parsed correctly from `l601.exe`.
+
+    This corresponds to the options with `IOp(6/80=1)`.
+    """
+    buf = BUF_H2O + BUF_H2O_MULLIKEN + BUF_H2O_LOWDIN
+    atoms = read(StringIO(buf), format='gaussian-out')
+
+    charges_ref = pytest.approx(np.array([-0.584488, +0.292244, +0.292244]))
+    assert atoms.get_charges() == charges_ref
 
 
 def test_gaussian_out_hirshfeld():
