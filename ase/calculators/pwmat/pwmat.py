@@ -22,15 +22,15 @@ __date__ = "2024-1-17"
 
 class PWmat(GeneratePWmatInput, Calculator):
     """ASE interface for the PWmat, with the Calculator interface.
-    
+
     Parameters:
-    
+
     atoms: object
         Attach an atoms object to the calculator.
 
     job: str
         The task type of PWmat to execute
-    
+
     label: str
         Prefix for the output file, Default is 'pwmat'.
 
@@ -54,7 +54,7 @@ class PWmat(GeneratePWmatInput, Calculator):
             which has a 'write' attribute.
 
         Default is 'pwmat.out'
-    
+
         - Requsite:
             $ export PWMAT_PP_PATH=<your_path_to_pp>/PseudoPotential
             $ export ASE_PWMAT_COMMAND="mpirun -np 1 PWmat| tee output"
@@ -64,7 +64,7 @@ class PWmat(GeneratePWmatInput, Calculator):
         >>> atoms=read("./atom.config")
         >>> pwmat=PWmat(atoms=atoms, job='scf', parallel=[4,1], directory=".")
         >>> pwmat.calculate()  # launch the task.
-    
+
     command: str
         Custom instructions on how to execute PWmat. Has priority over
         environment variables.
@@ -100,7 +100,7 @@ class PWmat(GeneratePWmatInput, Calculator):
         # Set directory and label
         '''
         Examples to explain `directory`, `label`
-        
+
         * label='abc': (directory='.', prefix='abc')
         * label='dir1/abc': (directory='dir1', prefix='abc')
         * label=None: (directory='.', prefix=None)
@@ -116,7 +116,7 @@ class PWmat(GeneratePWmatInput, Calculator):
                 raise ValueError(msg)
             self.label: str = label
         else:
-            self.prefix: str = label # The label should only contain the prefix
+            self.prefix: str = label    # The label should only contain the prefix
 
         if isinstance(restart, bool):
             restart = self.label if restart is True else None
@@ -136,7 +136,7 @@ class PWmat(GeneratePWmatInput, Calculator):
 
     def write_input(self, atoms: Atoms):
         """Write all inputfiles"""
-        # Create the folders where we write the files, if we aren't in the 
+        # Create the folders where we write the files, if we aren't in the
         # current working directory
         if self.directory != os.curdir and not os.path.isdir(self.directory):
             os.makedirs(self.directory)
@@ -148,39 +148,39 @@ class PWmat(GeneratePWmatInput, Calculator):
 
     def initialize(self, atoms: Atoms):
         self.atoms = atoms
-        #self.natoms = len(atoms)
+        # self.natoms = len(atoms)
 
-    def calculate(self, 
-                  atoms: Optional[Atoms] = None, 
+    def calculate(self,
+                  atoms: Optional[Atoms] = None,
                   properties=('energy', ),
                   system_changes=tuple(calculator.all_changes)):
         """Do a PWmat calculation in the specified directory.
-        
+
         This will generate the necessary PWmat input files, and then
         execute PWmat. After execution, the energy, forces. etc. are read
         from the PWmat output files.
         """
         command: str = self.make_command(self.command)
-        
+
         if atoms is not None:
             self.atoms = atoms.copy()
         self.write_input(self.atoms)
-        
+
         with self._txt_outstream() as out:
             errorcode = self._run(command=command,
                                   out=out,
                                   directory=self.directory)
-        
+
         if errorcode:
             raise calculator.CalculationFailed(
                 '{} in {} returned an error: {:d}'.format(
                     self.name, Path(self.directory).resolve(), errorcode))
         # Read results from calculation: Temporarily not implemented.
-                
-    def _run(self, 
-             command: str, 
-             out: Optional[io.TextIOWrapper]=None, 
-             directory: Optional[str]=None) -> int:
+
+    def _run(self,
+             command: str,
+             out: Optional[io.TextIOWrapper] = None,
+             directory: Optional[str] = None) -> int:
         """Method to explicitly execute PWmat"""
         if command is None:
             command = self.command
@@ -193,7 +193,7 @@ class PWmat(GeneratePWmatInput, Calculator):
         return errorcode
 
     def make_command(self, command:Union[str, None] = None) -> str:
-        """Return command if one is passed, otherwise try to find 
+        """Return command if one is passed, otherwise try to find
         ASE_PWMAT_COMMAND, PWMAT_COMMAND or PWMAT_SCRIPT.
         If none are set, a CalculatorSetUpError is raised"""
         cmd: str = ""
@@ -208,11 +208,11 @@ class PWmat(GeneratePWmatInput, Calculator):
 
     def read(self, label: Union[str, None] = None):
         """Read results from PWmat output files.
-        
-        Files which are read: 
+
+        Files which are read:
             - final.config
             - REPORT (No implementation now)
-            
+ 
         Raises ReadError if they are not found"""
         if label is None:
             label = self.label
@@ -312,4 +312,3 @@ class PWmat(GeneratePWmatInput, Calculator):
         """Read the atoms from file located in the PWmat
         working directory. Normally called final.config."""
         return read(filename)
-    

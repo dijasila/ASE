@@ -113,9 +113,6 @@ char_keys: List[str] = [
     'IN.ATOM',
     'CONVERGENCE',
     'XCFUNCTIONAL',
-    #'IN.PSP1', Directly added in `char_dct` in function cls.write_etot_input()
-    #'IN.PSP2',
-    #'IN.PSP3',
     'VDW',
 ]
 
@@ -426,7 +423,7 @@ class GeneratePWmatInput:
             os.remove(tmp_atom_config_path)
 
         with open(atom_config_path, 'r', encoding='utf-8') as f,\
-            open(tmp_atom_config_path, 'w', encoding='utf-8') as tmp_f:
+                open(tmp_atom_config_path, 'w', encoding='utf-8') as tmp_f:
             for line in f:
                 if "MAGNETIC" not in line.upper():
                     tmp_f.write(line)
@@ -554,4 +551,3 @@ class GeneratePWmatInput:
         etot_input_params.update(list_float_dct)
         # Output
         write_etot_input(directory=directory, parameters=etot_input_params)
-        
