@@ -91,11 +91,11 @@ bool_keys: List[str] = [
     'OUT.VR',
     'IN.VEXT',
     'OUT.VATOM',
-    'OUT.FORCE',  # Calculate atomic force and output it to OUT.FORCE file.
-    'OUT.STRESS', # Calculate virial tensor and output it to OUT.STRESS file.
+    'OUT.FORCE',    # Calculate atomic force and output it to OUT.FORCE file.
+    'OUT.STRESS',   # Calculate virial tensor and output it to OUT.STRESS file.
     'IN.SYMM',
-    'CHARGE_DECOMP', # Output the charge of each atom
-    'ENERGY_DECOMP', # Output the energy of each atom
+    'CHARGE_DECOMP',    # Output the charge of each atom
+    'ENERGY_DECOMP',    # Output the energy of each atom
     'IN.SOLVENT',
     'IN.NONSCF',
     'IN.CC',
@@ -154,7 +154,7 @@ list_float_keys: List[str] = [
     'SCF_ITER0_1',
     'SCF_ITER0_2',
     'MD_DETAIL',
-    "RELAX_DETAIL", # Set when relax structure
+    "RELAX_DETAIL",     # Set when relax structure
 ]
 
 # PWmat has 8 types of parameters.
@@ -201,7 +201,7 @@ class GeneratePWmatInput:
                 self.parallel_params.update({"PARALLEL": [4, 1]})
             else:
                 self.parallel_params.update({tmp_key: None})
-        ### Type 4. char
+        # Type 4. char
         for tmp_key in char_keys:
             if tmp_key == "JOB":
                 self.char_params.update({"JOB": job.upper()})
@@ -554,4 +554,4 @@ class GeneratePWmatInput:
         etot_input_params.update(list_float_dct)
         # Output
         write_etot_input(directory=directory, parameters=etot_input_params)
-    
+        

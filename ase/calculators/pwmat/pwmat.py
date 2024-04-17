@@ -20,13 +20,12 @@ __email__ = "domainofbuaa@gmail.com"
 __date__ = "2024-1-17"
 
 
-
 class PWmat(GeneratePWmatInput, Calculator):
     """ASE interface for the PWmat, with the Calculator interface.
     
     Parameters:
     
-    atoms:  object
+    atoms: object
         Attach an atoms object to the calculator.
 
     job: str
@@ -60,11 +59,11 @@ class PWmat(GeneratePWmatInput, Calculator):
             $ export PWMAT_PP_PATH=<your_path_to_pp>/PseudoPotential
             $ export ASE_PWMAT_COMMAND="mpirun -np 1 PWmat| tee output"
         - Examples:
-            >>> from ase.io import read
-            >>> from ase.calculator.pwmat import pwmat
-            >>> atoms = read("./atom.config")
-            >>> pwmat = PWmat(atoms=atoms, job='scf', parallel=[4, 1], directory=".")
-            >>> pwmat.calculate()  # launch the task.
+        >>> from ase.io import read
+        >>> from ase.calculator.pwmat import pwmat
+        >>> atoms=read("./atom.config")
+        >>> pwmat=PWmat(atoms=atoms, job='scf', parallel=[4,1], directory=".")
+        >>> pwmat.calculate()  # launch the task.
     
     command: str
         Custom instructions on how to execute PWmat. Has priority over
@@ -298,8 +297,8 @@ class PWmat(GeneratePWmatInput, Calculator):
             elif hasattr(txt, 'write'):
                 out = txt
             else:
-                raise RuntimeError(f'txt should either be a string'
-                                   'or an I/O stream, got {}'.format(txt))
+                raise RuntimeError(
+                    f'txt should be a string or an I/O stream, got {txt}')
 
         try:
             if open_and_close:
