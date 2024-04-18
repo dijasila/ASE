@@ -268,6 +268,14 @@ def add_vacuum(atoms, vacuum):
     atoms.set_cell(uc)
 
 
+def create_tags(size) -> np.array:
+    """ Function to create layer tags. """
+    # tag atoms by layer
+    tags = np.empty((size[2], size[1], size[0]), int)
+    tags[:] = np.arange(size[2], 0, -1).reshape((-1, 1, 1))
+    return tags.ravel()
+
+
 def _surface(symbol, structure, face, size, a, c, vacuum, periodic,
              orthogonal=True):
     """Function to build often used surfaces.
@@ -300,7 +308,7 @@ def _surface(symbol, structure, face, size, a, c, vacuum, periodic,
     tags[:] = np.arange(size[2], 0, -1).reshape((-1, 1, 1))
 
     slab = Atoms(numbers,
-                 tags=tags.ravel(),
+                 tags=create_tags(size),
                  pbc=(True, True, periodic),
                  cell=size)
 
