@@ -16,14 +16,15 @@ from io import StringIO, UnsupportedOperation
 import numpy as np
 
 from ase.atoms import Atoms
+from ase.calculators.calculator import BaseCalculator
 from ase.calculators.singlepoint import SinglePointCalculator
 from ase.constraints import FixAtoms, FixCartesian
 from ase.io.formats import index2range
 from ase.io.utils import ImageIterator
 from ase.outputs import ArrayProperty, all_outputs
 from ase.spacegroup.spacegroup import Spacegroup
-from ase.stress import voigt_6_to_full_3x3_stress
 from ase.utils import reader, writer
+from ase.stress import voigt_6_to_full_3x3_stress
 
 __all__ = ['read_xyz', 'write_xyz', 'iread_xyz']
 
@@ -45,10 +46,14 @@ UNPROCESSED_KEYS = {'uid'}
 
 SPECIAL_3_3_KEYS = {'Lattice', 'virial', 'stress'}
 
-# select subset of properties that are not per-atom
-per_config_properties = [key for key, val in all_outputs.items()
-                         if not (isinstance(val, ArrayProperty) and
-                                 val.shapespec[0] == 'natoms')]
+# 'per-atom' and 'per-config'
+per_atom_properties = []
+per_config_properties = []
+for key, val in all_outputs.items():
+    if isinstance(val, ArrayProperty) and val.shapespec[0] == 'natoms':
+        per_atom_properties.append(key)
+    else:
+        per_config_properties.append(key)
 
 
 def key_val_str_to_dict(string, sep=None):
@@ -722,7 +727,8 @@ def read_xyz(fileobj, index=-1, properties_parser=key_val_str_to_dict):
         yield _read_xyz_frame(fileobj, natoms, properties_parser, nvec)
 
 
-def output_column_format(atoms, columns, arrays, write_info=True):
+def output_column_format(atoms, columns, arrays,
+                         write_info=True, results=None):
     """
     Helper function to build extended XYZ comment line
     """
@@ -781,6 +787,8 @@ def output_column_format(atoms, columns, arrays, write_info=True):
     info = {}
     if write_info:
         info.update(atoms.info)
+    if results is not None:
+        info.update(results)
     info['pbc'] = atoms.get_pbc()  # always save periodic boundary conditions
     comment_str += ' ' + key_val_dict_to_str(info)
 
@@ -793,37 +801,45 @@ def output_column_format(atoms, columns, arrays, write_info=True):
 @writer
 def write_xyz(fileobj, images, comment='', columns=None,
               write_info=True,
-              write_results=True, plain=False, vec_cell=False):
+              write_results=True, plain=False, vec_cell=False, *,
+              custom_per_atom_properties=None,
+              custom_per_config_properties=None):
     """
     Write output in extended XYZ format
 
-    Optionally, specify which columns (arrays) to include in output,
-    whether to write the contents of the `atoms.info` dict to the
-    XYZ comment line (default is True), the results of any
-    calculator attached to this Atoms. The `plain` argument
-    can be used to write a simple XYZ file with no additional information.
-    `vec_cell` can be used to write the cell vectors as additional
-    pseudo-atoms.
-
     See documentation for :func:`read_xyz()` for further details of the extended
     XYZ file format.
+
+    Parameters
+    ----------
+    columns : list[str] | None, default: None
+        Properties in `atoms.arrays` to include.
+    write_info : bool, default: True
+        The contents in `atoms.info` are written to the XYZ comment line.
+    write_results : bool, default: True
+        The standard properties in `atoms.calc.results` are written.
+    plain : bool, default: False
+        If True, a simple XYZ file is written with no additional information.
+    vec_cell : bool, default: False
+        If True, the cell vectors are written as additional pseudo-atoms.
+    custom_per_atom_properties : list[str] | None, default: None
+        The specified custom per-atom properties are printed if stored in
+        ``atoms.calc.results`` additionally to the standard ones
+    custom_per_config_properties : list[str] | None, default: None
+        The specified custom per-config properties are printed if stored in
+        ``atoms.calc.results`` additionally to the standard ones
     """
+    if custom_per_atom_properties is None:
+        custom_per_atom_properties = []
+
+    if custom_per_config_properties is None:
+        custom_per_config_properties = []
 
     if hasattr(images, 'get_positions'):
         images = [images]
 
     for atoms in images:
         natoms = len(atoms)
-
-        if write_results:
-            calculator = atoms.calc
-            atoms = atoms.copy()
-
-            save_calc_results(atoms, calculator, calc_prefix="")
-
-            if atoms.info.get('stress', np.array([])).shape == (6,):
-                atoms.info['stress'] = \
-                    voigt_6_to_full_3x3_stress(atoms.info['stress'])
 
         if columns is None:
             fr_cols = (['symbols', 'positions']
@@ -840,6 +856,34 @@ def write_xyz(fileobj, images, comment='', columns=None,
             fr_cols = ['symbols', 'positions']
             write_info = False
             write_results = False
+
+        all_per_atom_properties = \
+            per_atom_properties + custom_per_atom_properties
+        all_per_config_properties = \
+            per_config_properties + custom_per_config_properties
+        per_frame_results = {}
+        per_atom_results = {}
+        if write_results:
+            calculator = atoms.calc
+            if (calculator is not None
+                    and isinstance(calculator, BaseCalculator)):
+                for key in all_per_atom_properties + all_per_config_properties:
+                    value = calculator.results.get(key, None)
+                    if value is None:
+                        # skip missing calculator results
+                        continue
+                    if (key in all_per_atom_properties
+                            and len(value.shape) >= 1
+                            and value.shape[0] == len(atoms)):
+                        # per-atom quantities (forces, energies, stresses)
+                        per_atom_results[key] = value
+                    elif key in all_per_config_properties:
+                        # per-frame quantities (energy, stress)
+                        # special case for stress, which should be converted
+                        # to 3x3 matrices before writing
+                        if key == 'stress' and value.shape == (6,):
+                            value = voigt_6_to_full_3x3_stress(value)
+                        per_frame_results[key] = value
 
         # Move symbols and positions to first two properties
         if 'symbols' in fr_cols:
@@ -911,10 +955,17 @@ def write_xyz(fileobj, images, comment='', columns=None,
             else:
                 raise ValueError(f'Missing array "{column}"')
 
+        if write_results:
+            for key in per_atom_results:
+                assert key not in fr_cols
+                fr_cols += [key]
+            arrays.update(per_atom_results)
+
         comm, ncols, dtype, fmt = output_column_format(atoms,
                                                        fr_cols,
                                                        arrays,
-                                                       write_info)
+                                                       write_info,
+                                                       per_frame_results)
 
         if plain or comment != '':
             # override key/value pairs with user-speficied comment string
@@ -940,55 +991,6 @@ def write_xyz(fileobj, images, comment='', columns=None,
         fileobj.write(f'{comm}\n')
         for i in range(natoms):
             fileobj.write(fmt % tuple(data[i]))
-
-
-def save_calc_results(atoms, calc=None, calc_prefix=None,
-                      remove_atoms_calc=False, force=False):
-    """Update information in atoms from results in a calculator
-
-    Args:
-    atoms (ase.atoms.Atoms): Atoms object, modified in place
-    calc (ase.calculators.Calculator, optional): calculator to take results
-        from.  Defaults to :attr:`atoms.calc`
-    calc_prefix (str, optional): String to prefix to results names
-        in :attr:`atoms.arrays` and :attr:`atoms.info`. Defaults to
-        calculator class name
-    remove_atoms_calc (bool): remove the calculator from the `atoms`
-        object after saving its results.  Defaults to `False`, ignored if
-        `calc` is passed in
-    force (bool, optional): overwrite existing fields with same name,
-        default False
-    """
-    if calc is None:
-        calc_use = atoms.calc
-    else:
-        calc_use = calc
-
-    if calc_use is None:
-        return None, None
-
-    if calc_prefix is None:
-        calc_prefix = calc_use.__class__.__name__ + '_'
-
-    per_config_results = {}
-    per_atom_results = {}
-    for prop, value in calc_use.results.items():
-        if prop in per_config_properties:
-            per_config_results[calc_prefix + prop] = value
-        else:
-            per_atom_results[calc_prefix + prop] = value
-
-    if not force:
-        if any(key in atoms.info for key in per_config_results):
-            raise KeyError("key from calculator already exists in atoms.info")
-        if any(key in atoms.arrays for key in per_atom_results):
-            raise KeyError("key from calculator already exists in atoms.arrays")
-
-    atoms.info.update(per_config_results)
-    atoms.arrays.update(per_atom_results)
-
-    if remove_atoms_calc and calc is None:
-        atoms.calc = None
 
 
 # create aliases for read/write functions

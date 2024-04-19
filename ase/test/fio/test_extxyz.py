@@ -1,8 +1,6 @@
 # additional tests of the extended XYZ file I/O
 # (which is also included in oi.py test case)
 # maintained by James Kermode <james.kermode@gmail.com>
-
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -13,10 +11,12 @@ from ase.atoms import Atoms
 from ase.build import bulk, molecule
 from ase.calculators.calculator import compare_atoms
 from ase.calculators.emt import EMT
+from ase.calculators.mixing import LinearCombinationCalculator
 from ase.calculators.singlepoint import SinglePointCalculator
 from ase.constraints import FixAtoms, FixCartesian
 from ase.io import extxyz
-from ase.io.extxyz import escape, save_calc_results
+from ase.io.extxyz import escape
+from ase.stress import voigt_6_to_full_3x3_stress
 
 # array data of shape (N, 1) squeezed down to shape (N, ) -- bug fixed
 # in commit r4541
@@ -290,7 +290,8 @@ def test_escape():
     assert escape('string with spaces') == '"string with spaces"'
 
 
-def test_stress():
+@pytest.fixture(name="atoms_h2o_dimer_pbc")
+def fixture_atoms_h2o_dimer_pbc():
     # build a water dimer, which has 6 atoms
     water1 = molecule('H2O')
     water2 = molecule('H2O')
@@ -298,12 +299,26 @@ def test_stress():
     atoms = water1 + water2
     atoms.cell = [10, 10, 10]
     atoms.pbc = True
+    return atoms
 
-    atoms.calc = EMT()
-    a_stress = atoms.get_stress()
-    atoms.write('tmp.xyz')
+
+def test_stress(atoms_h2o_dimer_pbc):
+    """Test stress parsing in a round-trip manner"""
+    atoms_h2o_dimer_pbc.calc = EMT()
+    a_stress = atoms_h2o_dimer_pbc.get_stress()
+    atoms_h2o_dimer_pbc.write('tmp.xyz')
     b = ase.io.read('tmp.xyz')
     assert abs(b.get_stress() - a_stress).max() < 1e-6
+
+
+def test_stress_3x3(atoms_h2o_dimer_pbc):
+    """Test if the stress tensor stored in a 3x3 matrix can be written"""
+    atoms_h2o_dimer_pbc.calc = EMT()
+    # store the stress tensor in a 3x3 matrix by hand
+    atoms_h2o_dimer_pbc.calc.results['stress'] = voigt_6_to_full_3x3_stress(
+        atoms_h2o_dimer_pbc.get_stress(),
+    )
+    atoms_h2o_dimer_pbc.write("tmp.xyz")  # test if no errors are raised
 
 
 def test_json_scalars():
@@ -410,61 +425,26 @@ As          -0.0000000002       2.0834705948       9.9596183135""")
     assert (atoms.pbc == atoms_pbc).all()
 
 
-def test_conflicting_fields():
+def test_custom_properties():
+    """Test if custom_properties can be parsed corrrectly."""
     atoms = Atoms('Cu', cell=[2] * 3, pbc=[True] * 3)
     atoms.calc = EMT()
-
-    _ = atoms.get_potential_energy()
-    atoms.info["energy"] = 100
-    # info / per-config conflict
-    with pytest.raises(KeyError):
-        ase.io.write(sys.stdout, atoms, format="extxyz")
-
-    atoms = Atoms('Cu', cell=[2] * 3, pbc=[True] * 3)
-    atoms.calc = EMT()
-
-    _ = atoms.get_forces()
-    atoms.new_array("forces", np.ones(atoms.positions.shape))
-    # arrays / per-atom conflict
-    with pytest.raises(KeyError):
-        ase.io.write(sys.stdout, atoms, format="extxyz")
-
-
-def test_save_calc_results():
-    # DEFAULT (class name)
-    atoms = Atoms('Cu', cell=[2] * 3, pbc=[True] * 3)
-    atoms.calc = EMT()
-    _ = atoms.get_potential_energy()
-
-    calc_prefix = atoms.calc.__class__.__name__ + '_'
-    save_calc_results(atoms, remove_atoms_calc=True)
-    # make sure calculator was removed
-    assert atoms.calc is None
-
-    # make sure info/arrays keys with right names exist
-    assert calc_prefix + 'energy' in atoms.info
-    assert calc_prefix + 'forces' in atoms.arrays
-
-    # EXPLICIT STRING
-    atoms = Atoms('Cu', cell=[2] * 3, pbc=[True] * 3)
-    atoms.calc = EMT()
-    _ = atoms.get_potential_energy()
-
-    calc_prefix = 'REF_'
-    save_calc_results(atoms, calc_prefix=calc_prefix)
-    # make sure calculator was not removed
-    assert atoms.calc is not None
-
-    # make sure info/arrays keys with right names exist
-    assert calc_prefix + 'energy' in atoms.info
-    assert calc_prefix + 'forces' in atoms.arrays
-
-    # make sure conflicting field names raise an error
-    with pytest.raises(KeyError):
-        save_calc_results(atoms, calc_prefix=calc_prefix)
-
-    # make sure conflicting field names do not raise an error when force=True
-    save_calc_results(atoms, calc_prefix=calc_prefix, force=True)
+    atoms.get_potential_energy()
+    atoms.calc.results['REF_energy'] = atoms.calc.results.pop('energy')
+    atoms.calc.results['REF_forces'] = atoms.calc.results.pop('forces')
+    atoms.write(
+        'tmp.xyz',
+        custom_per_atom_properties=['REF_forces'],
+        custom_per_config_properties=['REF_energy'],
+    )
+    with open('tmp.xyz') as fd:
+        line = fd.readlines()[1]
+        assert 'REF_energy=' in line
+        assert 'REF_forces:R:3' in line
+    # TODO: We should also update `read_extxyz` to make it work with follows.
+    # atoms = ase.io.read('tmp.xyz')
+    # for _ in ['REF_energy', 'REF_forces']:
+    #     assert _ in atoms.calc.results
 
 
 def test_basic_functionality(tmp_path):
@@ -488,3 +468,15 @@ def test_basic_functionality(tmp_path):
                 assert 'REF_energy=' in line
             else:
                 assert len(line.strip().split()) == 1 + 3 + 1 + 3
+
+
+def test_mixing_calculator():
+    """Test if results from `LinearCombinationCalculator` can be written
+
+    `LinearCombinationCalculator` has non-standard properties like
+    `energy_contributions` in `results`. Here we check if this causes errors.
+    """
+    atoms = bulk('Cu')
+    atoms.calc = LinearCombinationCalculator([EMT()], [1.0])
+    atoms.get_potential_energy()
+    atoms.write("tmp.xyz")
