@@ -115,6 +115,7 @@ elk                                       Full Potential LAPW code
 :mod:`~ase.calculators.siesta`            LCAO pseudopotential code
 :mod:`~ase.calculators.turbomole`         Fast atom orbital code
 :mod:`~ase.calculators.vasp`              Plane-wave PAW code
+:mod:`~ase.calculators.conquest`          LCAO pseudopotential code 
 :mod:`~ase.calculators.emt`               Effective Medium Theory calculator
 lj                                        Lennard-Jones potential
 morse                                     Morse potential
@@ -322,6 +323,7 @@ the :meth:`set` method:
    siesta
    turbomole
    vasp
+   conquest
    qmmm
    checkpointing
    mixing
