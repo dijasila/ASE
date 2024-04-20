@@ -7,7 +7,7 @@ from ase.lattice import HEX2D
 
 
 def test_repeat_transpose_bz(testdir, datadir) -> None:
-    """Testint plot_bz."""
+    """Testing plot_bz."""
 
     hex2d = HEX2D(a=1.0)
     r = Rotation.from_rotvec([0, 0, np.deg2rad(10)])
