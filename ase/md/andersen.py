@@ -1,10 +1,10 @@
 """Andersen dynamics class."""
 from typing import IO, Optional, Union
 
-from numpy import cos, log, ones, pi, random, repeat
+from numpy import cos, log, ones, pi, repeat
 
 from ase import Atoms, units
-from ase.md.md import MolecularDynamics
+from ase.md.md import MolecularDynamics, DEFAULT_RNG
 from ase.parallel import DummyMPI, world
 
 
@@ -17,13 +17,9 @@ class Andersen(MolecularDynamics):
         timestep: float,
         temperature_K: float,
         andersen_prob: float,
-        fixcm: bool = True,
-        trajectory: Optional[str] = None,
-        logfile: Optional[Union[IO, str]] = None,
-        loginterval: int = 1,
+        fix_com: bool = True,
         communicator=world,
-        rng=random,
-        append_trajectory: bool = False,
+        rng=DEFAULT_RNG,
     ):
         """"
         Parameters:
@@ -41,7 +37,7 @@ class Andersen(MolecularDynamics):
             A random collision probability, typically 1e-4 to 1e-1.
             With this probability atoms get assigned random velocity components.
 
-        fixcm: bool (optional)
+        fix_com: bool (optional)
             If True, the position and momentum of the center of mass is
             kept unperturbed.  Default: True.
 
@@ -78,14 +74,12 @@ class Andersen(MolecularDynamics):
         """
         self.temp = units.kB * temperature_K
         self.andersen_prob = andersen_prob
-        self.fix_com = fixcm
+        self.fix_com = fix_com
         self.rng = rng
         if communicator is None:
             communicator = DummyMPI()
         self.communicator = communicator
-        MolecularDynamics.__init__(self, atoms, timestep, trajectory,
-                                   logfile, loginterval,
-                                   append_trajectory=append_trajectory)
+        MolecularDynamics.__init__(self, atoms, timestep)
 
     def set_temperature(self, temperature_K):
         self.temp = units.kB * temperature_K
@@ -97,10 +91,51 @@ class Andersen(MolecularDynamics):
         self.dt = timestep
 
     def boltzmann_random(self, width, size):
-        x = self.rng.random_sample(size=size)
-        y = self.rng.random_sample(size=size)
+        x = self.rng.random(size=size)
+        y = self.rng.random(size=size)
         z = width * cos(2 * pi * x) * (-2 * log(1 - y))**0.5
         return z
+    
+    def todict(self):
+        return {
+            "type": "molecular-dynamics",
+            "md-type": self.__class__.__name__,
+            "dt": self.dt,
+            "nsteps": self.nsteps,
+            "temp": self.temp,
+            "andersen_prob": self.andersen_prob,
+            "fix_com": self.fix_com,
+            "nsteps": self.nsteps,
+            "rng_state": self.rng.bit_generator.state,
+            "forces": self.atoms.get_forces(),
+            "atoms": self.atoms,
+            "max_steps": self.max_steps,
+        }
+
+    @classmethod
+    def fromdict(cls, dict):
+
+        rng = DEFAULT_RNG
+        rng.bit_generator.state = dict["rng_state"]
+
+        atoms = dict["atoms"]
+
+        # Create a new instance of Andersen
+        dyn = cls(
+            atoms=atoms,
+            timestep=dict["dt"],
+            temperature_K=dict["temp"] / units.kB,
+            andersen_prob=dict["andersen_prob"],
+            fix_com=dict["fix_com"],
+            rng=rng,
+        )
+
+        dyn.nsteps = dict["nsteps"]
+        dyn.max_steps = dict["max_steps"]
+
+        dyn.restart_properties["forces"] = dict["forces"]
+
+        return dyn
 
     def get_maxwell_boltzmann_velocities(self):
         natoms = len(self.atoms)
@@ -135,13 +170,14 @@ class Andersen(MolecularDynamics):
 
         # apply Andersen thermostat
         self.random_velocity = self.get_maxwell_boltzmann_velocities()
-        self.andersen_chance = self.rng.random_sample(size=self.v.shape)
+        self.andersen_chance = self.rng.random(size=self.v.shape)
         self.communicator.broadcast(self.random_velocity, 0)
         self.communicator.broadcast(self.andersen_chance, 0)
         self.v[self.andersen_chance <= self.andersen_prob] \
             = self.random_velocity[self.andersen_chance <= self.andersen_prob]
 
         x = atoms.get_positions()
+
         if self.fix_com:
             old_com = atoms.get_center_of_mass()
             self.v -= self._get_com_velocity(self.v)
@@ -152,6 +188,7 @@ class Andersen(MolecularDynamics):
 
         # recalc velocities after RATTLE constraints are applied
         self.v = (atoms.get_positions() - x) / self.dt
+
         forces = atoms.get_forces(md=True)
 
         # Update the velocities
