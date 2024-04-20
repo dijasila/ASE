@@ -1230,16 +1230,15 @@ def _read_charges(fd):
     fd.readline()
     charges = []
     magmoms = []
-    while True:
-        line = fd.readline()
+    for line in fd:
         if not line.strip()[0].isdigit():
             break
         charges.append(float(line.split()[2]))
         if len(line.split()) > 3:
             magmoms.append(float(line.split()[3]))
-    if len(magmoms) == 0:
-        return {'charges': charges}
-    return {'charges': charges, 'magmoms': magmoms}
+    if magmoms:
+        return {'charges': charges, 'magmoms': magmoms}
+    return {'charges': charges}
 
 
 def read_gaussian_out(fd, index=-1):
