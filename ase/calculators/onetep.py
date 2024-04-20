@@ -53,7 +53,7 @@ class OnetepProfile(BaseProfile):
 class OnetepTemplate(CalculatorTemplate):
     _label = 'onetep'
 
-    def __init__(self, append):
+    def __init__(self, append=False, timeout=None):
         super().__init__(
             'ONETEP',
             implemented_properties=[
@@ -65,10 +65,11 @@ class OnetepTemplate(CalculatorTemplate):
         self.outputname = f'{self._label}.out'
         self.errorname = f'{self._label}.err'
         self.append = append
+        self.timeout = timeout
 
     def execute(self, directory, profile):
-        profile.run(directory, self.inputname, self.outputname,
-                    self.errorname, append=self.append)
+        profile.run(directory, self.input, self.output, self.error,
+                    append=self.append, timeout=self.timeout)
 
     def read_results(self, directory):
         output_path = directory / self.outputname
@@ -155,7 +156,8 @@ class Onetep(GenericFileIOCalculator):
 
         self.keywords = kwargs.get('keywords', None)
         self.template = OnetepTemplate(
-            append=kwargs.pop('append', False)
+            append=kwargs.pop('append', False),
+            timeout=kwargs.pop('timeout', None)
         )
 
         if 'ASE_ONETEP_COMMAND' in environ and profile is None:

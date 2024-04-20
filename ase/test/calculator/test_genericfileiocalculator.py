@@ -1,8 +1,9 @@
 """Test suite for ase.calculators.GenericFileIOCalculator"""
 
-import pytest
+from subprocess import TimeoutExpired
 
-from ase.calculators.genericfileio import GenericFileIOCalculator
+import pytest
+from ase.calculators.genericfileio import BaseProfile, GenericFileIOCalculator
 from ase.config import Config, cfg
 
 
@@ -60,3 +61,24 @@ def test_run_command(
         **calculator_kwargs
     )
     assert calc.profile.get_command(inputfile="") == result_command
+
+
+def test_timeout(tmp_path):
+    """A test for the timeout handling"""
+
+    class DummyProfile(BaseProfile):
+        def __init__(self, binary, **kwargs):
+            super().__init__(**kwargs)
+            self.binary = binary
+
+        def get_calculator_command(self, inputfile):
+            return [self.binary, str(inputfile)]
+
+        def version(self):
+            pass
+
+    profile = DummyProfile(binary="sleep")
+    profile.run(tmp_path, "0.01", "dummy", timeout=0.1)
+
+    with pytest.raises(TimeoutExpired):
+        profile.run(tmp_path, "0.1", "dummy", timeout=0.01)

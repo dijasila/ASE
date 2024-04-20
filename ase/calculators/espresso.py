@@ -59,7 +59,7 @@ class EspressoProfile(BaseProfile):
 class EspressoTemplate(CalculatorTemplate):
     _label = 'espresso'
 
-    def __init__(self):
+    def __init__(self, timeout=None):
         super().__init__(
             'espresso',
             ['energy', 'free_energy', 'forces', 'stress', 'magmoms', 'dipole'],
@@ -67,6 +67,7 @@ class EspressoTemplate(CalculatorTemplate):
         self.inputname = f'{self._label}.pwi'
         self.outputname = f'{self._label}.pwo'
         self.errorname = f"{self._label}.err"
+        self.timeout = timeout
 
     def write_input(self, profile, directory, atoms, parameters, properties):
         dst = directory / self.inputname
@@ -87,7 +88,7 @@ class EspressoTemplate(CalculatorTemplate):
 
     def execute(self, directory, profile):
         profile.run(directory, self.inputname, self.outputname,
-                    errorfile=self.errorname)
+                    errorfile=self.errorname, timeout=self.timeout)
 
     def read_results(self, directory):
         path = directory / self.outputname
@@ -212,7 +213,7 @@ class Espresso(GenericFileIOCalculator):
 
             warnings.warn(compatibility_msg, FutureWarning)
 
-        template = EspressoTemplate()
+        template = EspressoTemplate(timeout=kwargs.pop('timeout', None))
         super().__init__(
             profile=profile,
             template=template,
