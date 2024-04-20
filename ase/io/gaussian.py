@@ -1228,17 +1228,15 @@ def _compare_merge_configs(configs, new):
 
 def _read_charges(fd):
     fd.readline()
-    charges = []
-    magmoms = []
+    qs = []
+    ms = []
     for line in fd:
         if not line.strip()[0].isdigit():
             break
-        charges.append(float(line.split()[2]))
+        qs.append(float(line.split()[2]))
         if len(line.split()) > 3:
-            magmoms.append(float(line.split()[3]))
-    if magmoms:
-        return {'charges': charges, 'magmoms': magmoms}
-    return {'charges': charges}
+            ms.append(float(line.split()[3]))
+    return {'charges': qs, 'magmoms': ms} if ms else {'charges': qs}
 
 
 def read_gaussian_out(fd, index=-1):
