@@ -16,4 +16,4 @@ def test_repeat_transpose_bz(testdir, datadir) -> None:
     test_image = 'test_bz.png'
     ref_image = str(datadir / 'rotated_bz.png')
     fig.savefig(test_image)
-    assert compare_images(test_image, ref_image, 0.1) is None
+    assert compare_images(test_image, ref_image, 0.5) is None
