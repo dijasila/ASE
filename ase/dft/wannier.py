@@ -134,7 +134,7 @@ def md_min(func, step=.25, tolerance=1e-6, max_iter=10000,
     log(f'Initial value={finit}, Final value={fvalue}')
 
 
-def rotation_from_projection(proj_nw, fixed, ortho=True):
+def rotation_from_projection(proj_nw, fixed_m, ortho=True):
     """Determine rotation and coefficient matrices from projections
 
     proj_nw = <psi_n|p_w>
@@ -146,9 +146,15 @@ def rotation_from_projection(proj_nw, fixed, ortho=True):
     M  (f) = Number of fixed states
     L  (l) = Number of extra degrees of freedom
     U  (u) = Number of non-fixed states
+    fixed_n = band indices of fixed subspace
     """
 
     Nb, Nw = proj_nw.shape
+    if isinstance(fixed_m, (int, np.integer)):
+        fixed = fixed_m
+        fixed_m = range(fixed)
+    else:
+        fixed = len(fixed_m)
     M = fixed
     L = Nw - M
     U = Nb - M
@@ -156,14 +162,16 @@ def rotation_from_projection(proj_nw, fixed, ortho=True):
     U_ww = np.empty((Nw, Nw), dtype=proj_nw.dtype)
 
     # Set the section of the rotation matrix about the 'fixed' states
-    U_ww[:M] = proj_nw[:M]
+    U_ww[:M] = proj_nw[fixed_m]
 
     if L > 0:
         # If there are extra degrees of freedom we have to select L of them
         C_ul = np.empty((U, L), dtype=proj_nw.dtype)
 
         # Get the projections on the 'non fixed' states
-        proj_uw = proj_nw[M:]
+        nonfixed_n = np.ones(Nb, dtype=bool)
+        nonfixed_n[fixed_m] = False
+        proj_uw = proj_nw[nonfixed_n]
 
         # Obtain eigenvalues and eigevectors matrix
         eig_w, C_ww = np.linalg.eigh(dag(proj_uw) @ proj_uw)
@@ -198,7 +206,7 @@ def search_for_gamma_point(kpts):
     return gamma_idx
 
 
-def scdm(pseudo_nkG, kpts, fixed_k, Nw):
+def scdm(pseudo_nkG, kpts, fixed_km, Nw):
     """Compute localized orbitals with SCDM method
 
     This method was published by Anil Damle and Lin Lin in Multiscale
@@ -213,7 +221,7 @@ def scdm(pseudo_nkG, kpts, fixed_k, Nw):
     Nk (k) = Number of k-points
     Nb (n) = Number of bands
     Nw (w) = Number of wannier functions
-    fixed_k = Number of fixed states for each k-point
+    fixed_km = fixed states for each k-point
     L  (l) = Number of extra degrees of freedom
     U  (u) = Number of non-fixed states
     """
@@ -230,7 +238,7 @@ def scdm(pseudo_nkG, kpts, fixed_k, Nw):
     for k in range(Nk):
         A_nw = pseudo_nkG[:, k, P[:Nw]]
         U_ww, C_ul = rotation_from_projection(proj_nw=A_nw,
-                                              fixed=fixed_k[k],
+                                              fixed_m=fixed_km[k],
                                               ortho=True)
         U_kww.append(U_ww)
         C_kul.append(C_ul)
@@ -371,32 +379,55 @@ def get_invkklst(kklst_dk):
 
 def choose_states(calcdata, fixedenergy, fixedstates, Nk, nwannier, log, spin):
 
-    if fixedenergy is None and fixedstates is not None:
-        if isinstance(fixedstates, int):
-            fixedstates = [fixedstates] * Nk
-        fixedstates_k = np.array(fixedstates, int)
-    elif fixedenergy is not None and fixedstates is None:
-        # Setting number of fixed states and EDF from given energy cutoff.
-        # All states below this energy cutoff are fixed.
-        # The reference energy is Ef for metals and CBM for insulators.
-        if calcdata.gap < 0.01 or fixedenergy < 0.01:
-            cutoff = fixedenergy + calcdata.fermi_level
-        else:
-            cutoff = fixedenergy + calcdata.lumo
-
-        # Find the states below the energy cutoff at each k-point
-        tmp_fixedstates_k = []
-        for k in range(Nk):
-            eps_n = calcdata.eps_skn[spin, k]
-            kindex = eps_n.searchsorted(cutoff)
-            tmp_fixedstates_k.append(kindex)
-        fixedstates_k = np.array(tmp_fixedstates_k, int)
-    elif fixedenergy is not None and fixedstates is not None:
+    if fixedenergy is not None and fixedstates is not None:
         raise RuntimeError(
             'You can not set both fixedenergy and fixedstates')
 
-    if nwannier == 'auto':
-        if fixedenergy is None and fixedstates is None:
+    if fixedstates is not None:
+        assert isinstance(fixedstates, (list, np.ndarray, int, range))
+        if isinstance(fixedstates, range):
+            fixedstates_km = [fixedstates] * Nk
+            fixedstates_k = [len(fixedstates)] * Nk
+        elif isinstance(fixedstates, int):
+            fixedstates_k = [fixedstates] * Nk
+            fixedstates_km = [range(fs) for fs in fixedstates_k]
+        elif isinstance(fixedstates, (list, np.ndarray)):
+            assert len(fixedstates) == Nk
+            fixedstates_k = fixedstates
+            fixedstates_km = [range(fs) for fs in fixedstates_k]
+        fixedstates_k = np.array(fixedstates_k, int)
+
+    elif fixedenergy is not None:
+
+        if isinstance(fixedenergy, (list, np.ndarray)):
+            assert len(fixedenergy) == 2
+            if calcdata.gap < 0.01:
+                offset = calcdata.fermi_level
+            else:
+                offset = calcdata.lumo
+            cutoff_min = fixedenergy[0] + offset
+            cutoff_max = fixedenergy[1] + offset
+        else:
+            # Setting number of fixed states and EDF from given energy cutoff.
+            # All states below this energy cutoff are fixed.
+            # The reference energy is Ef for metals and CBM for insulators.
+            if calcdata.gap < 0.01 or fixedenergy < 0.01:
+                cutoff_max = fixedenergy + calcdata.fermi_level
+            else:
+                cutoff_max = fixedenergy + calcdata.lumo
+            cutoff_min = -np.inf
+
+        # Find the states below the energy cutoff at each k-point
+        fixedstates_km = []
+        for k in range(Nk):
+            eps_n = calcdata.eps_skn[spin, k]
+            start_index = eps_n.searchsorted(cutoff_min)
+            end_index = eps_n.searchsorted(cutoff_max)
+            fixedstates_km.append(range(start_index, end_index))
+        fixedstates_k = np.array([len(fs_m) for fs_m in fixedstates_km], int)
+
+    elif fixedstates is None and fixedenergy is None:
+        if nwannier == 'auto':
             # Assume the fixedexergy parameter equal to 0 and
             # find the states below the Fermi level at each k-point.
             log("nwannier=auto but no 'fixedenergy' or 'fixedstates'",
@@ -407,14 +438,19 @@ def choose_states(calcdata, fixedenergy, fixedstates, Nk, nwannier, log, spin):
                 eps_n = calcdata.eps_skn[spin, k]
                 kindex = eps_n.searchsorted(calcdata.fermi_level)
                 tmp_fixedstates_k.append(kindex)
-            fixedstates_k = np.array(tmp_fixedstates_k, int)
-        nwannier = np.max(fixedstates_k)
+            nwannier = np.max(np.array(tmp_fixedstates_k, int))
+        fixedstates_k = np.array([nwannier] * Nk, int)
+        fixedstates_km = [range(fs) for fs in fixedstates_k]
 
     # Without user choice just set nwannier fixed states without EDF
-    if fixedstates is None and fixedenergy is None:
-        fixedstates_k = np.array([nwannier] * Nk, int)
+    if nwannier == 'auto':
+        nwannier = max([max(fs_m) for fs_m in fixedstates_km]) + 1
 
-    return fixedstates_k, nwannier
+    if nwannier < np.max(fixedstates_k):
+        raise ValueError('Not enough Wannier functions to cover fixed energy'
+                         ' window! For the specified window, there must be at'
+                         f' least {np.max(fixedstates_k)} wannier functions')
+    return fixedstates_k, nwannier, fixedstates_km
 
 
 def get_eigenvalues(calc):
@@ -506,7 +542,7 @@ class Wannier:
           ``fixedenergy`` / ``fixedstates``: Fixed part of Hilbert space.
             Determine the fixed part of Hilbert space by either a maximal
             energy *or* a number of bands (possibly a list for multiple
-            k-points).
+            k-points) *or* a range of bands, which is common to all k-points.
             Default is None meaning that the number of fixed states is equated
             to ``nwannier``.
             The maximal energy is relative to the CBM if there is a finite
@@ -555,13 +591,24 @@ class Wannier:
             # Is this case properly tested, lest we confuse them?
             nbands = self.calcdata.nbands
         self.nbands = nbands
-
-        self.fixedstates_k, self.nwannier = choose_states(
+        Nk = len(self.calcdata.kpt_kc)
+        if isinstance(fixedstates, range):
+            self.use_nondefault_bands = True
+        else:
+            self.use_nondefault_bands = False
+        self.fixedstates_k, self.nwannier, self.fixedstates_km = choose_states(
             self.calcdata, fixedenergy, fixedstates, self.Nk, nwannier,
             log, spin)
-
         # Compute the number of extra degrees of freedom (EDF)
         self.edf_k = self.nwannier - self.fixedstates_k
+        # self.edf_km = []
+        nonfixed_kn = np.ones((Nk, nbands), dtype=bool)
+        for k, fixedstates_m in enumerate(self.fixedstates_km):
+            #  edf_start_idx = fixedstates_m[-1] + 1
+            #  self.edf_km.append(range(edf_start_idx,
+            #  edf_start_idx + self.edf_k[k]))
+            nonfixed_kn[k, fixedstates_m] = False
+        self.nonfixed_kn = nonfixed_kn
 
         self.log(f'Wannier: Fixed states            : {self.fixedstates_k}')
         self.log(f'Wannier: Extra degrees of freedom: {self.edf_k}')
@@ -626,10 +673,8 @@ class Wannier:
         Keywords are identical to those of the constructor.
         """
         from ase.dft.wannierstate import WannierSpec, WannierState
-
         spec = WannierSpec(self.Nk, self.nwannier, self.nbands,
-                           self.fixedstates_k)
-
+                           self.fixedstates_km)
         if file is not None:
             with paropen(file, 'r') as fd:
                 Z_dknn, U_kww, C_kul = read_json(fd, always_array=False)
@@ -661,10 +706,12 @@ class Wannier:
 
     def update(self):
         # Update large rotation matrix V (from rotation U and coeff C)
-        for k, M in enumerate(self.fixedstates_k):
-            self.V_knw[k, :M] = self.U_kww[k, :M]
+        for k, fixed_m in enumerate(self.fixedstates_km):
+            M = len(fixed_m)
+            nonfixed_n = self.nonfixed_kn[k]
+            self.V_knw[k, fixed_m] = self.U_kww[k, :M]
             if M < self.nwannier:
-                self.V_knw[k, M:] = self.C_kul[k] @ self.U_kww[k, M:]
+                self.V_knw[k, nonfixed_n] = self.C_kul[k] @ self.U_kww[k, M:]
             # else: self.V_knw[k, M:] = 0.0
 
         # Calculate the Zk matrix from the large rotation matrix:
@@ -695,9 +742,9 @@ class Wannier:
         useful to increase the speed, with a cost in accuracy.
         """
 
-        # Define the range of values to try based on the maximum number of fixed
-        # states (that is the minimum number of WFs we need) and the number of
-        # available bands we have.
+        # Define the range of values to try based on the maximum number of
+        # fixed states (that is the minimum number of WFs we need) and the
+        # number of available bands we have.
         max_number_fixedstates = np.max(self.fixedstates_k)
 
         min_range_value = max(self.nwannier - int(np.floor(nwrange / 2)),
@@ -1164,7 +1211,7 @@ class Wannier:
             if L > 0:
                 # Ctemp now has same dimension as V, the gradient is in the
                 # lower-right (Nb-M) x L block
-                Ctemp_ul = Ctemp_nw[M:, M:]
+                Ctemp_ul = Ctemp_nw[self.nonfixed_kn[k], M:]
                 G_ul = Ctemp_ul - ((C_ul @ dag(C_ul)) @ Ctemp_ul)
                 dC.append(G_ul.ravel())
 
